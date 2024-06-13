@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 pub mod non_primitive;
@@ -28,7 +30,7 @@ impl ObjectMember {
         let v = match self.get_value() {
             IPklValue::NonPrimitive(np) => match np {
                 PklNonPrimitive::TypedDynamic(_, _, _, children) => {
-                    let nested = children.serialize_json()?;
+                    let nested = children.serialize_pkl()?;
                     // nested.into()
                     // rmpv::Value::Map(
                     //     nested
@@ -36,7 +38,7 @@ impl ObjectMember {
                     //         .map(|(k, v)| (rmpv::Value::String(k.in), v.to_owned()))
                     //         .collect(),
                     // )
-                    PklValue::Map
+                    PklValue::Map(nested)
                     // IPklValue::NonPrimitive(PklNonPrimitive::Mapping(0, nested.into()))
                 }
                 PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
@@ -47,26 +49,44 @@ impl ObjectMember {
                 }
                 PklNonPrimitive::Mapping(_, m) => {
                     // IPklValue::Primitive(m.to_owned())
-                    PklValue::Map
+                    PklValue::Map(BTreeMap::new())
                 }
             },
             // IPklValue::Primitive(p) => serde_json::to_value(p)?,
             IPklValue::Primitive(p) => {
                 // p.to_owned(),
-                PklValue::Map
+                match p {
+                    PklPrimitive::Int(i) => PklValue::Int,
+                    PklPrimitive::Float(f) => PklValue::Int,
+                    PklPrimitive::String(s) => PklValue::String(s.to_string()),
+                    PklPrimitive::Bool(b) => PklValue::Boolean(*b),
+                    PklPrimitive::Null => PklValue::Int,
+                }
+                // PklValue::Map(BTreeMap::new())
             }
         };
+
         Ok((self.get_ident().to_owned(), v))
     }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PklValue {
-    Map,
+    Map(BTreeMap<String, PklValue>),
     List,
-    String,
+    String(String),
     Int,
+    Boolean(bool),
     // Container,
+}
+
+impl PklValue {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            PklValue::String(s) => Some(s),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

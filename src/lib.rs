@@ -50,8 +50,17 @@ where
         // let json = pkl_mod.serialize_json()?;
         let pkld = pkl_mod.serialize_pkl()?;
         println!("{:?}", pkld);
+
+        // let valu = serde_json::Value::Object(serde_json::Map::new());
+
+        if let Some(ip) = pkld.get("ip") {
+            let s = ip.as_str().unwrap();
+            println!("{}", s);
+            // println!("{}", s[0..1].to_string());
+            // println!("{}", ip.as_str().unwrap());
+        }
         // let v: T = serde_json::from_value(serde_json::Value::Object(json))?;
         // let v = serde_
-        Ok(String::new())
+        Ok("".into())
     }
 }

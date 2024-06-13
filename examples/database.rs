@@ -20,5 +20,6 @@ fn main() {
         .join("examples")
         .join("example.pkl");
     let value = pkl_rs::value_from_config::<Config>(path);
+
     // println!("{:?}", pkl_rs::value_from_config::<Config>(path));
 }

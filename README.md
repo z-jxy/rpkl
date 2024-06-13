@@ -6,14 +6,29 @@ Requires the pkl binary to be available on your path. You can install pkl for yo
 
 ## Usage
 
+```pkl
+ip = "127.0.0.1"
+
+database {
+    username = "admin"
+    password = "secret"
+}
+```
+
 ```rust
+#[derive(Deserialize)]
+struct Config {
+    ip: String,
+    database: Database,
+}
+
 #[derive(Deserialize)]
 struct Database {
     username: String,
     password: String,
 }
 
-let config: Database = pkl_rs::value_from_config("./config.pkl")?;
+let config: Config = pkl_rs::value_from_config("./config.pkl")?;
 ```
 
 ## Codegen

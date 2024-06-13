@@ -140,7 +140,12 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
 
 fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
     match value {
-        rmpv::Value::String(s) => Ok(PklPrimitive::String(s.to_string())),
+        rmpv::Value::String(s) => {
+            let Some(s) = s.as_str() else {
+                return Err(anyhow::anyhow!("expected valid UTF-8 string, got {:?}", s));
+            };
+            return Ok(PklPrimitive::String(s.to_string()));
+        }
         rmpv::Value::Boolean(b) => Ok(PklPrimitive::Bool(b.to_owned())),
         rmpv::Value::Nil => Ok(PklPrimitive::Null),
         rmpv::Value::Integer(n) => {

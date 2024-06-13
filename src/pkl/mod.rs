@@ -24,22 +24,49 @@ impl ObjectMember {
     /// # Returns
     ///
     /// A tuple containing the member's identifier and its JSON value
-    fn to_json(&self) -> anyhow::Result<(String, serde_json::Value)> {
-        let v: serde_json::Value = match self.get_value() {
+    fn to_json(&self) -> anyhow::Result<(String, PklValue)> {
+        let v = match self.get_value() {
             IPklValue::NonPrimitive(np) => match np {
                 PklNonPrimitive::TypedDynamic(_, _, _, children) => {
                     let nested = children.serialize_json()?;
-                    nested.into()
+                    // nested.into()
+                    // rmpv::Value::Map(
+                    //     nested
+                    //         .iter()
+                    //         .map(|(k, v)| (rmpv::Value::String(k.in), v.to_owned()))
+                    //         .collect(),
+                    // )
+                    PklValue::Map
+                    // IPklValue::NonPrimitive(PklNonPrimitive::Mapping(0, nested.into()))
                 }
                 PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
-                    serde_json::Value::Array(items.to_vec())
+                    // serde_json::Value::Array(items.to_vec())
+                    // items.to_vec()
+                    // rmpv::Value::Array(items.iter().map(|i| i.to_owned()))
+                    PklValue::List
                 }
-                PklNonPrimitive::Mapping(_, m) => m.to_owned(),
+                PklNonPrimitive::Mapping(_, m) => {
+                    // IPklValue::Primitive(m.to_owned())
+                    PklValue::Map
+                }
             },
-            IPklValue::Primitive(p) => serde_json::to_value(p)?,
+            // IPklValue::Primitive(p) => serde_json::to_value(p)?,
+            IPklValue::Primitive(p) => {
+                // p.to_owned(),
+                PklValue::Map
+            }
         };
         Ok((self.get_ident().to_owned(), v))
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum PklValue {
+    Map,
+    List,
+    String,
+    Int,
+    // Container,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -62,8 +89,13 @@ pub enum PklPrimitive {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PklNonPrimitive {
+    // TypedDynamic(u64, String, String, Vec<ObjectMember>),
+    // List(u64, Vec<serde_json::Value>),
+    // Mapping(u64, serde_json::Value),
+    // Set(u64, Vec<serde_json::Value>),
     TypedDynamic(u64, String, String, Vec<ObjectMember>),
-    List(u64, Vec<serde_json::Value>),
-    Mapping(u64, serde_json::Value),
-    Set(u64, Vec<serde_json::Value>),
+    // TODO: use a serde deserialize
+    List(u64, Vec<PklPrimitive>),
+    Mapping(u64, PklPrimitive),
+    Set(u64, Vec<PklPrimitive>),
 }

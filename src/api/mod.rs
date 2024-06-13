@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
+
 use serde_json::Value;
 
-use crate::pkl::{IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive};
+use crate::pkl::{IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue};
 pub mod evaluator;
 pub mod loader;
 pub use evaluator::Evaluator;
@@ -9,7 +11,7 @@ use crate::pkl::non_primitive::{self};
 
 fn parse_member_inner(
     type_id: u64,
-    slots: &mut std::slice::Iter<Value>,
+    slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> anyhow::Result<ObjectMember> {
     let ident = slots
         .next()
@@ -23,7 +25,7 @@ fn parse_member_inner(
     let value = slots.next().expect("[parse_member_inner] expected value");
 
     // nested object, map using the outer ident
-    if let Value::Array(array) = value {
+    if let rmpv::Value::Array(array) = value {
         let pkl_value = eval_inner_bin_array(&array)?;
         return Ok(ObjectMember(type_id, ident, pkl_value));
     }
@@ -37,7 +39,7 @@ fn parse_member_inner(
     ))
 }
 
-fn parse_non_prim_member(type_id: u64, slots: &[Value]) -> anyhow::Result<PklNonPrimitive> {
+fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<PklNonPrimitive> {
     match type_id {
         non_primitive::code::TYPED_DYNAMIC => {
             let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
@@ -64,12 +66,17 @@ fn parse_non_prim_member(type_id: u64, slots: &[Value]) -> anyhow::Result<PklNon
         non_primitive::code::SET => {
             let values = &slots[0];
             let values = values.as_array().unwrap().to_vec();
+            let values = values
+                .iter()
+                .map(|v| parse_primitive_member(v))
+                .collect::<anyhow::Result<Vec<PklPrimitive>>>()?;
             return Ok(PklNonPrimitive::Set(type_id, values));
         }
         non_primitive::code::MAPPING | non_primitive::code::MAP => {
             let values = &slots[0];
-            let mut mapping = serde_json::Map::new();
-            let values = values.as_object().unwrap();
+            // let mut mapping = serde_json::Map::new();
+            let mut mapping = BTreeMap::new();
+            let values = values.as_map().unwrap();
             for (k, v) in values.iter() {
                 if let Some(array) = v.as_array() {
                     // parse the inner object
@@ -80,23 +87,26 @@ fn parse_non_prim_member(type_id: u64, slots: &[Value]) -> anyhow::Result<PklNon
                         members,
                     )) = &eval_inner_bin_array(array)?
                     {
-                        let mut fields = serde_json::Map::new();
+                        // let mut fields = serde_json::Map::new();
+                        let mut fields = BTreeMap::new();
                         for member in members {
-                            fields.insert(
-                                member.get_ident().to_string(),
-                                serde_json::to_value(member.get_value())?,
-                            );
+                            fields.insert(member.get_ident().to_string(), member.get_value());
                         }
-                        mapping.insert(k.to_owned(), serde_json::to_value(fields)?);
+                        let x = PklValue::Map;
+                        mapping.insert(k.to_string(), x);
+                        // mapping.insert(k.to_string(), serde_json::to_value(fields)?);
                     }
                 } else {
-                    mapping.insert(k.to_owned(), v.to_owned());
+                    // let primitive = parse_primitive_member(v)?;
+                    let x = PklValue::Map;
+                    mapping.insert(k.to_string(), x);
                 }
             }
-
+            let x = PklValue::Map;
+            let y = PklPrimitive::String("".to_string());
             return Ok(PklNonPrimitive::Mapping(
-                type_id,
-                serde_json::Value::Object(mapping),
+                type_id, y,
+                // serde_json::Value::Object(mapping),
             ));
         }
 
@@ -107,6 +117,10 @@ fn parse_non_prim_member(type_id: u64, slots: &[Value]) -> anyhow::Result<PklNon
                 .as_array()
                 .expect(&format!("Expected array, got {:?}", values))
                 .to_vec();
+            let values = values
+                .iter()
+                .map(|v| parse_primitive_member(v))
+                .collect::<anyhow::Result<Vec<PklPrimitive>>>()?;
 
             return Ok(PklNonPrimitive::List(type_id, values));
         }
@@ -124,13 +138,13 @@ fn parse_non_prim_member(type_id: u64, slots: &[Value]) -> anyhow::Result<PklNon
     }
 }
 
-fn parse_primitive_member(value: &Value) -> anyhow::Result<PklPrimitive> {
+fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
     match value {
-        Value::String(s) => Ok(PklPrimitive::String(s.to_owned())),
-        Value::Bool(b) => Ok(PklPrimitive::Bool(b.to_owned())),
-        Value::Null => Ok(PklPrimitive::Null),
-        Value::Number(n) => {
-            if n.is_f64() {
+        rmpv::Value::String(s) => Ok(PklPrimitive::String(s.to_string())),
+        rmpv::Value::Boolean(b) => Ok(PklPrimitive::Bool(b.to_owned())),
+        rmpv::Value::Nil => Ok(PklPrimitive::Null),
+        rmpv::Value::Integer(n) => {
+            if n.as_f64().is_some() {
                 Ok(PklPrimitive::Float(n.as_f64().unwrap()))
             } else {
                 Ok(PklPrimitive::Int(n.as_i64().unwrap()))
@@ -142,7 +156,7 @@ fn parse_primitive_member(value: &Value) -> anyhow::Result<PklPrimitive> {
     }
 }
 
-fn eval_inner_bin_array(slots: &[Value]) -> anyhow::Result<IPklValue> {
+fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
     let type_id = slots
         // .next()
         [0]
@@ -161,7 +175,7 @@ fn eval_inner_bin_array(slots: &[Value]) -> anyhow::Result<IPklValue> {
     Ok(IPklValue::NonPrimitive(non_prim))
 }
 
-fn parse_pkl_obj_member(data: &[Value]) -> anyhow::Result<ObjectMember> {
+fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
     let mut slots = data.iter();
     let type_id = slots
         .next()
@@ -179,13 +193,34 @@ fn parse_pkl_obj_member(data: &[Value]) -> anyhow::Result<ObjectMember> {
     return parse_member_inner(type_id, &mut slots);
 }
 
-pub fn pkl_eval_module(decoded: Value) -> anyhow::Result<PklMod> {
+// pub fn pkl_eval_module(decoded: Value) -> anyhow::Result<PklMod> {
+//     let root = decoded.as_array().unwrap();
+//     let module_name = root.get(1).expect("expected root level module name");
+//     let module_uri = root.get(2).expect("expected root level module uri");
+//     let children = root.last().expect("expected children");
+
+//     let pkl_module: Vec<Value> = serde_json::from_value(children.to_owned())?;
+
+//     let members = pkl_module
+//         .iter()
+//         .map(|f| parse_pkl_obj_member(f.as_array().unwrap()))
+//         .collect::<anyhow::Result<Vec<ObjectMember>>>()?;
+
+//     Ok(PklMod {
+//         _module_name: module_name.as_str().unwrap().to_string(),
+//         _module_uri: module_uri.as_str().unwrap().to_string(),
+//         members,
+//     })
+// }
+
+pub fn pkl_eval_module2(decoded: rmpv::Value) -> anyhow::Result<PklMod> {
     let root = decoded.as_array().unwrap();
     let module_name = root.get(1).expect("expected root level module name");
     let module_uri = root.get(2).expect("expected root level module uri");
     let children = root.last().expect("expected children");
 
-    let pkl_module: Vec<Value> = serde_json::from_value(children.to_owned())?;
+    // let pkl_module: Vec<Value> = serde_json::from_value(children.to_owned())?;
+    let pkl_module = children.as_array().unwrap();
 
     let members = pkl_module
         .iter()

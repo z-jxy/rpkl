@@ -19,5 +19,6 @@ fn main() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("examples")
         .join("example.pkl");
-    println!("{:?}", pkl_rs::value_from_config::<Config>(path));
+    let value = pkl_rs::value_from_config::<Config>(path);
+    // println!("{:?}", pkl_rs::value_from_config::<Config>(path));
 }

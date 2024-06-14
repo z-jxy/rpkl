@@ -5,10 +5,7 @@ use serde::{de, ser};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-// This is a bare-bones implementation. A real library would provide additional
-// information in its error type, for example the line and column at which the
-// error occurred, the byte offset into the input, or the current key being
-// processed.
+// This is a bare-bones implementation.
 #[derive(Debug)]
 pub enum Error {
     // One or more variants that can be created by data structures through the

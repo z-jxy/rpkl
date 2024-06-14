@@ -10,12 +10,12 @@ use crate::PklSerialize;
 pub(crate) struct ObjectMember(pub u64, pub String, pub IPklValue);
 
 impl ObjectMember {
-    pub fn get_ident(&self) -> &str {
-        self.1.as_str()
-    }
-    pub fn get_value(&self) -> &IPklValue {
-        &self.2
-    }
+    // pub fn get_ident(&self) -> &str {
+    //     self.1.as_str()
+    // }
+    // pub fn get_value(&self) -> &IPklValue {
+    //     &self.2
+    // }
 
     pub fn take(self) -> (u64, String, IPklValue) {
         (self.0, self.1, self.2)
@@ -30,7 +30,7 @@ impl ObjectMember {
         let (_, ident, value) = self.take();
         let v = match value {
             IPklValue::NonPrimitive(np) => match np {
-                // serialize the children
+                // serialize nested children
                 PklNonPrimitive::TypedDynamic(_, _, _, children) => {
                     PklValue::Map(children.serialize_pkl_ast()?)
                 }
@@ -39,25 +39,17 @@ impl ObjectMember {
                 }
                 PklNonPrimitive::Mapping(_, m) => m,
             },
-            // IPklValue::Primitive(p) => serde_json::to_value(p)?,
-            IPklValue::Primitive(p) => {
-                // p.to_owned(),
-                match p {
-                    PklPrimitive::Int(i) => match i {
-                        Integer::Pos(u) => PklValue::Int(Integer::Pos(u)),
-                        Integer::Neg(i) => PklValue::Int(Integer::Neg(i)),
-                        Integer::Float(f) => PklValue::Int(Integer::Float(f)),
-                    },
-                    PklPrimitive::Float(f) => {
-                        println!("float: {:?}", f);
-                        PklValue::Int(Integer::Float(f))
-                    }
-                    PklPrimitive::String(s) => PklValue::String(s.to_string()),
-                    PklPrimitive::Bool(b) => PklValue::Boolean(b),
-                    PklPrimitive::Null => PklValue::Null,
-                }
-                // PklValue::Map(BTreeMap::new())
-            }
+            IPklValue::Primitive(p) => match p {
+                PklPrimitive::Int(i) => match i {
+                    Integer::Pos(u) => PklValue::Int(Integer::Pos(u)),
+                    Integer::Neg(i) => PklValue::Int(Integer::Neg(i)),
+                    Integer::Float(f) => PklValue::Int(Integer::Float(f)),
+                },
+                PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
+                PklPrimitive::String(s) => PklValue::String(s.to_string()),
+                PklPrimitive::Bool(b) => PklValue::Boolean(b),
+                PklPrimitive::Null => PklValue::Null,
+            },
         };
 
         Ok((ident, v))

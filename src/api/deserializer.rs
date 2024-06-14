@@ -8,10 +8,8 @@ use serde::de::{
 };
 use serde::{forward_to_deserialize_any, Deserialize, Deserializer as SerdeDeserializer};
 use tracing::{debug, error, span, trace, Level};
-use tracing_subscriber::field::debug;
 use tracing_subscriber::FmtSubscriber;
 
-use crate::api::deserialize::PklVisitor;
 use crate::pkl::{self, PklValue};
 
 use super::error::{Error, Result};

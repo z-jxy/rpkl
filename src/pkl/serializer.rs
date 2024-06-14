@@ -12,7 +12,7 @@ impl PklSerialize for Vec<ObjectMember> {
         let mut json_object = serde_json::Map::new();
 
         for member in self.iter() {
-            let (k, v) = member.to_json()?;
+            let (k, v) = member.to_pkl_value()?;
             json_object.insert(k, serde_json::to_value(v)?);
         }
 
@@ -23,7 +23,7 @@ impl PklSerialize for Vec<ObjectMember> {
         let mut pkl_object = BTreeMap::new();
 
         for member in self.iter() {
-            let (k, v) = member.to_json()?;
+            let (k, v) = member.to_pkl_value()?;
             pkl_object.insert(k, v);
         }
 
@@ -37,7 +37,7 @@ impl PklSerialize for PklMod {
         // let mut obj = BTreeMap::new();
 
         for member in self.members.iter() {
-            let (k, v) = member.to_json()?;
+            let (k, v) = member.to_pkl_value()?;
             // obj.insert(k, v);
             json_object.insert(k, serde_json::to_value(v)?);
             // json_object.insert(k, v);
@@ -50,7 +50,7 @@ impl PklSerialize for PklMod {
         let mut pkl_object = BTreeMap::new();
 
         for member in self.members.iter() {
-            let (k, v) = member.to_json()?;
+            let (k, v) = member.to_pkl_value()?;
             pkl_object.insert(k, v);
         }
 

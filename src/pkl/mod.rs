@@ -26,7 +26,7 @@ impl ObjectMember {
     /// # Returns
     ///
     /// A tuple containing the member's identifier and its JSON value
-    fn to_json(&self) -> anyhow::Result<(String, PklValue)> {
+    fn to_pkl_value(&self) -> anyhow::Result<(String, PklValue)> {
         let v = match self.get_value() {
             IPklValue::NonPrimitive(np) => match np {
                 PklNonPrimitive::TypedDynamic(_, _, _, children) => {
@@ -77,6 +77,7 @@ pub enum PklValue {
     String(String),
     Int,
     Boolean(bool),
+    Null,
     // Container,
 }
 

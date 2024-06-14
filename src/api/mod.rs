@@ -6,7 +6,8 @@ use crate::pkl::{IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive,
 pub mod evaluator;
 pub mod loader;
 pub use evaluator::Evaluator;
-
+pub mod deserializer;
+pub mod error;
 use crate::pkl::non_primitive::{self};
 
 fn parse_member_inner(

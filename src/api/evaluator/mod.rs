@@ -95,12 +95,56 @@ impl Evaluator {
         let ast: Value = rmp_serde::from_slice(&slice)?;
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
-        // println!("{:?}", rmpv_ast);
+        println!("{:#?}", rmpv_ast);
 
         // let pkl_mod = pkl_eval_module(ast)?;
         let pkl_mod = pkl_eval_module2(rmpv_ast)?;
 
         Ok(pkl_mod)
+    }
+
+    pub fn evaluate_module_as_slice(&mut self, path: PathBuf) -> anyhow::Result<Vec<u8>> {
+        let evaluator_id = self.id();
+        let mut child_stdin = &mut self.stdin;
+        let mut child_stdout = &mut self.stdout;
+
+        let path = path.canonicalize()?;
+
+        let eval_req = json!([
+          0x23,
+          {
+            "requestId": 9805131,
+            "evaluatorId": evaluator_id,
+            "moduleUri": format!("file://{}", path.to_str().unwrap()),
+          }
+        ]);
+
+        let mut serialized_eval_req = Vec::new();
+        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
+        let eval_res =
+            pkl_send_msg_v2::<Value>(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
+
+        if eval_res.header != EVALUATE_RESPONSE {
+            todo!("handle case when header is not 0x24");
+            // return Err(anyhow::anyhow!("expected 0x24, got 0x{:X}", eval_res.header));
+        }
+
+        let res = eval_res.response.as_map().unwrap();
+
+        let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {
+            return Err(anyhow::anyhow!("expected result in response"));
+        };
+
+        let slice = result.as_slice().unwrap();
+        // let ast: Value = rmp_serde::from_slice(&slice)?;
+        // let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
+        //
+        // println!("{:#?}", rmpv_ast);
+        //
+        // // let pkl_mod = pkl_eval_module(ast)?;
+        // let pkl_mod = pkl_eval_module2(rmpv_ast)?;
+
+        Ok(slice.to_vec())
     }
 
     pub fn close(self) -> anyhow::Result<()> {

@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use api::deserializer::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;
@@ -39,9 +40,9 @@ use tracing_subscriber::FmtSubscriber;
 ///     password: String,
 /// }
 ///
-/// let config: Database = pkl_rs::value_from_config("config.pkl")?;
+/// let config: Database = pkl_rs::from_config("config.pkl")?;
 /// ```
-pub fn value_from_config<T>(path: impl AsRef<std::path::Path>) -> anyhow::Result<T>
+pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> anyhow::Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de> + Debug,
 {
@@ -63,9 +64,7 @@ where
         #[cfg(feature = "trace")]
         trace!("serialized pkl ast {:?}", pkld);
 
-        T::deserialize(&mut api::deserializer::Deserializer::from_pkl_map(
-            &mut pkld,
-        ))
-        .map_err(|e| anyhow::anyhow!("failed to deserialize: {:?}", e))
+        T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
+            .map_err(|e| anyhow::anyhow!("failed to deserialize: {:?}", e))
     }
 }

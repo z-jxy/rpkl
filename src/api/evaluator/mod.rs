@@ -8,7 +8,7 @@ pub const EVALUATE_RESPONSE: u64 = 0x24;
 
 use serde_json::{json, Value};
 
-use crate::{api::pkl_eval_module, pkl::PklMod};
+use crate::{api::parser::pkl_eval_module, pkl::PklMod};
 
 use self::responses::{EvaluatorResponse, PklServerResponse, PklServerResponse2};
 

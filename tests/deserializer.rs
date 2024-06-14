@@ -86,7 +86,8 @@ mod tests {
         ]);
         b.iter(|| {
             for _ in 0..100 {
-                let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
+                let pkl_mod =
+                    api::parser::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
                 let mut mapped = pkl_mod
                     .serialize_pkl_ast()
                     .expect("failed to serialize pkl module");

@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use crate::pkl::{
-    self, non_primitive, IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue,
+    self,
+    internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive, PklValue},
+    non_primitive, PklMod,
 };
 
 #[cfg(feature = "trace")]
@@ -142,9 +144,13 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
         rmpv::Value::Nil => Ok(PklPrimitive::Null),
         rmpv::Value::Integer(n) => {
             if n.is_i64() {
-                Ok(PklPrimitive::Int(pkl::Integer::Neg(n.as_i64().unwrap())))
+                Ok(PklPrimitive::Int(pkl::internal::Integer::Neg(
+                    n.as_i64().unwrap(),
+                )))
             } else if n.is_u64() {
-                Ok(PklPrimitive::Int(pkl::Integer::Pos(n.as_u64().unwrap())))
+                Ok(PklPrimitive::Int(pkl::internal::Integer::Pos(
+                    n.as_u64().unwrap(),
+                )))
             } else if n.as_f64().is_some() {
                 Ok(PklPrimitive::Float(n.as_f64().unwrap()))
             } else {

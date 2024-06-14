@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use super::{ObjectMember, PklMod, PklValue};
+use super::{
+    internal::{ObjectMember, PklValue},
+    PklMod,
+};
 
 pub trait PklSerialize {
     fn serialize_pkl_ast(self) -> anyhow::Result<BTreeMap<String, PklValue>>;

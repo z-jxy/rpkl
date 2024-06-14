@@ -7,15 +7,16 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.81"
+convert_case = "0.6.0"
 rmp-serde = "1.1.2"
 rmpv = "1.0.1"
-serde_json = { version = "1.0.114", features = ["preserve_order"]}
 serde = { version = "1.0", features = ["derive"] }
-convert_case = "0.6.0"
+serde_json = { version = "1.0.114", features = ["preserve_order"]}
 
-tracing = {version = "0.1.40", optional = true }
-tracing-subscriber = {version = "0.3.18", optional = true }
-dhat = {version = "0.3.3", optional = true }
+# Gated dependencies
+dhat = { version = "0.3.3", optional = true }
+tracing = { version = "0.1.40", optional = true }
+tracing-subscriber = { version = "0.3.18", optional = true }
 
 
 [features]

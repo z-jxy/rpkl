@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::pkl::internal::{self};
 use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
 use serde::{forward_to_deserialize_any, Deserialize};
 
@@ -8,7 +9,8 @@ use tracing::{debug, error, span, trace, Level};
 #[cfg(feature = "trace")]
 use tracing_subscriber::FmtSubscriber;
 
-use crate::pkl::{self, PklValue};
+use crate::pkl::internal::PklValue;
+use crate::pkl::{self};
 
 use super::error::{Error, Result};
 
@@ -117,9 +119,9 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
             match value {
                 // PklValue::Int(i) => seed.deserialize(i.into_deserializer()),
                 PklValue::Int(i) => match i {
-                    pkl::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
-                    pkl::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()),
-                    pkl::Integer::Float(f) => seed.deserialize((*f).into_deserializer()),
+                    internal::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
+                    internal::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()),
+                    internal::Integer::Float(f) => seed.deserialize((*f).into_deserializer()),
                 },
 
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()),
@@ -178,9 +180,15 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
             self.index += 1;
             match value {
                 PklValue::Int(i) => match i {
-                    pkl::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()).map(Some),
-                    pkl::Integer::Float(f) => seed.deserialize((*f).into_deserializer()).map(Some),
-                    pkl::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()).map(Some),
+                    pkl::internal::Integer::Pos(u) => {
+                        seed.deserialize((*u).into_deserializer()).map(Some)
+                    }
+                    pkl::internal::Integer::Float(f) => {
+                        seed.deserialize((*f).into_deserializer()).map(Some)
+                    }
+                    pkl::internal::Integer::Neg(n) => {
+                        seed.deserialize((*n).into_deserializer()).map(Some)
+                    }
                 },
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
                 PklValue::List(elements) => seed

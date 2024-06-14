@@ -2,10 +2,11 @@ use std::collections::HashSet;
 
 use convert_case::{Case, Casing};
 
-use crate::pkl::PklPrimitive;
-
-use super::{IPklValue, ObjectMember, PklNonPrimitive};
 use std::io::Write;
+
+use crate::pkl::internal::PklPrimitive;
+
+use super::internal::{IPklValue, ObjectMember, PklNonPrimitive};
 
 pub struct PklMod {
     pub _module_name: String,

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use crate::pkl::internal::type_constants;
 use crate::pkl::{
@@ -7,6 +7,8 @@ use crate::pkl::{
     PklMod,
 };
 
+use anyhow::{Context, Result};
+
 #[cfg(feature = "trace")]
 use tracing::trace;
 
@@ -14,7 +16,7 @@ use tracing::trace;
 fn parse_member_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
-) -> anyhow::Result<ObjectMember> {
+) -> Result<ObjectMember> {
     let ident = slots
         .next()
         .map(|v| {
@@ -42,7 +44,7 @@ fn parse_member_inner(
 }
 
 /// parses non-primitive members of a pkl object
-fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<PklNonPrimitive> {
+fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     match type_id {
         type_constants::TYPED_DYNAMIC => {
             let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
@@ -77,7 +79,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
         }
         type_constants::MAPPING | type_constants::MAP => {
             let values = &slots[0];
-            let mut mapping: BTreeMap<String, PklValue> = BTreeMap::new();
+            let mut mapping: HashMap<String, PklValue> = HashMap::new();
             let values = values.as_map().unwrap();
             for (k, v) in values.iter() {
                 let key = k.as_str().expect("expected key for mapping");
@@ -90,7 +92,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
                         members,
                     )) = eval_inner_bin_array(array)?
                     {
-                        let mut fields = BTreeMap::new();
+                        let mut fields = HashMap::new();
                         for member in members {
                             let (ident, value) = member.to_pkl_value()?;
                             fields.insert(ident, value);
@@ -166,10 +168,11 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
 
 /// evaluates the inner binary array of a pkl object
 fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
-    let type_id = slots[0].as_u64().expect("missing type id");
+    let type_id = slots[0].as_u64().context("missing type id")?;
 
     if type_id == type_constants::OBJECT_MEMBER {
-        // next slot is the ident, we don't need rn bc it's in the object from the outer scope that called this function
+        // next slot is the ident,
+        // we don't need rn bc it's in the object from the outer scope that called this function
         let value = &slots[2];
         let primitive = parse_primitive_member(value)?;
         return Ok(IPklValue::Primitive(primitive));
@@ -229,8 +232,8 @@ fn parse_dynamic_list_inner(
 
     let index = slots
         .next()
-        .map(|v| v.as_u64().expect("expected index"))
-        .unwrap();
+        .and_then(|v| v.as_u64())
+        .context("expected index for dynamic list")?;
 
     let value = slots.next().expect("[parse_member_inner] expected value");
 
@@ -251,11 +254,11 @@ fn parse_dynamic_list_inner(
 
 pub fn pkl_eval_module(decoded: &rmpv::Value) -> anyhow::Result<PklMod> {
     let root = decoded.as_array().unwrap();
-    let module_name = root.get(1).expect("expected root level module name");
-    let module_uri = root.get(2).expect("expected root level module uri");
-    let children = root.last().expect("expected children");
+    let module_name = root.get(1).context("expected root level module name")?;
+    let module_uri = root.get(2).context("expected root level module uri")?;
+    let children = root.last().context("expected children")?;
 
-    let pkl_module = children.as_array().unwrap();
+    let pkl_module = children.as_array().context("expected array of children")?;
 
     let members = pkl_module
         .iter()
@@ -263,8 +266,14 @@ pub fn pkl_eval_module(decoded: &rmpv::Value) -> anyhow::Result<PklMod> {
         .collect::<anyhow::Result<Vec<ObjectMember>>>()?;
 
     Ok(PklMod {
-        _module_name: module_name.as_str().unwrap().to_string(),
-        _module_uri: module_uri.as_str().unwrap().to_string(),
+        _module_name: module_name
+            .as_str()
+            .context("PklMod name is not valid utf8")?
+            .to_string(),
+        _module_uri: module_uri
+            .as_str()
+            .context("PklMod uri is not valid utf8")?
+            .to_string(),
         members,
     })
 }

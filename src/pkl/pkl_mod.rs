@@ -55,20 +55,20 @@ impl PklMod {
         Ok(())
     }
 
+    // TODO: refactor
     fn field_type_from_pkl_value(value: &IPklValue) -> String {
         match value {
             IPklValue::NonPrimitive(PklNonPrimitive::List(_, _)) => {
                 // todo!("print list types");
-                format!("Vec<{}>", "serde_json::Value")
+                format!("Vec<{}>", "pkl_rs::Value")
             }
             IPklValue::NonPrimitive(PklNonPrimitive::Set(_, _)) => {
                 // todo!("print set types");
                 // warn!
-                format!("Vec<{}>", "serde_json::Value")
+                format!("Vec<{}>", "pkl_rs::Value")
             }
             IPklValue::NonPrimitive(PklNonPrimitive::Mapping(_, _m)) => {
-                // todo!("print mapping types");
-                format!("{}", "serde_json::Value")
+                format!("{}", "pkl_rs::Value")
             }
             IPklValue::Primitive(x) => {
                 format!(

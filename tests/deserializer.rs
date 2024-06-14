@@ -4,6 +4,7 @@ extern crate test;
 
 #[cfg(test)]
 mod tests {
+
     use api::deserializer::Deserializer;
     use pkl_rs::api;
     use pkl_rs::pkl::PklSerialize;
@@ -14,6 +15,89 @@ mod tests {
     #[cfg(feature = "dhat-heap")]
     #[global_allocator]
     static ALLOC: dhat::Alloc = dhat::Alloc;
+
+    macro_rules! time {
+        ($elapsed:expr) => {
+            if $elapsed.as_millis() > 0 {
+                println!("Time: {}ms", $elapsed.as_millis());
+            } else {
+                println!("Time: {}μs", $elapsed.as_micros());
+            }
+        };
+    }
+
+    #[test]
+    fn deserialize_time() {
+        #[cfg(feature = "dhat-heap")]
+        let _profiler = dhat::Profiler::new_heap();
+
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct Config {
+            ip: String,
+            port: u16,
+            birds: Vec<String>,
+            database: Database,
+        }
+
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct Database {
+            username: String,
+            password: String,
+        }
+        let now = std::time::Instant::now();
+        let ast = Value::Array(vec![
+            Value::Integer(1.into()),
+            Value::String("example".into()),
+            Value::String("file:///Users/testing/code/rust/pkl-rs/examples/example.pkl".into()),
+            Value::Array(vec![
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("ip".into()),
+                    Value::String("127.0.0.1".into()),
+                ]),
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("port".into()),
+                    Value::Integer(8080.into()),
+                ]),
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("birds".into()),
+                    Value::Array(vec![
+                        Value::Integer(5.into()),
+                        Value::Array(vec![
+                            Value::String("Pigeon".into()),
+                            Value::String("Hawk".into()),
+                            Value::String("Penguin".into()),
+                        ]),
+                    ]),
+                ]),
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("database".into()),
+                    Value::Array(vec![
+                        Value::Integer(1.into()),
+                        Value::String("Dynamic".into()),
+                        Value::String("pkl:base".into()),
+                        Value::Array(vec![
+                            Value::Array(vec![
+                                Value::Integer(16.into()),
+                                Value::String("username".into()),
+                                Value::String("admin".into()),
+                            ]),
+                            Value::Array(vec![
+                                Value::Integer(16.into()),
+                                Value::String("password".into()),
+                                Value::String("secret".into()),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ]);
+        let elapsed = now.elapsed();
+        time!(elapsed);
+    }
 
     #[bench]
     fn deserialize(b: &mut Bencher) {
@@ -33,7 +117,7 @@ mod tests {
             username: String,
             password: String,
         }
-
+        let now = std::time::Instant::now();
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),

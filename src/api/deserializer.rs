@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use crate::pkl::internal::{self};
 use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
@@ -15,16 +15,16 @@ use crate::pkl::{self};
 use super::error::{Error, Result};
 
 pub struct Deserializer<'de> {
-    map: &'de std::collections::BTreeMap<String, PklValue>,
+    map: &'de HashMap<String, PklValue>,
 }
 
 impl<'de> Deserializer<'de> {
-    pub fn from_pkl_map(map: &'de BTreeMap<String, PklValue>) -> Self {
+    pub fn from_pkl_map(map: &'de HashMap<String, PklValue>) -> Self {
         Deserializer { map }
     }
 }
 
-pub fn from_pkl_map<'a, T>(map: &'a BTreeMap<String, PklValue>) -> Result<T>
+pub fn from_pkl_map<'a, T>(map: &'a HashMap<String, PklValue>) -> Result<T>
 where
     T: Deserialize<'a>,
 {

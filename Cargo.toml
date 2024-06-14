@@ -17,6 +17,7 @@ serde_json = { version = "1.0.114", features = ["preserve_order"]}
 dhat = { version = "0.3.3", optional = true }
 tracing = { version = "0.1.40", optional = true }
 tracing-subscriber = { version = "0.3.18", optional = true }
+# hashbrown = "0.14.5"
 
 
 [features]

@@ -5,7 +5,6 @@ use pkl::PklSerialize;
 
 pub mod api;
 pub mod pkl;
-pub mod types;
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};

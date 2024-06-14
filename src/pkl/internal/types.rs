@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
@@ -66,7 +66,7 @@ impl ObjectMember {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PklValue {
-    Map(BTreeMap<String, PklValue>),
+    Map(HashMap<String, PklValue>),
     List(Vec<PklValue>),
     String(String),
     Int(Integer),

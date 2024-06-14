@@ -6,6 +6,7 @@ use std::path::PathBuf;
 struct Config {
     ip: String,
     port: u16,
+    apples: Vec<String>,
     database: Database,
 }
 

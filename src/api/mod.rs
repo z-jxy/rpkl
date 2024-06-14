@@ -6,9 +6,7 @@ use tracing::trace;
 
 use crate::pkl::{self, IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue};
 pub mod evaluator;
-// pub mod loader;
 pub use evaluator::Evaluator;
-pub mod deserialize;
 pub mod deserializer;
 pub mod error;
 use crate::pkl::non_primitive::{self};
@@ -77,6 +75,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
             return Ok(PklNonPrimitive::Set(type_id, values));
         }
         non_primitive::code::MAPPING | non_primitive::code::MAP => {
+            todo!("reimplement mapping types");
             let values = &slots[0];
             // let mut mapping = serde_json::Map::new();
             let mut mapping = BTreeMap::new();
@@ -94,22 +93,23 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
                         // let mut fields = serde_json::Map::new();
                         let mut fields = BTreeMap::new();
                         for member in members {
-                            fields.insert(member.get_ident().to_string(), member.get_value());
+                            let (ident, value) = member.to_pkl_value()?;
+                            fields.insert(ident, value);
                         }
-                        let x = PklValue::Map;
-                        mapping.insert(k.to_string(), x);
+                        // let x = PklValue::Map;
+                        mapping.insert(k.to_string(), PklValue::Map(fields));
                         // mapping.insert(k.to_string(), serde_json::to_value(fields)?);
                     }
                 } else {
-                    // let primitive = parse_primitive_member(v)?;
-                    let x = PklValue::Map;
-                    mapping.insert(k.to_string(), x);
+                    let primitive = parse_primitive_member(v)?;
+                    // let x = PklValue::Map;
+                    mapping.insert(k.to_string(), primitive.into());
                 }
             }
-            let x = PklValue::Map;
             let y = PklPrimitive::String("".to_string());
             return Ok(PklNonPrimitive::Mapping(
-                type_id, y,
+                type_id,
+                PklValue::Map(mapping),
                 // serde_json::Value::Object(mapping),
             ));
         }

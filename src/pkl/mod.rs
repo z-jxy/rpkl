@@ -30,7 +30,7 @@ impl ObjectMember {
     /// # Returns
     ///
     /// A tuple containing the member's identifier and its JSON value
-    fn to_pkl_value(self) -> anyhow::Result<(String, PklValue)> {
+    pub fn to_pkl_value(self) -> anyhow::Result<(String, PklValue)> {
         let (_, ident, value) = self.take();
         let v = match value {
             IPklValue::NonPrimitive(np) => match np {
@@ -139,6 +139,6 @@ pub enum PklNonPrimitive {
     TypedDynamic(u64, String, String, Vec<ObjectMember>),
     // TODO: use a serde deserialize
     List(u64, Vec<PklPrimitive>),
-    Mapping(u64, PklPrimitive),
+    Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),
 }

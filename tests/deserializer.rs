@@ -2,14 +2,14 @@
 
 extern crate test;
 
-use api::deserializer::Deserializer;
-use pkl_rs::api;
-use pkl_rs::pkl::PklSerialize;
-use serde::{Deserialize, Serialize};
-
 #[cfg(test)]
 mod tests {
-    use test::{black_box, Bencher};
+    use api::deserializer::Deserializer;
+    use pkl_rs::api;
+    use pkl_rs::pkl::PklSerialize;
+    use rmpv::Value;
+    use serde::Deserialize;
+    use test::Bencher;
 
     #[cfg(feature = "dhat-heap")]
     #[global_allocator]
@@ -17,9 +17,6 @@ mod tests {
 
     #[bench]
     fn deserialize(b: &mut Bencher) {
-        use super::*;
-        use rmpv::Value;
-
         #[cfg(feature = "dhat-heap")]
         let _profiler = dhat::Profiler::new_heap();
 

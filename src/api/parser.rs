@@ -7,6 +7,7 @@ use crate::pkl::{
 #[cfg(feature = "trace")]
 use tracing::trace;
 
+/// parses the inner member of a pkl object
 fn parse_member_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
@@ -37,6 +38,7 @@ fn parse_member_inner(
     ))
 }
 
+/// parses non-primitive members of a pkl object
 fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<PklNonPrimitive> {
     match type_id {
         non_primitive::code::TYPED_DYNAMIC => {
@@ -127,6 +129,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
     }
 }
 
+/// parses primitive members of a pkl object
 fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
     match value {
         rmpv::Value::String(s) => {
@@ -154,13 +157,9 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
     }
 }
 
+/// evaluates the inner binary array of a pkl object
 fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
-    let type_id = slots
-        // .next()
-        [0]
-    .as_u64()
-    // .map(|v| v.as_u64().expect(&format!("expected type id, got {:?}", v)))
-    .expect("missing type id");
+    let type_id = slots[0].as_u64().expect("missing type id");
 
     if type_id == non_primitive::code::OBJECT_MEMBER {
         // next slot is the ident, we don't need rn bc it's in the object from the outer scope that called this function

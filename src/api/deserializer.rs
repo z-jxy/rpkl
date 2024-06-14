@@ -41,29 +41,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         tuple tuple_struct map struct enum identifier ignored_any
     }
 
-    // Look at the input data to decide what Serde data model type to
-    // deserialize as. Not all data formats are able to support this operation.
-    // Formats that support `deserialize_any` are known as self-describing.
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         #[cfg(feature = "trace")]
-        trace!("deserialize_any");
+        trace!("deserialize_any, visiting map");
         visitor.visit_map(MapAccessImpl::new(self))
     }
-
-    // fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
-    // where
-    //     V: Visitor<'de>,
-    // {
-    //     #[cfg(feature = "trace")]
-    //     trace!("deserialize_seq");
-    //     // TODO: lifetimes are 'v annoying, refactor to use them properly.
-    //     let values = self.map.values().map(|v| v.to_owned()).collect::<Vec<_>>();
-    //     let seq = SeqAccessImpl::new(self, values.as_slice());
-    //     visitor.visit_seq(seq)
-    // }
 }
 
 struct SeqAccessDeserializer<'a, 'de: 'a> {

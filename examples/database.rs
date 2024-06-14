@@ -5,6 +5,7 @@ use std::path::PathBuf;
 #[derive(Debug, Deserialize)]
 struct Config {
     ip: String,
+    port: u16,
     database: Database,
 }
 

@@ -61,7 +61,7 @@ where
             .expect("setting default subscriber failed");
         let mut evaluator = api::Evaluator::new()?;
         let mut pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
-        let mut pkl_mod2 = evaluator.evaluate_module_as_slice(path.as_ref().to_path_buf())?;
+        // let mut pkl_mod2 = evaluator.evaluate_module_as_slice(path.as_ref().to_path_buf())?;
         // let json = pkl_mod.serialize_json()?;
         let mut pkld = pkl_mod.serialize_pkl()?;
 

@@ -10,7 +10,7 @@ use tracing::{debug, error, span, Level};
 use tracing_subscriber::field::debug;
 use tracing_subscriber::FmtSubscriber;
 
-use crate::pkl::PklValue;
+use crate::pkl::{self, PklValue};
 
 use super::error::{Error, Result};
 
@@ -627,7 +627,12 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         if let Some(value) = self.de.map.get(key) {
             match value {
                 // PklValue::Int(i) => seed.deserialize(i.into_deserializer()),
-                PklValue::Int => todo!(),
+                PklValue::Int(i) => match i {
+                    pkl::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
+                    pkl::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()),
+                    pkl::Integer::Float(f) => seed.deserialize((*f).into_deserializer()),
+                },
+
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()),
                 // PklValue::List(a) => {
                 //     seed.deserialize(Deserializer::from_pkl_map(a).into_deserializer())

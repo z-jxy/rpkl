@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use crate::pkl::{IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue};
+use crate::pkl::{self, IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue};
 pub mod evaluator;
 pub mod loader;
 pub use evaluator::Evaluator;
@@ -150,10 +150,14 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
         rmpv::Value::Boolean(b) => Ok(PklPrimitive::Bool(b.to_owned())),
         rmpv::Value::Nil => Ok(PklPrimitive::Null),
         rmpv::Value::Integer(n) => {
-            if n.as_f64().is_some() {
+            if n.is_i64() {
+                Ok(PklPrimitive::Int(pkl::Integer::Neg(n.as_i64().unwrap())))
+            } else if n.is_u64() {
+                Ok(PklPrimitive::Int(pkl::Integer::Pos(n.as_u64().unwrap())))
+            } else if n.as_f64().is_some() {
                 Ok(PklPrimitive::Float(n.as_f64().unwrap()))
             } else {
-                Ok(PklPrimitive::Int(n.as_i64().unwrap()))
+                return Err(anyhow::anyhow!("expected integer, got {:?}", n));
             }
         }
         _ => {

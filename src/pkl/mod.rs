@@ -56,11 +56,18 @@ impl ObjectMember {
             IPklValue::Primitive(p) => {
                 // p.to_owned(),
                 match p {
-                    PklPrimitive::Int(i) => PklValue::Int,
-                    PklPrimitive::Float(f) => PklValue::Int,
+                    PklPrimitive::Int(i) => match i {
+                        Integer::Pos(u) => PklValue::Int(Integer::Pos(*u)),
+                        Integer::Neg(i) => PklValue::Int(Integer::Neg(*i)),
+                        Integer::Float(f) => PklValue::Int(Integer::Float(*f)),
+                    },
+                    PklPrimitive::Float(f) => {
+                        println!("float: {:?}", f);
+                        PklValue::Int(Integer::Float(*f))
+                    }
                     PklPrimitive::String(s) => PklValue::String(s.to_string()),
                     PklPrimitive::Bool(b) => PklValue::Boolean(*b),
-                    PklPrimitive::Null => PklValue::Int,
+                    PklPrimitive::Null => PklValue::Null,
                 }
                 // PklValue::Map(BTreeMap::new())
             }
@@ -75,10 +82,17 @@ pub enum PklValue {
     Map(BTreeMap<String, PklValue>),
     List,
     String(String),
-    Int,
+    Int(Integer),
     Boolean(bool),
     Null,
     // Container,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum Integer {
+    Pos(u64),
+    Float(f64),
+    Neg(i64),
 }
 
 impl PklValue {
@@ -100,7 +114,7 @@ pub enum IPklValue {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum PklPrimitive {
-    Int(i64),
+    Int(Integer),
     Float(f64),
     String(String),
     Bool(bool),

@@ -177,7 +177,7 @@ fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
     .expect("missing type id");
 
     if type_id == non_primitive::code::OBJECT_MEMBER {
-        // next slot is the ident, we don't need rn bc it's in the outer object
+        // next slot is the ident, we don't need rn bc it's in the object from the outer scope that called this function
         let value = &slots[2];
         let primitive = parse_primitive_member(value)?;
         return Ok(IPklValue::Primitive(primitive));
@@ -189,20 +189,12 @@ fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
 
 fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
     let mut slots = data.iter();
+
     let type_id = slots
         .next()
         .map(|v| v.as_u64().expect(&format!("expected type id, got {:?}", v)))
         .expect("missing type id");
 
-    // if type_id != non_primitive::code::OBJECT_MEMBER
-    //     && type_id != non_primitive::code::DYNAMIC_LISTING
-    // {
-    //     todo!(
-    //         "expected OBJECT_MEMBER or DYNAMIC_LISTING ( type_id: {}), got: {}",
-    //         non_primitive::code::OBJECT_MEMBER,
-    //         type_id
-    //     );
-    // }
     match type_id {
         non_primitive::code::OBJECT_MEMBER => {
             return parse_member_inner(type_id, &mut slots);
@@ -214,8 +206,6 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
             todo!("type_id is not OBJECT_MEMBER, or DYNAMIC_LISTING. implement parse other non-primitive types. type_id: {}\n", type_id);
         }
     }
-
-    // return parse_member_inner(type_id, &mut slots);
 }
 
 /// this function is used to parse dynmically typed listings
@@ -266,33 +256,12 @@ fn parse_dynamic_list_inner(
     ))
 }
 
-// pub fn pkl_eval_module(decoded: Value) -> anyhow::Result<PklMod> {
-//     let root = decoded.as_array().unwrap();
-//     let module_name = root.get(1).expect("expected root level module name");
-//     let module_uri = root.get(2).expect("expected root level module uri");
-//     let children = root.last().expect("expected children");
-
-//     let pkl_module: Vec<Value> = serde_json::from_value(children.to_owned())?;
-
-//     let members = pkl_module
-//         .iter()
-//         .map(|f| parse_pkl_obj_member(f.as_array().unwrap()))
-//         .collect::<anyhow::Result<Vec<ObjectMember>>>()?;
-
-//     Ok(PklMod {
-//         _module_name: module_name.as_str().unwrap().to_string(),
-//         _module_uri: module_uri.as_str().unwrap().to_string(),
-//         members,
-//     })
-// }
-
-pub fn pkl_eval_module2(decoded: rmpv::Value) -> anyhow::Result<PklMod> {
+pub fn pkl_eval_module(decoded: rmpv::Value) -> anyhow::Result<PklMod> {
     let root = decoded.as_array().unwrap();
     let module_name = root.get(1).expect("expected root level module name");
     let module_uri = root.get(2).expect("expected root level module uri");
     let children = root.last().expect("expected children");
 
-    // let pkl_module: Vec<Value> = serde_json::from_value(children.to_owned())?;
     let pkl_module = children.as_array().unwrap();
 
     let members = pkl_module

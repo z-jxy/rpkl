@@ -51,21 +51,17 @@ where
 {
     {
         let subscriber = FmtSubscriber::builder()
-            // all spans/events with a level higher than TRACE (e.g, debug, info, warn, etc.)
-            // will be written to stdout.
             .with_max_level(Level::TRACE)
-            // completes the builder.
             .finish();
-
         tracing::subscriber::set_global_default(subscriber)
             .expect("setting default subscriber failed");
         let mut evaluator = api::Evaluator::new()?;
-        let mut pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
+        let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
         // let mut pkl_mod2 = evaluator.evaluate_module_as_slice(path.as_ref().to_path_buf())?;
         // let json = pkl_mod.serialize_json()?;
         let mut pkld = pkl_mod.serialize_pkl()?;
 
-        println!("{:?}", pkld);
+        println!("pkld {:?}", pkld);
         // let mut buf_ = Vec::new();
         // let mut buf = Cursor::new(pkl_mod);
 
@@ -73,18 +69,7 @@ where
         let z = T::deserialize(&mut api::deserializer::Deserializer::from_pkl_map(
             &mut pkld,
         ));
-        // if let Some(ip) = pkld.get("ip") {
-        //     let s = ip.as_str().unwrap();
-        //     println!("{}", s);
-        //     // println!("{}", s[0..1].to_string());
-        //     // println!("{}", ip.as_str().unwrap());
-        // }
-        println!("serde deserialized: {:?}", z);
-        // if let Ok(db) = z {
-        //     println!("sucess: {:?}", db);
-        // }
-        // let v: T = serde_json::from_value(serde_json::Value::Object(json))?;
-        // let v = serde_
+
         z.map_err(|e| anyhow::anyhow!("failed to deserialize: {:?}", e))
     }
 }

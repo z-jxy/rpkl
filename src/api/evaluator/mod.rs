@@ -8,7 +8,7 @@ pub const EVALUATE_RESPONSE: u64 = 0x24;
 
 use serde_json::{json, Value};
 
-use crate::{api::pkl_eval_module2, pkl::PklMod};
+use crate::{api::pkl_eval_module, pkl::PklMod};
 
 use self::responses::{EvaluatorResponse, PklServerResponse, PklServerResponse2};
 
@@ -95,10 +95,10 @@ impl Evaluator {
         let ast: Value = rmp_serde::from_slice(&slice)?;
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
-        println!("{:#?}", rmpv_ast);
+        println!("{:?}", rmpv_ast);
 
         // let pkl_mod = pkl_eval_module(ast)?;
-        let pkl_mod = pkl_eval_module2(rmpv_ast)?;
+        let pkl_mod = pkl_eval_module(rmpv_ast)?;
 
         Ok(pkl_mod)
     }

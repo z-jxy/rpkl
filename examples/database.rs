@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
@@ -8,6 +8,7 @@ struct Config {
     port: u16,
     birds: Vec<String>,
     database: Database,
+    mapping: HashMap<String, String>,
 }
 
 #[allow(dead_code)]

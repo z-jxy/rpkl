@@ -44,7 +44,7 @@ impl ObjectMember {
                 }
                 PklNonPrimitive::Mapping(_, m) => {
                     // IPklValue::Primitive(m.to_owned())
-                    PklValue::Map(BTreeMap::new())
+                    m
                 }
             },
             // IPklValue::Primitive(p) => serde_json::to_value(p)?,

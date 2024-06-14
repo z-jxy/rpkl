@@ -8,6 +8,17 @@ birds: Listing<String> = new {
   "Penguin"
 }
 
+mapping = new Mapping {
+  ["map_key"] = "map_value"
+  // ["list"] = List("Pigeon", "Parrot")
+  // ["nested mapping"] {
+  //   ["Pigeon"] {
+  //     lifespan = 20
+  //     diet = "Seeds"
+  //   }
+  // }
+}
+
 database {
     username = "admin"
     password = "secret"

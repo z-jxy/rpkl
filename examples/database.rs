@@ -23,5 +23,5 @@ fn main() {
         .join("example.pkl");
     let value = pkl_rs::value_from_config::<Config>(path);
 
-    println!("db {:?}", value);
+    println!("{:?}", value);
 }

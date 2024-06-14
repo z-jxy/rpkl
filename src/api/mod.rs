@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
-use serde_json::Value;
+// use serde_json::Value;
+#[cfg(feature = "trace")]
 use tracing::trace;
 
 use crate::pkl::{self, IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue};
 pub mod evaluator;
-pub mod loader;
+// pub mod loader;
 pub use evaluator::Evaluator;
 pub mod deserialize;
 pub mod deserializer;
@@ -225,6 +226,7 @@ fn parse_dynamic_list_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> anyhow::Result<ObjectMember> {
+    #[cfg(feature = "trace")]
     trace!("parse_dynamic_list_inner: type_id: {}", type_id);
     if type_id != non_primitive::code::DYNAMIC_LISTING {
         todo!(

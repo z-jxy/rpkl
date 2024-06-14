@@ -92,12 +92,8 @@ impl Evaluator {
         };
 
         let slice = result.as_slice().unwrap();
-        let ast: Value = rmp_serde::from_slice(&slice)?;
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
-        println!("{:?}", rmpv_ast);
-
-        // let pkl_mod = pkl_eval_module(ast)?;
         let pkl_mod = pkl_eval_module(rmpv_ast)?;
 
         Ok(pkl_mod)
@@ -136,14 +132,6 @@ impl Evaluator {
         };
 
         let slice = result.as_slice().unwrap();
-        // let ast: Value = rmp_serde::from_slice(&slice)?;
-        // let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
-        //
-        // println!("{:#?}", rmpv_ast);
-        //
-        // // let pkl_mod = pkl_eval_module(ast)?;
-        // let pkl_mod = pkl_eval_module2(rmpv_ast)?;
-
         Ok(slice.to_vec())
     }
 

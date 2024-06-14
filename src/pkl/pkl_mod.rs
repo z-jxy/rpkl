@@ -15,6 +15,8 @@ pub struct PklMod {
     pub members: Vec<ObjectMember>,
 }
 
+// TODO: refactor
+/// Codegen
 impl PklMod {
     pub fn codegen(&self) -> anyhow::Result<()> {
         std::fs::create_dir_all("./src/gen")?;

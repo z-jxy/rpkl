@@ -21,30 +21,24 @@ impl ObjectMember {
         &self.2
     }
 
+    pub fn take(self) -> (u64, String, IPklValue) {
+        (self.0, self.1, self.2)
+    }
+
     /// Serialize the member to a JSON object
     ///
     /// # Returns
     ///
     /// A tuple containing the member's identifier and its JSON value
-    fn to_pkl_value(&self) -> anyhow::Result<(String, PklValue)> {
-        let v = match self.get_value() {
+    fn to_pkl_value(self) -> anyhow::Result<(String, PklValue)> {
+        let (_, ident, value) = self.take();
+        let v = match value {
             IPklValue::NonPrimitive(np) => match np {
                 PklNonPrimitive::TypedDynamic(_, _, _, children) => {
-                    let nested = children.serialize_pkl()?;
-                    // nested.into()
-                    // rmpv::Value::Map(
-                    //     nested
-                    //         .iter()
-                    //         .map(|(k, v)| (rmpv::Value::String(k.in), v.to_owned()))
-                    //         .collect(),
-                    // )
-                    PklValue::Map(nested)
-                    // IPklValue::NonPrimitive(PklNonPrimitive::Mapping(0, nested.into()))
+                    // serialize the children
+                    PklValue::Map(children.serialize_pkl_ast()?)
                 }
                 PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
-                    // serde_json::Value::Array(items.to_vec())
-                    // items.to_vec()
-                    // rmpv::Value::Array(items.iter().map(|i| i.to_owned()))
                     let values = items.iter().map(|i| i.to_owned().into()).collect();
                     PklValue::List(values)
                 }
@@ -58,23 +52,23 @@ impl ObjectMember {
                 // p.to_owned(),
                 match p {
                     PklPrimitive::Int(i) => match i {
-                        Integer::Pos(u) => PklValue::Int(Integer::Pos(*u)),
-                        Integer::Neg(i) => PklValue::Int(Integer::Neg(*i)),
-                        Integer::Float(f) => PklValue::Int(Integer::Float(*f)),
+                        Integer::Pos(u) => PklValue::Int(Integer::Pos(u)),
+                        Integer::Neg(i) => PklValue::Int(Integer::Neg(i)),
+                        Integer::Float(f) => PklValue::Int(Integer::Float(f)),
                     },
                     PklPrimitive::Float(f) => {
                         println!("float: {:?}", f);
-                        PklValue::Int(Integer::Float(*f))
+                        PklValue::Int(Integer::Float(f))
                     }
                     PklPrimitive::String(s) => PklValue::String(s.to_string()),
-                    PklPrimitive::Bool(b) => PklValue::Boolean(*b),
+                    PklPrimitive::Bool(b) => PklValue::Boolean(b),
                     PklPrimitive::Null => PklValue::Null,
                 }
                 // PklValue::Map(BTreeMap::new())
             }
         };
 
-        Ok((self.get_ident().to_owned(), v))
+        Ok((ident, v))
     }
 }
 
@@ -117,9 +111,10 @@ impl PklValue {
     }
 }
 
+/// Internal struct used for deserializing `.pkl` objects
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum IPklValue {
+pub(crate) enum IPklValue {
     Primitive(PklPrimitive),
     NonPrimitive(PklNonPrimitive),
 }

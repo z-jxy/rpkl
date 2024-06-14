@@ -11,7 +11,7 @@ pub use serializer::PklSerialize;
 /// Represents a member of a `.pkl` object
 /// Fields: type_id, identifier, value
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct ObjectMember(pub u64, pub String, pub IPklValue);
+pub(crate) struct ObjectMember(pub u64, pub String, pub IPklValue);
 
 impl ObjectMember {
     pub fn get_ident(&self) -> &str {
@@ -131,13 +131,10 @@ pub enum PklPrimitive {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum PklNonPrimitive {
-    // TypedDynamic(u64, String, String, Vec<ObjectMember>),
-    // List(u64, Vec<serde_json::Value>),
-    // Mapping(u64, serde_json::Value),
-    // Set(u64, Vec<serde_json::Value>),
+pub(crate) enum PklNonPrimitive {
+    // TODO: document these fields
+    // https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html
     TypedDynamic(u64, String, String, Vec<ObjectMember>),
-    // TODO: use a serde deserialize
     List(u64, Vec<PklPrimitive>),
     Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),

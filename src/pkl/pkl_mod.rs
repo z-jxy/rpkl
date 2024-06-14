@@ -12,7 +12,7 @@ pub struct PklMod {
     pub _module_uri: String,
     // pub _members: Vec<PklNonPrimitive>,
     // pub _mappings: HashMap<String, IPklValue>,
-    pub members: Vec<ObjectMember>,
+    pub(crate) members: Vec<ObjectMember>,
 }
 
 // TODO: refactor

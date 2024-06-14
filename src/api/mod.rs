@@ -75,9 +75,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
             return Ok(PklNonPrimitive::Set(type_id, values));
         }
         non_primitive::code::MAPPING | non_primitive::code::MAP => {
-            println!("parse mapping");
             let values = &slots[0];
-            // let mut mapping = serde_json::Map::new();
             let mut mapping: BTreeMap<String, PklValue> = BTreeMap::new();
             let values = values.as_map().unwrap();
             for (k, v) in values.iter() {
@@ -91,32 +89,23 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
                         members,
                     )) = eval_inner_bin_array(array)?
                     {
-                        // let mut fields = serde_json::Map::new();
                         let mut fields = BTreeMap::new();
                         for member in members {
                             let (ident, value) = member.to_pkl_value()?;
                             fields.insert(ident, value);
                         }
-                        // let x = PklValue::Map;
+
                         mapping.insert(key.to_string(), PklValue::Map(fields));
-                        // mapping.insert(k.to_string(), serde_json::to_value(fields)?);
                     }
                 } else {
                     mapping.insert(key.to_string(), parse_primitive_member(v)?.into());
                 }
             }
-            // let y = PklPrimitive::String("".to_string());
-            println!("mapping: {:?}", mapping);
-            return Ok(PklNonPrimitive::Mapping(
-                type_id,
-                PklValue::Map(mapping),
-                // serde_json::Value::Object(mapping),
-            ));
+            return Ok(PklNonPrimitive::Mapping(type_id, PklValue::Map(mapping)));
         }
 
         non_primitive::code::LIST | non_primitive::code::LISTING => {
             let values = &slots[0];
-            // println!("values: {:?}", values);
             let values = values
                 .as_array()
                 .expect(&format!("Expected array, got {:?}", values))

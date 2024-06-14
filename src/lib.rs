@@ -5,19 +5,11 @@ use pkl::PklSerialize;
 pub mod api;
 pub mod pkl;
 pub mod types;
-use api::error::{Error, Result};
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};
 #[cfg(feature = "trace")]
 use tracing_subscriber::FmtSubscriber;
-
-// #[macro_export]
-// macro_rules! include_pkl {
-//     ($package: tt) => {
-//         include!(concat!(env!("OUT_DIR"), concat!("/", $package, ".rs")));
-//     };
-// }
 
 /// Evaluates a `.pkl` file and interprets it as `T`
 ///
@@ -62,11 +54,6 @@ where
             tracing::subscriber::set_global_default(subscriber)
                 .expect("setting default subscriber failed");
         }
-        // let subscriber = FmtSubscriber::builder()
-        //     .with_max_level(Level::TRACE)
-        //     .finish();
-        // tracing::subscriber::set_global_default(subscriber)
-        //     .expect("setting default subscriber failed");
 
         let mut evaluator = api::Evaluator::new()?;
         let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;

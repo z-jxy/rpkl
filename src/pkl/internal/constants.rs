@@ -1,4 +1,4 @@
-pub mod code {
+pub mod type_constants {
     pub const OBJECT_MEMBER: u64 = 16;
     pub const TYPED_DYNAMIC: u64 = 1;
     pub const MAP: u64 = 2;

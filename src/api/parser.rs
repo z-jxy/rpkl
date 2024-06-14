@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
+use crate::pkl::internal::type_constants;
 use crate::pkl::{
     self,
     internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive, PklValue},
-    non_primitive, PklMod,
+    PklMod,
 };
 
 #[cfg(feature = "trace")]
@@ -43,7 +44,7 @@ fn parse_member_inner(
 /// parses non-primitive members of a pkl object
 fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<PklNonPrimitive> {
     match type_id {
-        non_primitive::code::TYPED_DYNAMIC => {
+        type_constants::TYPED_DYNAMIC => {
             let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
 
             let module_uri = slots[1].as_str().expect("expected module uri");
@@ -65,7 +66,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
                 members,
             ));
         }
-        non_primitive::code::SET => {
+        type_constants::SET => {
             let values = &slots[0];
             let values = values.as_array().unwrap().to_vec();
             let values = values
@@ -74,7 +75,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
                 .collect::<anyhow::Result<Vec<PklPrimitive>>>()?;
             return Ok(PklNonPrimitive::Set(type_id, values));
         }
-        non_primitive::code::MAPPING | non_primitive::code::MAP => {
+        type_constants::MAPPING | type_constants::MAP => {
             let values = &slots[0];
             let mut mapping: BTreeMap<String, PklValue> = BTreeMap::new();
             let values = values.as_map().unwrap();
@@ -104,7 +105,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
             return Ok(PklNonPrimitive::Mapping(type_id, PklValue::Map(mapping)));
         }
 
-        non_primitive::code::LIST | non_primitive::code::LISTING => {
+        type_constants::LIST | type_constants::LISTING => {
             let values = &slots[0];
             let values = values
                 .as_array()
@@ -117,12 +118,12 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
 
             return Ok(PklNonPrimitive::List(type_id, values));
         }
-        non_primitive::code::DURATION
-        | non_primitive::code::DATA_SIZE
-        | non_primitive::code::PAIR
-        | non_primitive::code::INT_SEQ
-        | non_primitive::code::REGEX
-        | non_primitive::code::TYPE_ALIAS => {
+        type_constants::DURATION
+        | type_constants::DATA_SIZE
+        | type_constants::PAIR
+        | type_constants::INT_SEQ
+        | type_constants::REGEX
+        | type_constants::TYPE_ALIAS => {
             todo!("type {} cannot be rendered as json", type_id);
         }
         _ => {
@@ -167,7 +168,7 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
 fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
     let type_id = slots[0].as_u64().expect("missing type id");
 
-    if type_id == non_primitive::code::OBJECT_MEMBER {
+    if type_id == type_constants::OBJECT_MEMBER {
         // next slot is the ident, we don't need rn bc it's in the object from the outer scope that called this function
         let value = &slots[2];
         let primitive = parse_primitive_member(value)?;
@@ -187,10 +188,10 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
         .expect("missing type id");
 
     match type_id {
-        non_primitive::code::OBJECT_MEMBER => {
+        type_constants::OBJECT_MEMBER => {
             return parse_member_inner(type_id, &mut slots);
         }
-        non_primitive::code::DYNAMIC_LISTING => {
+        type_constants::DYNAMIC_LISTING => {
             return parse_dynamic_list_inner(type_id, &mut slots);
         }
         _ => {
@@ -218,10 +219,10 @@ fn parse_dynamic_list_inner(
 ) -> anyhow::Result<ObjectMember> {
     #[cfg(feature = "trace")]
     trace!("parse_dynamic_list_inner: type_id: {}", type_id);
-    if type_id != non_primitive::code::DYNAMIC_LISTING {
+    if type_id != type_constants::DYNAMIC_LISTING {
         todo!(
             "expected DYNAMIC_LISTING ( type_id: {}), got: {}",
-            non_primitive::code::DYNAMIC_LISTING,
+            type_constants::DYNAMIC_LISTING,
             type_id
         );
     }

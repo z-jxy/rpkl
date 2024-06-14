@@ -47,7 +47,7 @@ impl ObjectMember {
                 },
                 PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
                 PklPrimitive::String(s) => PklValue::String(s.to_string()),
-                PklPrimitive::Bool(b) => PklValue::Boolean(b),
+                PklPrimitive::Boolean(b) => PklValue::Boolean(b),
                 PklPrimitive::Null => PklValue::Null,
             },
         };
@@ -56,7 +56,8 @@ impl ObjectMember {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+/// Represents a `.pkl` value
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub enum PklValue {
     Map(HashMap<String, PklValue>),
     List(Vec<PklValue>),
@@ -64,7 +65,6 @@ pub enum PklValue {
     Int(Integer),
     Boolean(bool),
     Null,
-    // Container,
 }
 
 impl From<PklPrimitive> for PklValue {
@@ -73,13 +73,13 @@ impl From<PklPrimitive> for PklValue {
             PklPrimitive::Int(i) => PklValue::Int(i),
             PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
             PklPrimitive::String(s) => PklValue::String(s),
-            PklPrimitive::Bool(b) => PklValue::Boolean(b),
+            PklPrimitive::Boolean(b) => PklValue::Boolean(b),
             PklPrimitive::Null => PklValue::Null,
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 pub enum Integer {
     Pos(u64),
     Float(f64),
@@ -105,11 +105,12 @@ pub(crate) enum IPklValue {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
+/// https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#primitives
 pub enum PklPrimitive {
     Int(Integer),
     Float(f64),
     String(String),
-    Bool(bool),
+    Boolean(bool),
     Null,
 }
 

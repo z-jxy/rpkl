@@ -6,18 +6,22 @@ use std::{
 
 pub const EVALUATE_RESPONSE: u64 = 0x24;
 
-use serde_json::{json, Value};
+use outgoing::{
+    pack_msg, ClientModuleReader, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
+};
 
 use crate::{api::parser::pkl_eval_module, pkl::PklMod};
 
 use self::responses::{EvaluatorResponse, PklServerResponse, PklServerResponse2};
 
+pub mod outgoing;
 pub mod responses;
 pub struct Evaluator {
     pub evaluator_id: i64,
     stdin: std::process::ChildStdin,
     stdout: std::process::ChildStdout,
 }
+
 impl Evaluator {
     pub fn id(&self) -> i64 {
         self.evaluator_id
@@ -28,26 +32,41 @@ impl Evaluator {
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
         // Create a CreateEvaluatorRequest instance
-        const CREATE_EVALUATOR_REQUEST_SIZE: usize = 140;
-        let request = json!([
-          0x20,
-            {
-                "requestId": 135,
-                "allowedModules": ["pkl:", "repl:", "file:", "customfs:"],
-                "clientModuleReaders": [
-                  {
-                    "scheme": "customfs",
-                    "hasHierarchicalUris": true,
-                    "isGlobbable": true,
-                    "isLocal": true
-                  }
-                ]
-            }
-        ]);
+        // const CREATE_EVALUATOR_REQUEST_SIZE: usize = 140;
+        // let json_request = json!([
+        //   0x20,
+        //     {
+        //         "requestId": 135,
+        //         "allowedModules": ["pkl:", "repl:", "file:", "customfs:"],
+        //         "clientModuleReaders": [
+        //           {
+        //             "scheme": "customfs",
+        //             "hasHierarchicalUris": true,
+        //             "isGlobbable": true,
+        //             "isLocal": true
+        //           }
+        //         ]
+        //     }
+        // ]);
+        let request = OutgoingMessage::CreateEvaluator(CreateEvaluator {
+            request_id: 135,
+            allowed_modules: vec![
+                "pkl:".to_string(),
+                "repl:".to_string(),
+                "file:".to_string(),
+                "customfs:".to_string(),
+            ],
+            client_module_readers: vec![ClientModuleReader {
+                scheme: "customfs".to_string(),
+                has_hierarchical_uris: true,
+                is_globbable: true,
+                is_local: true,
+            }],
+        });
 
-        let mut serialized_request = Vec::with_capacity(CREATE_EVALUATOR_REQUEST_SIZE as usize);
-        // Serialize the request to a binary format
-        rmp_serde::encode::write(&mut serialized_request, &request).unwrap();
+        let serialized_request = pack_msg(request);
+
+        // println!("serialized request2: {:?}", serialized_req2);
 
         let create_eval_response =
             pkl_send_msg::<EvaluatorResponse>(child_stdin, &mut child_stdout, serialized_request)?;
@@ -66,19 +85,28 @@ impl Evaluator {
 
         let path = path.canonicalize()?;
 
-        let eval_req = json!([
-          0x23,
-          {
-            "requestId": 9805131,
-            "evaluatorId": evaluator_id,
-            "moduleUri": format!("file://{}", path.to_str().unwrap()),
-          }
-        ]);
+        // let eval_req = json!([
+        //   0x23,
+        //   {
+        //     "requestId": 9805131,
+        //     "evaluatorId": evaluator_id,
+        //     "moduleUri": format!("file://{}", path.to_str().unwrap()),
+        //   }
+        // ]);
 
-        let mut serialized_eval_req = Vec::new();
-        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        let eval_res =
-            pkl_send_msg_v2::<Value>(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
+        let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {
+            request_id: 9805131,
+            evaluator_id: evaluator_id,
+            module_uri: format!("file://{}", path.to_str().unwrap()),
+        });
+
+        let serialized_eval_req = pack_msg(msg);
+        // rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
+        let eval_res = pkl_send_msg_v2::<rmpv::Value>(
+            &mut child_stdin,
+            &mut child_stdout,
+            serialized_eval_req,
+        )?;
 
         if eval_res.header != EVALUATE_RESPONSE {
             todo!("handle case when header is not 0x24");
@@ -105,72 +133,17 @@ impl Evaluator {
 
         Ok(pkl_mod)
     }
-
-    // pub fn evaluate_module_as_slice(&mut self, path: PathBuf) -> anyhow::Result<Vec<u8>> {
-    //     let evaluator_id = self.id();
-    //     let mut child_stdin = &mut self.stdin;
-    //     let mut child_stdout = &mut self.stdout;
-
-    //     let path = path.canonicalize()?;
-
-    //     let eval_req = json!([
-    //       0x23,
-    //       {
-    //         "requestId": 9805131,
-    //         "evaluatorId": evaluator_id,
-    //         "moduleUri": format!("file://{}", path.to_str().unwrap()),
-    //       }
-    //     ]);
-
-    //     let mut serialized_eval_req = Vec::new();
-    //     rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-    //     let eval_res =
-    //         pkl_send_msg_v2::<Value>(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
-
-    //     if eval_res.header != EVALUATE_RESPONSE {
-    //         todo!("handle case when header is not 0x24");
-    //         // return Err(anyhow::anyhow!("expected 0x24, got 0x{:X}", eval_res.header));
-    //     }
-
-    //     let res = eval_res.response.as_map().unwrap();
-    //     println!("{:?}", res);
-    //     let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {
-    //         return Err(anyhow::anyhow!("expected result in response"));
-    //     };
-
-    //     let slice = result.as_slice().unwrap();
-    //     Ok(slice.to_vec())
-    // }
-
-    pub fn close(self) -> anyhow::Result<()> {
-        let eval_req = json!([
-            0x22,
-          {
-            "evaluatorId": self.evaluator_id,
-          }
-        ]);
-
-        let mut serialized_eval_req = Vec::new();
-        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        Ok(())
-    }
 }
 
 impl Drop for Evaluator {
     fn drop(&mut self) {
         let mut child_stdin = &mut self.stdin;
 
-        let eval_req = json!([
-            0x22,
-          {
-            "evaluatorId": self.evaluator_id,
-          }
-        ]);
+        let msg = pack_msg(OutgoingMessage::CloseEvaluator(CloseEvaluator {
+            evaluator_id: self.evaluator_id,
+        }));
 
-        let mut serialized_eval_req = Vec::new();
-        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        let _ = pkl_send_msg_one_way(&mut child_stdin, serialized_eval_req)
-            .expect("failed to close evaluator");
+        let _ = pkl_send_msg_one_way(&mut child_stdin, msg).expect("failed to close evaluator");
     }
 }
 

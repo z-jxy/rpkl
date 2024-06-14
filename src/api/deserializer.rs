@@ -12,7 +12,7 @@ use tracing_subscriber::FmtSubscriber;
 use crate::pkl::internal::PklValue;
 use crate::pkl::{self};
 
-use super::error::{Error, Result};
+use crate::error::{Error, Result};
 
 pub struct Deserializer<'de> {
     map: &'de HashMap<String, PklValue>,

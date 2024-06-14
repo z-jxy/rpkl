@@ -143,7 +143,7 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
             };
             return Ok(PklPrimitive::String(s.to_string()));
         }
-        rmpv::Value::Boolean(b) => Ok(PklPrimitive::Bool(b.to_owned())),
+        rmpv::Value::Boolean(b) => Ok(PklPrimitive::Boolean(b.to_owned())),
         rmpv::Value::Nil => Ok(PklPrimitive::Null),
         rmpv::Value::Integer(n) => {
             if n.is_i64() {
@@ -187,8 +187,8 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
 
     let type_id = slots
         .next()
-        .map(|v| v.as_u64().expect(&format!("expected type id, got {:?}", v)))
-        .expect("missing type id");
+        .and_then(|v| v.as_u64())
+        .context("expected type id")?;
 
     match type_id {
         type_constants::OBJECT_MEMBER => {
@@ -252,6 +252,7 @@ fn parse_dynamic_list_inner(
     ))
 }
 
+/// For internal use
 pub fn pkl_eval_module(decoded: &rmpv::Value) -> anyhow::Result<PklMod> {
     let root = decoded.as_array().unwrap();
     let module_name = root.get(1).context("expected root level module name")?;

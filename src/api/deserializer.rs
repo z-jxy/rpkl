@@ -60,7 +60,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         #[cfg(feature = "trace")]
         debug!("tracing deserialize_seq");
         // TODO: lifetimes are 'v annoying, refactor to use them properly.
-        let values = self.map.values().map(|v| v.to_owned()).collect::<Vec<_>>();
+        let values = self.map.values().map(|v| v).collect::<Vec<_>>();
         let seq = SeqAccessImpl::new(self, values);
         visitor.visit_seq(seq)
     }
@@ -146,7 +146,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                     let _span = span!(Level::INFO, "start parsing list").entered();
 
                     // TODO: figure out lifetimes for this
-                    let el = elements.iter().map(|v| v.to_owned()).collect::<Vec<_>>();
+                    let el = elements.iter().map(|v| v).collect::<Vec<_>>();
                     let seq = SeqAccessImpl::new(self.de, el);
                     let result = seed.deserialize(SeqAccessDeserializer { seq });
 
@@ -167,12 +167,12 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
 
 struct SeqAccessImpl<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
-    elements: Vec<PklValue>,
+    elements: Vec<&'de PklValue>,
     index: usize,
 }
 
 impl<'a, 'de> SeqAccessImpl<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>, elements: Vec<PklValue>) -> Self {
+    fn new(de: &'a mut Deserializer<'de>, elements: Vec<&'de PklValue>) -> Self {
         SeqAccessImpl {
             de,
             elements,
@@ -200,7 +200,7 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
                 PklValue::List(l) => {
                     // TODO: figure out lifetimes for this
-                    let values = l.iter().map(|v| v.to_owned()).collect::<Vec<_>>();
+                    let values = l.iter().map(|v| v).collect::<Vec<_>>();
                     seed.deserialize(SeqAccessDeserializer {
                         seq: SeqAccessImpl::new(self.de, values),
                     })

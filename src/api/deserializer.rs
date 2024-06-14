@@ -198,22 +198,14 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                     pkl::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()).map(Some),
                 },
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
-                PklValue::List(l) => {
-                    // TODO:
-                    // let values = l.iter().map(|v| v).collect::<Vec<_>>();
-
-                    seed.deserialize(SeqAccessDeserializer {
-                        seq: SeqAccessImpl::new(self.de, l),
+                PklValue::List(elements) => seed
+                    .deserialize(SeqAccessDeserializer {
+                        seq: SeqAccessImpl::new(self.de, elements),
                     })
-                    .map(Some)
-                }
-                PklValue::Map(m) => {
-                    todo!(
-                        "lifetime may not live long enough argument requires that `'1` must outlive `'de`"
-                    );
-                    seed.deserialize(&mut Deserializer::from_pkl_map(m))
-                        .map(Some)
-                }
+                    .map(Some),
+                PklValue::Map(m) => seed
+                    .deserialize(&mut Deserializer::from_pkl_map(m))
+                    .map(Some),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()).map(Some),
                 PklValue::Null => seed.deserialize(().into_deserializer()).map(Some),
             }

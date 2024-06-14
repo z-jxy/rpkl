@@ -19,7 +19,6 @@ pub struct Deserializer<'de> {
 }
 
 impl<'de> Deserializer<'de> {
-    // By convention, `Deserializer` constructors are named like `from_xyz`.
     pub fn from_pkl_map(map: &'de BTreeMap<String, PklValue>) -> Self {
         Deserializer { map }
     }
@@ -117,23 +116,17 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         let key = self.keys[self.index - 1];
         if let Some(value) = self.de.map.get(key) {
             match value {
-                // PklValue::Int(i) => seed.deserialize(i.into_deserializer()),
                 PklValue::Int(i) => match i {
                     internal::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
                     internal::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()),
                     internal::Integer::Float(f) => seed.deserialize((*f).into_deserializer()),
                 },
-
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()),
-                // PklValue::List(a) => {
-                //     seed.deserialize(Deserializer::from_pkl_map(a).into_deserializer())
-                // }
+
                 PklValue::List(elements) => {
                     #[cfg(feature = "trace")]
                     let _span = span!(Level::INFO, "start parsing list").entered();
 
-                    // TODO: figure out lifetimes for this
-                    // let el = elements.iter().map(|v| v).collect::<Vec<_>>();
                     let seq = SeqAccessImpl::new(self.de, elements);
                     let result = seed.deserialize(SeqAccessDeserializer { seq });
 
@@ -147,7 +140,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                 PklValue::Null => seed.deserialize(().into_deserializer()),
             }
         } else {
-            Err(Error::Message("value missing".into()))
+            Err(Error::Message(format!("no value found for: {key}")))
         }
     }
 }

@@ -258,7 +258,7 @@ fn parse_dynamic_list_inner(
     ))
 }
 
-pub fn pkl_eval_module(decoded: rmpv::Value) -> anyhow::Result<PklMod> {
+pub fn pkl_eval_module(decoded: &rmpv::Value) -> anyhow::Result<PklMod> {
     let root = decoded.as_array().unwrap();
     let module_name = root.get(1).expect("expected root level module name");
     let module_uri = root.get(2).expect("expected root level module uri");

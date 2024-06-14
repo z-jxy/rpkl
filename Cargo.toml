@@ -15,8 +15,14 @@ convert_case = "0.6.0"
 
 tracing = {version = "0.1.40", optional = true }
 tracing-subscriber = {version = "0.3.18", optional = true }
+dhat = {version = "0.3.3", optional = true }
 
 
 [features]
 default = []
 trace = ["tracing", "tracing-subscriber"]
+dhat-heap = ["dhat"]    # if you are doing heap profiling
+dhat-ad-hoc = ["dhat"]  # if you are doing ad hoc profiling
+
+[profile.release]
+debug = 1

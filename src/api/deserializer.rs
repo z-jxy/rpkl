@@ -37,7 +37,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct
+        bytes byte_buf option unit unit_struct newtype_struct seq
         tuple tuple_struct map struct enum identifier ignored_any
     }
 
@@ -53,17 +53,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_map(MapAccessImpl::new(self))
     }
 
-    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        #[cfg(feature = "trace")]
-        debug!("tracing deserialize_seq");
-        // TODO: lifetimes are 'v annoying, refactor to use them properly.
-        let values = self.map.values().map(|v| v).collect::<Vec<_>>();
-        let seq = SeqAccessImpl::new(self, values);
-        visitor.visit_seq(seq)
-    }
+    // fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
+    // where
+    //     V: Visitor<'de>,
+    // {
+    //     #[cfg(feature = "trace")]
+    //     trace!("deserialize_seq");
+    //     // TODO: lifetimes are 'v annoying, refactor to use them properly.
+    //     let values = self.map.values().map(|v| v.to_owned()).collect::<Vec<_>>();
+    //     let seq = SeqAccessImpl::new(self, values.as_slice());
+    //     visitor.visit_seq(seq)
+    // }
 }
 
 struct SeqAccessDeserializer<'a, 'de: 'a> {
@@ -146,8 +146,8 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                     let _span = span!(Level::INFO, "start parsing list").entered();
 
                     // TODO: figure out lifetimes for this
-                    let el = elements.iter().map(|v| v).collect::<Vec<_>>();
-                    let seq = SeqAccessImpl::new(self.de, el);
+                    // let el = elements.iter().map(|v| v).collect::<Vec<_>>();
+                    let seq = SeqAccessImpl::new(self.de, elements);
                     let result = seed.deserialize(SeqAccessDeserializer { seq });
 
                     #[cfg(feature = "trace")]
@@ -167,12 +167,12 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
 
 struct SeqAccessImpl<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
-    elements: Vec<&'de PklValue>,
+    elements: &'de [PklValue],
     index: usize,
 }
 
 impl<'a, 'de> SeqAccessImpl<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>, elements: Vec<&'de PklValue>) -> Self {
+    fn new(de: &'a mut Deserializer<'de>, elements: &'de [PklValue]) -> Self {
         SeqAccessImpl {
             de,
             elements,
@@ -199,10 +199,11 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                 },
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
                 PklValue::List(l) => {
-                    // TODO: figure out lifetimes for this
-                    let values = l.iter().map(|v| v).collect::<Vec<_>>();
+                    // TODO:
+                    // let values = l.iter().map(|v| v).collect::<Vec<_>>();
+
                     seed.deserialize(SeqAccessDeserializer {
-                        seq: SeqAccessImpl::new(self.de, values),
+                        seq: SeqAccessImpl::new(self.de, l),
                     })
                     .map(Some)
                 }
@@ -228,13 +229,21 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
 
 */
 
+#[cfg(test)]
 mod tests {
 
+    #[cfg(feature = "dhat-heap")]
+    #[global_allocator]
+    static ALLOC: dhat::Alloc = dhat::Alloc;
+
     #[test]
-    fn test_struct() {
+    fn deserialize() {
         use super::*;
         use pkl::PklSerialize;
         use rmpv::Value;
+
+        #[cfg(feature = "dhat-heap")]
+        let _profiler = dhat::Profiler::new_heap();
 
         #[derive(Debug, PartialEq, Deserialize)]
         struct Config {
@@ -301,7 +310,7 @@ mod tests {
             ]),
         ]);
 
-        let pkl_mod = crate::api::pkl_eval_module(ast).expect("failed to evaluate pkl ast");
+        let pkl_mod = crate::api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
         let mut mapped = pkl_mod
             .serialize_pkl_ast()
             .expect("failed to serialize pkl module");
@@ -321,3 +330,98 @@ mod tests {
         assert_eq!(expected, deserialized)
     }
 }
+
+// mod bench {
+//     fn test_struct() {
+//         use super::*;
+//         use pkl::PklSerialize;
+//         use rmpv::Value;
+
+//         #[cfg(feature = "dhat-heap")]
+//         let _profiler = dhat::Profiler::new_heap();
+
+//         #[derive(Debug, PartialEq, Deserialize)]
+//         struct Config {
+//             ip: String,
+//             port: u16,
+//             birds: Vec<String>,
+//             database: Database,
+//         }
+
+//         #[derive(Debug, PartialEq, Deserialize)]
+//         struct Database {
+//             username: String,
+//             password: String,
+//         }
+
+//         let ast = Value::Array(vec![
+//             Value::Integer(1.into()),
+//             Value::String("example".into()),
+//             Value::String("file:///Users/testing/code/rust/pkl-rs/examples/example.pkl".into()),
+//             Value::Array(vec![
+//                 Value::Array(vec![
+//                     Value::Integer(16.into()),
+//                     Value::String("ip".into()),
+//                     Value::String("127.0.0.1".into()),
+//                 ]),
+//                 Value::Array(vec![
+//                     Value::Integer(16.into()),
+//                     Value::String("port".into()),
+//                     Value::Integer(8080.into()),
+//                 ]),
+//                 Value::Array(vec![
+//                     Value::Integer(16.into()),
+//                     Value::String("birds".into()),
+//                     Value::Array(vec![
+//                         Value::Integer(5.into()),
+//                         Value::Array(vec![
+//                             Value::String("Pigeon".into()),
+//                             Value::String("Hawk".into()),
+//                             Value::String("Penguin".into()),
+//                         ]),
+//                     ]),
+//                 ]),
+//                 Value::Array(vec![
+//                     Value::Integer(16.into()),
+//                     Value::String("database".into()),
+//                     Value::Array(vec![
+//                         Value::Integer(1.into()),
+//                         Value::String("Dynamic".into()),
+//                         Value::String("pkl:base".into()),
+//                         Value::Array(vec![
+//                             Value::Array(vec![
+//                                 Value::Integer(16.into()),
+//                                 Value::String("username".into()),
+//                                 Value::String("admin".into()),
+//                             ]),
+//                             Value::Array(vec![
+//                                 Value::Integer(16.into()),
+//                                 Value::String("password".into()),
+//                                 Value::String("secret".into()),
+//                             ]),
+//                         ]),
+//                     ]),
+//                 ]),
+//             ]),
+//         ]);
+
+//         let pkl_mod = crate::api::pkl_eval_module(ast).expect("failed to evaluate pkl ast");
+//         let mut mapped = pkl_mod
+//             .serialize_pkl_ast()
+//             .expect("failed to serialize pkl module");
+
+//         let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+//             .expect("failed to deserialize");
+
+//         let expected = Config {
+//             ip: "127.0.0.1".into(),
+//             port: 8080,
+//             birds: vec!["Pigeon".into(), "Hawk".into(), "Penguin".into()],
+//             database: Database {
+//                 username: "admin".to_owned(),
+//                 password: "secret".to_owned(),
+//             },
+//         };
+//         assert_eq!(expected, deserialized)
+//     }
+// }

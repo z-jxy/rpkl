@@ -94,7 +94,7 @@ impl Evaluator {
         let slice = result.as_slice().unwrap();
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
-        let pkl_mod = pkl_eval_module(rmpv_ast)?;
+        let pkl_mod = pkl_eval_module(&rmpv_ast)?;
 
         Ok(pkl_mod)
     }

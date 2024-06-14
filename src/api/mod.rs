@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use serde_json::Value;
+use tracing::trace;
 
 use crate::pkl::{self, IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrimitive, PklValue};
 pub mod evaluator;
@@ -193,17 +194,76 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
         .map(|v| v.as_u64().expect(&format!("expected type id, got {:?}", v)))
         .expect("missing type id");
 
-    if type_id != non_primitive::code::OBJECT_MEMBER
-        && type_id != non_primitive::code::DYNAMIC_LISTING
-    {
+    // if type_id != non_primitive::code::OBJECT_MEMBER
+    //     && type_id != non_primitive::code::DYNAMIC_LISTING
+    // {
+    //     todo!(
+    //         "expected OBJECT_MEMBER or DYNAMIC_LISTING ( type_id: {}), got: {}",
+    //         non_primitive::code::OBJECT_MEMBER,
+    //         type_id
+    //     );
+    // }
+    match type_id {
+        non_primitive::code::OBJECT_MEMBER => {
+            return parse_member_inner(type_id, &mut slots);
+        }
+        non_primitive::code::DYNAMIC_LISTING => {
+            return parse_dynamic_list_inner(type_id, &mut slots);
+        }
+        _ => {
+            todo!("type_id is not OBJECT_MEMBER, or DYNAMIC_LISTING. implement parse other non-primitive types. type_id: {}\n", type_id);
+        }
+    }
+
+    // return parse_member_inner(type_id, &mut slots);
+}
+
+/// this function is used to parse dynmically typed listings
+
+/// i.e:
+/// ```
+/// birds = new {
+///  "Pigeon"
+///  "Hawk"
+///  "Penguin"
+///  }
+/// ```
+/// the dynamically typed listings have a different structure than the typed listings
+///
+/// TODO: there has to be a bug here
+fn parse_dynamic_list_inner(
+    type_id: u64,
+    slots: &mut std::slice::Iter<rmpv::Value>,
+) -> anyhow::Result<ObjectMember> {
+    trace!("parse_dynamic_list_inner: type_id: {}", type_id);
+    if type_id != non_primitive::code::DYNAMIC_LISTING {
         todo!(
-            "expected OBJECT_MEMBER or DYNAMIC_LISTING ( type_id: {}), got: {}",
-            non_primitive::code::OBJECT_MEMBER,
+            "expected DYNAMIC_LISTING ( type_id: {}), got: {}",
+            non_primitive::code::DYNAMIC_LISTING,
             type_id
         );
     }
 
-    return parse_member_inner(type_id, &mut slots);
+    let index = slots
+        .next()
+        .map(|v| v.as_u64().expect("expected index"))
+        .unwrap();
+
+    let value = slots.next().expect("[parse_member_inner] expected value");
+
+    // nested object, map using the outer ident
+    if let rmpv::Value::Array(array) = value {
+        let pkl_value = eval_inner_bin_array(&array)?;
+        return Ok(ObjectMember(type_id, index.to_string(), pkl_value));
+    }
+
+    let primitive = parse_primitive_member(value)?;
+
+    Ok(ObjectMember(
+        type_id,
+        index.to_string(),
+        IPklValue::Primitive(primitive),
+    ))
 }
 
 // pub fn pkl_eval_module(decoded: Value) -> anyhow::Result<PklMod> {

@@ -5,6 +5,8 @@ pub mod code {
     pub const MAPPING: u64 = 3;
     pub const LIST: u64 = 4;
     pub const LISTING: u64 = 5;
+    /// collections example at https://pkl-lang.org/main/current/language-tutorial/01_basic_config.html#collections returns 18 for the listing
+    pub const DYNAMIC_LISTING: u64 = 18;
     pub const SET: u64 = 6;
     pub const DURATION: u64 = 7;
     pub const DATA_SIZE: u64 = 8;

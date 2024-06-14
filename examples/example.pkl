@@ -2,6 +2,12 @@
 ip = "127.0.0.1"
 port = 8080
 
+apples: Listing<String> = new {
+  "Pigeon"
+  "Hawk"
+  "Penguin"
+}
+
 database {
     username = "admin"
     password = "secret"

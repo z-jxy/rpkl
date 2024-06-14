@@ -6,6 +6,7 @@ use crate::pkl::{self, IPklValue, ObjectMember, PklMod, PklNonPrimitive, PklPrim
 pub mod evaluator;
 pub mod loader;
 pub use evaluator::Evaluator;
+pub mod deserialize;
 pub mod deserializer;
 pub mod error;
 use crate::pkl::non_primitive::{self};
@@ -192,9 +193,11 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
         .map(|v| v.as_u64().expect(&format!("expected type id, got {:?}", v)))
         .expect("missing type id");
 
-    if type_id != non_primitive::code::OBJECT_MEMBER {
+    if type_id != non_primitive::code::OBJECT_MEMBER
+        && type_id != non_primitive::code::DYNAMIC_LISTING
+    {
         todo!(
-            "expected OBJECT_MEMBER ( type_id: {}), got: {}",
+            "expected OBJECT_MEMBER or DYNAMIC_LISTING ( type_id: {}), got: {}",
             non_primitive::code::OBJECT_MEMBER,
             type_id
         );

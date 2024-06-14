@@ -1,15 +1,17 @@
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::ops::{AddAssign, MulAssign, Neg};
 
 use serde::de::{
     self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
     Visitor,
 };
-use serde::{forward_to_deserialize_any, Deserialize};
-use tracing::{debug, error, span, Level};
+use serde::{forward_to_deserialize_any, Deserialize, Deserializer as SerdeDeserializer};
+use tracing::{debug, error, span, trace, Level};
 use tracing_subscriber::field::debug;
 use tracing_subscriber::FmtSubscriber;
 
+use crate::api::deserialize::PklVisitor;
 use crate::pkl::{self, PklValue};
 
 use super::error::{Error, Result};
@@ -176,7 +178,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq
+        bytes byte_buf option unit unit_struct newtype_struct
         tuple tuple_struct map struct enum identifier ignored_any
     }
 
@@ -187,7 +189,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        println!("tracing deserialize_any");
+        trace!("tracing deserialize_any");
         // match self.peek_char()? {
         //     'n' => self.deserialize_unit(visitor),
         //     't' | 'f' => self.deserialize_bool(visitor),
@@ -203,6 +205,17 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_map(MapAccessImpl::new(self))
         // Err(Error::Syntax)
     }
+
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        debug!("tracing deserialize_seq");
+        let values = self.map.values().map(|v| v.to_owned()).collect::<Vec<_>>();
+        let seq = SeqAccessImpl::new(self, values);
+        visitor.visit_seq(seq)
+    }
+
     /*
     // Uses the `parse_bool` parsing function defined above to read the JSON
     // identifier `true` or `false` from the input.
@@ -568,6 +581,35 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
      */
 }
 
+struct SeqAccessDeserializer<'a, 'de: 'a> {
+    seq: SeqAccessImpl<'a, 'de>,
+}
+
+impl<'de, 'a> de::Deserializer<'de> for SeqAccessDeserializer<'a, 'de> {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        // self.seq.de.deserialize_seq(visitor)
+        visitor.visit_seq(self.seq)
+    }
+
+    fn deserialize_seq<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_seq(self.seq)
+    }
+}
+
 struct MapAccessImpl<'a, 'de: 'a> {
     // key: &'a str,
     de: &'a mut Deserializer<'de>,
@@ -584,6 +626,7 @@ impl<'a, 'de> MapAccessImpl<'a, 'de> {
 
 impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
     type Error = Error;
+    // type Value = PklValue;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
     where
@@ -623,6 +666,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         //     debug!("no more values");
         //     Err(Error::Eof)
         // }
+        // serde_json::Value::Array(vec!["".into()]).deserialize;
         let key = self.keys[self.index - 1];
         if let Some(value) = self.de.map.get(key) {
             match value {
@@ -637,7 +681,34 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                 // PklValue::List(a) => {
                 //     seed.deserialize(Deserializer::from_pkl_map(a).into_deserializer())
                 // }
-                PklValue::List => todo!(),
+                PklValue::List(elements) => {
+                    // seed.deserialize(SeqAccessImpl::new(self.de, elements).into_deserializer())
+                    let _span = span!(Level::INFO, "start parsing list").entered();
+                    // let mut values = vec![];
+                    // for v in elements {
+                    //     let x = seed.deserialize(v.into_deserializer())?;
+                    //     values.push(x);
+                    // }
+                    let el = elements.iter().map(|v| v.to_owned()).collect::<Vec<_>>();
+                    let seq = SeqAccessImpl::new(self.de, el);
+                    // let ret = seed.deserialize(seq);
+                    // let ret = self.de.deserialize_seq(PklVisitor)?;
+
+                    // let values = elements.iter().map(|v| v).collect::<Vec<_>>();
+                    // let seq = SeqAccessImpl::new(self.de, values.as_slice());
+                    // let x = seed.deserialize(&mut *seq.de);
+                    // seed.deserialize(&mut *seq.de);
+                    //let x = seed.deserialize((*values).into_deserializer());
+                    // seed.deserialize(deserializer)
+                    let zz = seed.deserialize(SeqAccessDeserializer { seq });
+                    _span.exit();
+                    // x
+                    // let seq = SeqAccessImpl::new(self.de, l);
+
+                    // seed.deserialize(&mut *seq.de)
+
+                    zz
+                }
                 PklValue::Map(m) => seed.deserialize(&mut Deserializer::from_pkl_map(m)),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()),
                 PklValue::Null => seed.deserialize(().into_deserializer()),
@@ -645,6 +716,148 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         } else {
             Err(Error::Message("value missing".into()))
         }
+    }
+}
+
+struct SeqAccessImpl<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+    elements: Vec<PklValue>,
+    index: usize,
+}
+
+impl<'a, 'de> SeqAccessImpl<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>, elements: Vec<PklValue>) -> Self {
+        SeqAccessImpl {
+            de,
+            elements,
+            index: 0,
+        }
+    }
+}
+
+impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
+    type Error = Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        if self.index < self.elements.len() {
+            let value = &self.elements[self.index];
+            self.index += 1;
+            match value {
+                PklValue::Int(i) => match i {
+                    pkl::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()).map(Some),
+                    pkl::Integer::Float(f) => seed.deserialize((*f).into_deserializer()).map(Some),
+                    pkl::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()).map(Some),
+                },
+                PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
+                PklValue::List(l) => {
+                    // let values = vec![];
+                    // for v in l {
+                    //     let x = seed.deserialize(v.into_deserializer())?;
+                    //     values.push(x);
+                    // }
+                    let values = l.iter().map(|v| v.to_owned()).collect::<Vec<_>>();
+                    let sai = SeqAccessImpl::new(self.de, values);
+                    // seed.deserialize(&mut *sai.de).map(Some)
+                    // self.de.deserialize_seq(&mut *self.de).map(Some)
+                    // seed.deserialize(values.into_deserializer()).map(Some)
+                    seed.deserialize(SeqAccessDeserializer { seq: sai })
+                        .map(Some)
+                }
+                PklValue::Map(m) => {
+                    todo!();
+                    seed.deserialize(&mut Deserializer::from_pkl_map(m))
+                        .map(Some)
+                }
+                PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()).map(Some),
+                PklValue::Null => seed.deserialize(().into_deserializer()).map(Some),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+/// A deserializer holding a `&PklValue`.
+pub struct PklDeserializer<'a, E> {
+    value: &'a PklValue,
+    marker: PhantomData<E>,
+}
+
+impl<'a, E> PklDeserializer<'a, E> {
+    #[allow(missing_docs)]
+    pub fn new(value: &'a PklValue) -> Self {
+        PklDeserializer {
+            value,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'de, 'a, E> de::Deserializer<'de> for PklDeserializer<'a, E>
+where
+    E: de::Error,
+{
+    type Error = E;
+
+    fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.value {
+            PklValue::Int(i) => match i {
+                pkl::Integer::Pos(u) => visitor.visit_u64(*u),
+                pkl::Integer::Neg(n) => visitor.visit_i64(*n),
+                pkl::Integer::Float(f) => visitor.visit_f64(*f),
+            },
+            PklValue::String(s) => visitor.visit_str(s),
+            PklValue::List(l) => {
+                unimplemented!();
+                // let values = l.iter().map(|v| v.to_owned()).collect::<Vec<_>>();
+                // let seq = SeqAccessImpl::new(self, values);
+                // visitor.visit_seq(seq).map_err(|e| E::custom(e))
+            }
+            PklValue::Map(m) => {
+                unimplemented!()
+                // let map = MapAccessImpl::new(self);
+                // visitor.visit_map(map).map_err(|e| E::custom(e))
+            }
+            PklValue::Boolean(b) => visitor.visit_bool(*b),
+            PklValue::Null => visitor.visit_unit(),
+        }
+    }
+
+    // fn deserialize_enum<V>(
+    //     self,
+    //     name: &str,
+    //     variants: &'static [&'static str],
+    //     visitor: V,
+    // ) -> Result<V::Value, Self::Error>
+    // where
+    //     V: de::Visitor<'de>,
+    // {
+    //     let _ = name;
+    //     let _ = variants;
+    //     visitor.visit_enum(self)
+    // }
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple enum
+        tuple_struct map struct identifier ignored_any
+    }
+}
+
+impl<'de, 'a, E> IntoDeserializer<'de, E> for &'a PklValue
+where
+    E: de::Error,
+{
+    type Deserializer = PklDeserializer<'a, E>;
+
+    fn into_deserializer(self) -> PklDeserializer<'a, E> {
+        PklDeserializer::new(self)
     }
 }
 

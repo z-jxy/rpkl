@@ -45,7 +45,8 @@ impl ObjectMember {
                     // serde_json::Value::Array(items.to_vec())
                     // items.to_vec()
                     // rmpv::Value::Array(items.iter().map(|i| i.to_owned()))
-                    PklValue::List
+                    let values = items.iter().map(|i| i.to_owned().into()).collect();
+                    PklValue::List(values)
                 }
                 PklNonPrimitive::Mapping(_, m) => {
                     // IPklValue::Primitive(m.to_owned())
@@ -80,12 +81,24 @@ impl ObjectMember {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum PklValue {
     Map(BTreeMap<String, PklValue>),
-    List,
+    List(Vec<PklValue>),
     String(String),
     Int(Integer),
     Boolean(bool),
     Null,
     // Container,
+}
+
+impl From<PklPrimitive> for PklValue {
+    fn from(p: PklPrimitive) -> Self {
+        match p {
+            PklPrimitive::Int(i) => PklValue::Int(i),
+            PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
+            PklPrimitive::String(s) => PklValue::String(s),
+            PklPrimitive::Bool(b) => PklValue::Boolean(b),
+            PklPrimitive::Null => PklValue::Null,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

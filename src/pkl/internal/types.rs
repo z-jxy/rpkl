@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::PklSerialize;
-use crate::{Error, Result};
+use crate::Result;
 use serde::{Deserialize, Serialize};
 
 /// Represents a member of a `.pkl` object

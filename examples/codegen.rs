@@ -6,7 +6,7 @@ use std::{collections::HashMap, path::PathBuf};
 pub struct Example {
     pub ip: String,
     pub port: i64,
-    pub birds: Vec<pkl_rs::Value>,
+    pub birds: Vec<i32>,
     pub mapping: pkl_rs::Value,
     pub anon_map: example::AnonMap,
     pub database: example::Database,

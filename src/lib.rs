@@ -69,6 +69,6 @@ where
         trace!("serialized pkl ast {:?}", pkld);
 
         T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
-            .map_err(|e| Error::DeserializeError(format!("failed to deserialize: {:?}", e)))
+            .map_err(|e| Error::DeserializeError(format!("{}", e)))
     }
 }

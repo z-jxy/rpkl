@@ -51,7 +51,7 @@ impl ObjectMember {
                     Integer::Float(f) => PklValue::Int(Integer::Float(f)),
                 },
                 PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
-                PklPrimitive::String(s) => PklValue::String(s.to_string()),
+                PklPrimitive::String(s) => PklValue::String(s),
                 PklPrimitive::Boolean(b) => PklValue::Boolean(b),
                 PklPrimitive::Null => PklValue::Null,
             },

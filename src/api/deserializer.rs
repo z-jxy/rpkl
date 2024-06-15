@@ -400,7 +400,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/code/rust/pkl-rs/examples/example.pkl".into()),
+            Value::String("file:///Users/testing/pkl-rs/examples/example.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),

@@ -16,7 +16,7 @@ mod tests {
     #[global_allocator]
     static ALLOC: dhat::Alloc = dhat::Alloc;
 
-    macro_rules! time {
+    macro_rules! print_time {
         ($elapsed:expr) => {
             if $elapsed.as_millis() > 0 {
                 println!("Time: {}ms", $elapsed.as_millis());
@@ -24,6 +24,18 @@ mod tests {
                 println!("Time: {}μs", $elapsed.as_micros());
             }
         };
+    }
+
+    /// Time a block of code
+    macro_rules! time {
+        ( $($s:stmt);* $(;)?) => {
+            let now = std::time::Instant::now();
+            (||{
+                $($s)*
+            })();
+            let elapsed = now.elapsed();
+            print_time!(elapsed);
+        }
     }
 
     #[test]
@@ -44,7 +56,7 @@ mod tests {
             username: String,
             password: String,
         }
-        let now = std::time::Instant::now();
+
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
@@ -95,8 +107,27 @@ mod tests {
                 ]),
             ]),
         ]);
+        let expected = Config {
+            ip: "127.0.0.1".into(),
+            port: 8080,
+            birds: vec!["Pigeon".into(), "Hawk".into(), "Penguin".into()],
+            database: Database {
+                username: "admin".to_owned(),
+                password: "secret".to_owned(),
+            },
+        };
+        let now = std::time::Instant::now();
+        let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
+        let mut mapped = pkl_mod
+            .serialize_pkl_ast()
+            .expect("failed to serialize pkl module");
+
+        let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+            .expect("failed to deserialize");
+
         let elapsed = now.elapsed();
-        time!(elapsed);
+        print_time!(elapsed);
+        assert_eq!(expected, deserialized);
     }
 
     #[bench]
@@ -117,7 +148,7 @@ mod tests {
             username: String,
             password: String,
         }
-        let now = std::time::Instant::now();
+
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
@@ -168,16 +199,19 @@ mod tests {
                 ]),
             ]),
         ]);
-        b.iter(|| {
-            for _ in 0..100 {
-                let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
-                let mut mapped = pkl_mod
-                    .serialize_pkl_ast()
-                    .expect("failed to serialize pkl module");
 
-                Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
-                    .expect("failed to deserialize");
-            }
-        });
+        time! {
+            b.iter(|| {
+                for _ in 0..100 {
+                    let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
+                    let mut mapped = pkl_mod
+                        .serialize_pkl_ast()
+                        .expect("failed to serialize pkl module");
+
+                    Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+                        .expect("failed to deserialize");
+                }
+            });
+        }
     }
 }

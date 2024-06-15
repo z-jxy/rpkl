@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use api::deserializer::Deserializer;
 use pkl::PklSerialize;
 
@@ -9,7 +7,7 @@ pub mod error;
 pub mod pkl;
 
 pub use error::{Error, Result};
-pub use pkl::PklValue;
+pub use pkl::PklValue as Value;
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};
@@ -48,7 +46,7 @@ use tracing_subscriber::FmtSubscriber;
 /// ```
 pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
-    T: Sized + for<'de> serde::Deserialize<'de> + Debug,
+    T: Sized + for<'de> serde::Deserialize<'de>,
 {
     {
         #[cfg(feature = "trace")]
@@ -69,6 +67,6 @@ where
         trace!("serialized pkl ast {:?}", pkld);
 
         T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
-            .map_err(|e| Error::DeserializeError(format!("failed to deserialize: {:?}", e)))
+            .map_err(|e| Error::DeserializeError(format!("{}", e)))
     }
 }

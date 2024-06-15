@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::pkl::internal::{self};
-use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
+use serde::de::{
+    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
+    Visitor,
+};
 use serde::{forward_to_deserialize_any, Deserialize};
 
 #[cfg(feature = "trace")]
@@ -39,7 +42,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
         bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
+        tuple tuple_struct map struct identifier ignored_any
     }
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -47,8 +50,30 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         V: Visitor<'de>,
     {
         #[cfg(feature = "trace")]
-        trace!("deserialize_any, visiting map");
+        trace!("deserialize_any, using MapAccessImpl map");
         visitor.visit_map(MapAccessImpl::new(self))
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        #[cfg(feature = "trace")]
+        let _span = span!(Level::INFO, "deserialize_enum").entered();
+        #[cfg(feature = "trace")]
+        debug!("deserialize_enum: {:?}, {:?}", _name, _variants);
+
+        let ret = visitor.visit_enum(Enum::new(self));
+
+        #[cfg(feature = "trace")]
+        _span.exit();
+
+        ret
     }
 }
 
@@ -62,7 +87,7 @@ impl<'de, 'a> de::Deserializer<'de> for SeqAccessDeserializer<'a, 'de> {
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
         bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
+        tuple tuple_struct map struct ignored_any
     }
 
     fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
@@ -70,6 +95,28 @@ impl<'de, 'a> de::Deserializer<'de> for SeqAccessDeserializer<'a, 'de> {
         V: Visitor<'de>,
     {
         visitor.visit_seq(self.seq)
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        #[cfg(feature = "trace")]
+        debug!("deserialize_enum seq");
+
+        self.deserialize_map(visitor)
+    }
+
+    fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        self.deserialize_str(visitor)
     }
 }
 
@@ -101,6 +148,8 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         if self.index < self.keys.len() {
             let key = self.keys[self.index];
             self.index += 1;
+            #[cfg(feature = "trace")]
+            debug!("looking up key: {:?}", key);
             seed.deserialize(key.as_str().into_deserializer()).map(Some)
         } else {
             Ok(None)
@@ -112,9 +161,11 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         V: DeserializeSeed<'de>,
     {
         #[cfg(feature = "trace")]
-        debug!("tracing next_value_seed");
+        debug!("next_value_seed");
         let key = self.keys[self.index - 1];
         if let Some(value) = self.de.map.get(key) {
+            #[cfg(feature = "trace")]
+            debug!("found value for key: {:?}: {:?}", key, value);
             match value {
                 PklValue::Int(i) => match i {
                     internal::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
@@ -126,6 +177,9 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                 PklValue::List(elements) => {
                     #[cfg(feature = "trace")]
                     let _span = span!(Level::INFO, "start parsing list").entered();
+
+                    #[cfg(feature = "trace")]
+                    debug!("parsing list: {:?}", elements);
 
                     let seq = SeqAccessImpl::new(self.de, elements);
                     let result = seed.deserialize(SeqAccessDeserializer { seq });
@@ -145,6 +199,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
     }
 }
 
+/////////////////////////////////////////////////////////////////////////////////
 struct SeqAccessImpl<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
     elements: &'de [PklValue],
@@ -168,10 +223,15 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
     where
         T: DeserializeSeed<'de>,
     {
+        #[cfg(feature = "trace")]
+        debug!("next_element_seed");
+
         if self.index < self.elements.len() {
             let value = &self.elements[self.index];
             self.index += 1;
-            match value {
+            #[cfg(feature = "trace")]
+            debug!("el value: {:?}", value);
+            let ret = match value {
                 PklValue::Int(i) => match i {
                     pkl::internal::Integer::Pos(u) => {
                         seed.deserialize((*u).into_deserializer()).map(Some)
@@ -194,14 +254,114 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                     .map(Some),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()).map(Some),
                 PklValue::Null => seed.deserialize(().into_deserializer()).map(Some),
-            }
+            };
+
+            return ret;
         } else {
+            #[cfg(feature = "trace")]
+            debug!("no more elements");
             Ok(None)
         }
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+struct Enum<'a, 'de: 'a> {
+    de: &'a mut Deserializer<'de>,
+}
+
+impl<'a, 'de> Enum<'a, 'de> {
+    fn new(de: &'a mut Deserializer<'de>) -> Self {
+        Enum { de }
+    }
+}
+
+// `EnumAccess` is provided to the `Visitor` to give it the ability to determine
+// which variant of the enum is supposed to be deserialized.
+//
+// Note that all enum deserialization methods in Serde refer exclusively to the
+// "externally tagged" enum representation.
+impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
+    type Error = Error;
+    type Variant = Self;
+
+    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
+    where
+        V: DeserializeSeed<'de>,
+    {
+        #[cfg(feature = "trace")]
+        debug!("EnumAccess variant_seed");
+        // todo!("implement variant_seed");
+        // The `deserialize_enum` method parsed a `{` character so we are
+        // currently inside of a map. The seed will be deserializing itself from
+        // the key of the map.
+        let val = match seed.deserialize(&mut *self.de) {
+            Ok(v) => v,
+            Err(e) => {
+                #[cfg(feature = "trace")]
+                error!("Failed to deserialize variant seed: {:?}", e);
+                return Err(e);
+            }
+        };
+        // Parse the colon separating map key from value.
+        Ok((val, self))
+        // if self.de.next_char()? == ':' {
+        //     Ok((val, self))
+        // } else {
+        //     Err(Error::ExpectedMapColon)
+        // }
+    }
+
+    // fn variant<V>(self) -> std::result::Result<(V, Self::Variant), Self::Error>
+    // where
+    //     V: Deserialize<'de>,
+    // {
+    //     self.variant_seed(std::marker::PhantomData)
+    // }
+}
+
+// `VariantAccess` is provided to the `Visitor` to give it the ability to see
+// the content of the single variant that it decided to deserialize.
+impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
+    type Error = Error;
+
+    // If the `Visitor` expected this variant to be a unit variant, the input
+    // should have been the plain string case handled in `deserialize_enum`.
+    fn unit_variant(self) -> Result<()> {
+        Err(Error::ExpectedString)
+    }
+
+    // Newtype variants are represented in JSON as `{ NAME: VALUE }` so
+    // deserialize the value here.
+    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
+    where
+        T: DeserializeSeed<'de>,
+    {
+        seed.deserialize(self.de)
+    }
+
+    // Tuple variants are represented in JSON as `{ NAME: [DATA...] }` so
+    // deserialize the sequence of data here.
+    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        de::Deserializer::deserialize_seq(self.de, visitor)
+    }
+
+    // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }` so
+    // deserialize the inner map here.
+    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        #[cfg(feature = "trace")]
+        debug!("struct_variant, : {:?}", _fields);
+
+        de::Deserializer::deserialize_map(self.de, visitor)
+    }
+}
 
 /*
 
@@ -240,7 +400,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/code/rust/pkl-rs/examples/example.pkl".into()),
+            Value::String("file:///Users/testing/pkl-rs/examples/example.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),

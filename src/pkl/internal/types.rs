@@ -4,6 +4,8 @@ use crate::PklSerialize;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 
+use super::visitor::PklVisitor;
+
 /// Represents a member of a `.pkl` object
 /// Fields: type_id, identifier, value
 #[derive(Debug, Clone, Serialize)]
@@ -57,7 +59,7 @@ impl ObjectMember {
 }
 
 /// Represents a `.pkl` value
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum PklValue {
     Map(HashMap<String, PklValue>),
     List(Vec<PklValue>),
@@ -65,6 +67,60 @@ pub enum PklValue {
     Int(Integer),
     Boolean(bool),
     Null,
+}
+
+impl PklValue {
+    pub fn as_map(&self) -> Option<&HashMap<String, PklValue>> {
+        match self {
+            PklValue::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    pub fn as_list(&self) -> Option<&Vec<PklValue>> {
+        match self {
+            PklValue::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    pub fn as_int(&self) -> Option<&Integer> {
+        match self {
+            PklValue::Int(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_bool(&self) -> Option<&bool> {
+        match self {
+            PklValue::Boolean(b) => Some(b),
+            _ => None,
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PklValue {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<PklValue, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(PklVisitor)
+    }
+}
+
+mod test {
+    use super::*;
+    #[test]
+    fn deserialize() {
+        let json_data = r#"{"value": 123}"#;
+        let value: PklValue = serde_json::from_str(json_data).expect("Failed to deserialize");
+        let map = value.as_map().expect("Expected a map");
+        assert_eq!(map.len(), 1);
+        assert_eq!(
+            map.get("value").unwrap().as_int().unwrap(),
+            &Integer::Pos(123)
+        );
+    }
 }
 
 impl From<PklPrimitive> for PklValue {
@@ -80,6 +136,7 @@ impl From<PklPrimitive> for PklValue {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
+#[serde(untagged)]
 pub enum Integer {
     Pos(u64),
     Float(f64),

@@ -137,7 +137,7 @@ impl Drop for Evaluator {
     }
 }
 
-pub fn start_pkl(pkl_debug: bool) -> anyhow::Result<Child> {
+pub fn start_pkl(pkl_debug: bool) -> Result<Child> {
     let mut command = Command::new("pkl");
 
     command
@@ -158,7 +158,7 @@ pub fn pkl_send_msg_one_way(
     child_stdin: &mut std::process::ChildStdin,
 
     serialized_request: Vec<u8>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     child_stdin.write_all(&serialized_request)?;
     child_stdin.flush()?;
     Ok(())

@@ -46,7 +46,7 @@ use tracing_subscriber::FmtSubscriber;
 ///
 /// let config: Database = pkl_rs::from_config("config.pkl")?;
 /// ```
-pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> anyhow::Result<T>
+pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de> + Debug,
 {
@@ -69,6 +69,6 @@ where
         trace!("serialized pkl ast {:?}", pkld);
 
         T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
-            .map_err(|e| anyhow::anyhow!("failed to deserialize: {:?}", e))
+            .map_err(|e| Error::DeserializeError(format!("failed to deserialize: {:?}", e)))
     }
 }

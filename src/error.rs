@@ -16,6 +16,10 @@ pub enum Error {
     PklProcessStart,
     PklServerError { pkl_error: String },
 
+    SerializeAst,
+    ParseError(String),
+    DeserializeError(String),
+
     MsgpackDecodeError(rmpv::decode::Error),
 
     Eof,

@@ -16,7 +16,7 @@ use tracing::trace;
 fn parse_member_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
-) -> anyhow::Result<ObjectMember> {
+) -> Result<ObjectMember> {
     let ident = slots
         .next()
         .map(|v| {
@@ -44,7 +44,7 @@ fn parse_member_inner(
 }
 
 /// parses non-primitive members of a pkl object
-fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<PklNonPrimitive> {
+fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     match type_id {
         type_constants::TYPED_DYNAMIC => {
             let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
@@ -59,7 +59,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
             let members = members
                 .iter()
                 .map(|m| parse_pkl_obj_member(&m.as_array().unwrap()))
-                .collect::<anyhow::Result<Vec<ObjectMember>>>()?;
+                .collect::<Result<Vec<ObjectMember>>>()?;
 
             return Ok(PklNonPrimitive::TypedDynamic(
                 type_id,
@@ -74,7 +74,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
             let values = values
                 .iter()
                 .map(|v| parse_primitive_member(v))
-                .collect::<anyhow::Result<Vec<PklPrimitive>>>()?;
+                .collect::<Result<Vec<PklPrimitive>>>()?;
             return Ok(PklNonPrimitive::Set(type_id, values));
         }
         type_constants::MAPPING | type_constants::MAP => {
@@ -116,7 +116,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
             let values = values
                 .iter()
                 .map(|v| parse_primitive_member(v))
-                .collect::<anyhow::Result<Vec<PklPrimitive>>>()?;
+                .collect::<Result<Vec<PklPrimitive>>>()?;
 
             return Ok(PklNonPrimitive::List(type_id, values));
         }
@@ -135,11 +135,14 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<
 }
 
 /// parses primitive members of a pkl object
-fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
+fn parse_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
     match value {
         rmpv::Value::String(s) => {
             let Some(s) = s.as_str() else {
-                return Err(anyhow::anyhow!("expected valid UTF-8 string, got {:?}", s));
+                return Err(Error::ParseError(format!(
+                    "expected valid UTF-8 string, got {:?}",
+                    s
+                )));
             };
             return Ok(PklPrimitive::String(s.to_string()));
         }
@@ -157,7 +160,7 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
             } else if n.as_f64().is_some() {
                 Ok(PklPrimitive::Float(n.as_f64().unwrap()))
             } else {
-                return Err(anyhow::anyhow!("expected integer, got {:?}", n));
+                return Err(Error::ParseError(format!("expected integer, got {:?}", n)));
             }
         }
         _ => {
@@ -167,7 +170,7 @@ fn parse_primitive_member(value: &rmpv::Value) -> anyhow::Result<PklPrimitive> {
 }
 
 /// evaluates the inner binary array of a pkl object
-fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
+fn eval_inner_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
     let type_id = slots[0].as_u64().context("missing type id")?;
 
     if type_id == type_constants::OBJECT_MEMBER {
@@ -182,7 +185,7 @@ fn eval_inner_bin_array(slots: &[rmpv::Value]) -> anyhow::Result<IPklValue> {
     Ok(IPklValue::NonPrimitive(non_prim))
 }
 
-fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
+fn parse_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
     let mut slots = data.iter();
 
     let type_id = slots
@@ -219,7 +222,7 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> anyhow::Result<ObjectMember> {
 fn parse_dynamic_list_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
-) -> anyhow::Result<ObjectMember> {
+) -> Result<ObjectMember> {
     #[cfg(feature = "trace")]
     trace!("parse_dynamic_list_inner: type_id: {}", type_id);
     if type_id != type_constants::DYNAMIC_LISTING {

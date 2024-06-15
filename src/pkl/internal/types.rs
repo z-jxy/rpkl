@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
 use crate::PklSerialize;
+use crate::{Error, Result};
+use serde::{Deserialize, Serialize};
 
 /// Represents a member of a `.pkl` object
 /// Fields: type_id, identifier, value
@@ -26,7 +26,7 @@ impl ObjectMember {
     /// # Returns
     ///
     /// A tuple containing the member's identifier and its JSON value
-    pub fn to_pkl_value(self) -> anyhow::Result<(String, PklValue)> {
+    pub fn to_pkl_value(self) -> Result<(String, PklValue)> {
         let (_, ident, value) = self.take();
         let v = match value {
             IPklValue::NonPrimitive(np) => match np {

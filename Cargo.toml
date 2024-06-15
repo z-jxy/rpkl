@@ -18,9 +18,9 @@ tracing-subscriber = { version = "0.3.18", optional = true }
 [features]
 default = []
 trace = ["tracing", "tracing-subscriber"]
-dhat-heap = ["dhat"]    # if you are doing heap profiling
-dhat-ad-hoc = ["dhat"]  # if you are doing ad hoc profiling
-codegen = ["convert_case"]  # if you are doing ad hoc profiling
+dhat-heap = ["dhat"]
+dhat-ad-hoc = ["dhat"]
+codegen = ["convert_case"]
 
 [profile.release]
 debug = 1

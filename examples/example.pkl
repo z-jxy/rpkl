@@ -13,6 +13,10 @@ mapping = new Mapping {
   ["map_key2"] = "map_value2"
 }
 
+anon_map = new {
+  ["anon_key"] = "anon_value"
+}
+
 database {
     username = "admin"
     password = "secret"

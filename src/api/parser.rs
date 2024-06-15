@@ -194,7 +194,7 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
         .context("expected type id")?;
 
     match type_id {
-        type_constants::OBJECT_MEMBER => {
+        type_constants::OBJECT_MEMBER | type_constants::DYNAMIC_MAPPING => {
             return parse_member_inner(type_id, &mut slots);
         }
         type_constants::DYNAMIC_LISTING => {

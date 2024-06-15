@@ -9,6 +9,7 @@ struct Config {
     birds: Vec<String>,
     database: Database,
     mapping: HashMap<String, String>,
+    anon_map: HashMap<String, String>,
 }
 
 #[allow(dead_code)]

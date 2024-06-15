@@ -5,7 +5,6 @@ use serde::de::{
     self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
     Visitor,
 };
-use serde::Deserializer as SerdeDeserializer;
 use serde::{forward_to_deserialize_any, Deserialize};
 
 #[cfg(feature = "trace")]
@@ -57,8 +56,8 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
     fn deserialize_enum<V>(
         self,
-        name: &'static str,
-        variants: &'static [&'static str],
+        _name: &'static str,
+        _variants: &'static [&'static str],
         visitor: V,
     ) -> std::result::Result<V::Value, Self::Error>
     where
@@ -67,20 +66,12 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         #[cfg(feature = "trace")]
         let _span = span!(Level::INFO, "deserialize_enum").entered();
         #[cfg(feature = "trace")]
-        debug!("deserialize_enum: {:?}, {:?}", name, variants);
+        debug!("deserialize_enum: {:?}, {:?}", _name, _variants);
 
         let ret = visitor.visit_enum(Enum::new(self));
 
         #[cfg(feature = "trace")]
-        {
-            if let Ok(_) = &ret {
-                debug!("deserialize_enum: success");
-            } else {
-                error!("deserialize_enum: failed");
-            }
-
-            _span.exit();
-        }
+        _span.exit();
 
         ret
     }
@@ -189,13 +180,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
 
                     #[cfg(feature = "trace")]
                     debug!("parsing list: {:?}", elements);
-                    // let seq = SeqAccessImpl::new(self.de, elements);
-                    // let result = seed.deserialize(SeqAccessDeserializer { seq });
 
-                    // let mut collected = vec![];
-                    // for el in elements {
-                    //     collected.push(seed.deserialize(el.into_deserializer())?);
-                    // }
                     let seq = SeqAccessImpl::new(self.de, elements);
                     let result = seed.deserialize(SeqAccessDeserializer { seq });
 
@@ -211,81 +196,6 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         } else {
             Err(Error::Message(format!("no value found for: {key}")))
         }
-    }
-}
-
-impl<'de> IntoDeserializer<'de, Error> for PklValue {
-    type Deserializer = PklValueDeserializer<'de>;
-
-    fn into_deserializer(self) -> Self::Deserializer {
-        PklValueDeserializer {
-            value: self,
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-pub struct PklValueDeserializer<'de> {
-    value: PklValue,
-    // de: &'de mut Deserializer<'de>,
-    _phantom: std::marker::PhantomData<&'de ()>,
-}
-
-impl<'de> SerdeDeserializer<'de> for PklValueDeserializer<'de> {
-    type Error = Error;
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        #[cfg(feature = "trace")]
-        debug!("deserializing pklvalue");
-        match self.value {
-            PklValue::Int(i) => match i {
-                internal::Integer::Pos(u) => visitor.visit_u64(u),
-                internal::Integer::Neg(n) => visitor.visit_i64(n),
-                internal::Integer::Float(f) => visitor.visit_f64(f),
-            },
-            PklValue::String(s) => visitor.visit_str(&s),
-            PklValue::List(elements) => {
-                todo!("implement nested list deserialization?");
-                // let seq = SeqAccessImpl::new(self.de, self.value);
-                // visitor.visit_seq(seq)
-            }
-            PklValue::Map(map) => {
-                todo!();
-                // let map_access = MapAccessImpl::new(map);
-                // visitor.visit_map(map_access)
-            }
-            PklValue::Boolean(b) => visitor.visit_bool(b),
-            PklValue::Null => visitor.visit_unit(),
-        }
-    }
-
-    // fn deserialize_enum<V>(
-    //     self,
-    //     _name: &'static str,
-    //     _variants: &'static [&'static str],
-    //     visitor: V,
-    // ) -> Result<V::Value>
-    // where
-    //     V: Visitor<'de>,
-    // {
-    //     self.deserialize_map(visitor)
-    // }
-
-    // fn deserialize_identifier<V>(self, visitor: V) -> Result<V::Value>
-    // where
-    //     V: Visitor<'de>,
-    // {
-    //     self.deserialize_str(visitor)
-    // }
-
-    // Implement other deserialization methods as needed...
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map enum identifier struct ignored_any
     }
 }
 

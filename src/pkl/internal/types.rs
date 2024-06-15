@@ -80,7 +80,7 @@ impl PklValue {
         }
     }
 
-    pub fn as_list(&self) -> Option<&Vec<PklValue>> {
+    pub fn as_array(&self) -> Option<&Vec<PklValue>> {
         match self {
             PklValue::List(l) => Some(l),
             _ => None,
@@ -111,11 +111,11 @@ impl<'de> Deserialize<'de> for PklValue {
     }
 }
 
+#[cfg(test)]
 mod test {
-    use crate::{pkl::internal::Integer, Value};
-
     #[test]
     fn deserialize_map() {
+        use crate::{pkl::internal::Integer, Value};
         let json_data = r#"{"value": 123}"#;
         let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");
@@ -128,14 +128,16 @@ mod test {
 
     #[test]
     fn deserialize_array() {
+        use crate::{pkl::internal::Integer, Value};
         let json_data = r#"{"value": [123, 456]}"#;
         let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");
-        // assert_eq!(map.len(), 1);
-        // assert_eq!(
-        //     map.get("value").unwrap().as_int().unwrap(),
-        //     &Integer::Pos(123)
-        // );
+        assert_eq!(map.len(), 1);
+        let actual = map.get("value").unwrap().as_array().unwrap();
+        assert_eq!(
+            *actual,
+            vec![Value::Int(Integer::Pos(123)), Value::Int(Integer::Pos(456))]
+        );
     }
 }
 

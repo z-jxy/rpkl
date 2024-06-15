@@ -33,12 +33,9 @@ let config: Config = pkl_rs::value_from_config("./config.pkl")?;
 
 ## Codegen
 
-Mostly works, but still a WIP. If you want to try it out you can use the following snippet of code
-
+Mostly works, but still a WIP. If you want to try it out, you can enable the `codegen` feature.
 ```rust
 let mut evaluator = pkl_rs::evaluator::Evaluator::new()?;
 let pkl_mod = evaluator.evaluate_module(PathBuf::from("./config.pkl"))?;
 pkl_mod.codegen()?;
 ```
-
-This can be added to a `build.rs` file to run at build time to generate structs.

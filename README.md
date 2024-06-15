@@ -42,6 +42,3 @@ pkl_mod.codegen()?;
 ```
 
 This can be added to a `build.rs` file to run at build time to generate structs.
-
-### Note
-At the moment, this project uses `serde_json` to handle deserializing the evaluated pkl module. Progress towards implementating the serde deserializer is under the `deserializer` branch.

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Represents a member of a `.pkl` object
 /// Fields: type_id, identifier, value
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct ObjectMember(pub u64, pub String, pub IPklValue);
 
 impl ObjectMember {
@@ -96,14 +96,14 @@ impl PklValue {
 }
 
 /// Internal struct used for deserializing `.pkl` objects
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub(crate) enum IPklValue {
     Primitive(PklPrimitive),
     NonPrimitive(PklNonPrimitive),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 /// https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#primitives
 pub enum PklPrimitive {
@@ -114,7 +114,7 @@ pub enum PklPrimitive {
     Null,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub(crate) enum PklNonPrimitive {
     /// See `Typed, Dynamic` on <https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#non-primitives>

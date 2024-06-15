@@ -1,14 +1,20 @@
+use std::fmt::Debug;
+
+use api::deserializer::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;
+mod context;
+pub mod error;
 pub mod pkl;
-pub mod types;
-// #[macro_export]
-// macro_rules! include_pkl {
-//     ($package: tt) => {
-//         include!(concat!(env!("OUT_DIR"), concat!("/", $package, ".rs")));
-//     };
-// }
+
+pub use error::{Error, Result};
+pub use pkl::PklValue;
+
+#[cfg(feature = "trace")]
+use tracing::{debug, error, span, trace, Level};
+#[cfg(feature = "trace")]
+use tracing_subscriber::FmtSubscriber;
 
 /// Evaluates a `.pkl` file and interprets it as `T`
 ///
@@ -38,17 +44,31 @@ pub mod types;
 ///     password: String,
 /// }
 ///
-/// let config: Database = pkl_rs::value_from_config("config.pkl")?;
+/// let config: Database = pkl_rs::from_config("config.pkl")?;
 /// ```
-pub fn value_from_config<T>(path: impl AsRef<std::path::Path>) -> anyhow::Result<T>
+pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
-    T: Sized + for<'de> serde::Deserialize<'de>,
+    T: Sized + for<'de> serde::Deserialize<'de> + Debug,
 {
     {
+        #[cfg(feature = "trace")]
+        {
+            let subscriber = tracing_subscriber::FmtSubscriber::builder()
+                .with_max_level(Level::TRACE)
+                .finish();
+            tracing::subscriber::set_global_default(subscriber)
+                .expect("setting default subscriber failed");
+        }
+
         let mut evaluator = api::Evaluator::new()?;
         let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
-        let json = pkl_mod.serialize_json()?;
-        let v: T = serde_json::from_value(serde_json::Value::Object(json))?;
-        Ok(v)
+
+        let mut pkld = pkl_mod.serialize_pkl_ast()?;
+
+        #[cfg(feature = "trace")]
+        trace!("serialized pkl ast {:?}", pkld);
+
+        T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
+            .map_err(|e| Error::DeserializeError(format!("failed to deserialize: {:?}", e)))
     }
 }

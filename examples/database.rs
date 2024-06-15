@@ -1,11 +1,15 @@
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Config {
     ip: String,
+    port: u16,
+    birds: Vec<String>,
     database: Database,
+    mapping: HashMap<String, String>,
+    anon_map: HashMap<String, String>,
 }
 
 #[allow(dead_code)]
@@ -19,5 +23,6 @@ fn main() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("examples")
         .join("example.pkl");
-    println!("{:?}", pkl_rs::value_from_config::<Config>(path));
+    let value = pkl_rs::from_config::<Config>(path);
+    println!("{:?}", value);
 }

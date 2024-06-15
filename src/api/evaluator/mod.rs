@@ -4,81 +4,98 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
+use crate::error::{Error, Result};
+
 pub const EVALUATE_RESPONSE: u64 = 0x24;
 
-use serde_json::{json, Value};
+use outgoing::{
+    pack_msg, ClientModuleReader, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
+};
+use responses::PklServerResponseRaw;
 
-use crate::{api::pkl_eval_module, pkl::PklMod};
+use crate::{api::parser::pkl_eval_module, pkl::PklMod};
 
-use self::responses::{EvaluatorResponse, PklServerResponse, PklServerResponse2};
-
+pub mod outgoing;
 pub mod responses;
 pub struct Evaluator {
     pub evaluator_id: i64,
     stdin: std::process::ChildStdin,
     stdout: std::process::ChildStdout,
 }
+
 impl Evaluator {
     pub fn id(&self) -> i64 {
         self.evaluator_id
     }
 
-    pub fn new() -> anyhow::Result<Self> {
-        let mut child = start_pkl(false)?;
+    pub fn new() -> Result<Self> {
+        let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
-        // Create a CreateEvaluatorRequest instance
-        const CREATE_EVALUATOR_REQUEST_SIZE: usize = 140;
-        let request = json!([
-          0x20,
-            {
-                "requestId": 135,
-                "allowedModules": ["pkl:", "repl:", "file:", "customfs:"],
-                "clientModuleReaders": [
-                  {
-                    "scheme": "customfs",
-                    "hasHierarchicalUris": true,
-                    "isGlobbable": true,
-                    "isLocal": true
-                  }
-                ]
-            }
-        ]);
 
-        let mut serialized_request = Vec::with_capacity(CREATE_EVALUATOR_REQUEST_SIZE as usize);
-        // Serialize the request to a binary format
-        rmp_serde::encode::write(&mut serialized_request, &request).unwrap();
+        let request = OutgoingMessage::CreateEvaluator(CreateEvaluator {
+            request_id: 135,
+            allowed_modules: vec![
+                "pkl:".to_string(),
+                "repl:".to_string(),
+                "file:".to_string(),
+                "customfs:".to_string(),
+            ],
+            client_module_readers: vec![ClientModuleReader {
+                scheme: "customfs".to_string(),
+                has_hierarchical_uris: true,
+                is_globbable: true,
+                is_local: true,
+            }],
+        });
+
+        let serialized_request = pack_msg(request);
 
         let create_eval_response =
-            pkl_send_msg::<EvaluatorResponse>(child_stdin, &mut child_stdout, serialized_request)?;
+            pkl_send_msg_raw(child_stdin, &mut child_stdout, serialized_request)
+                .map_err(|_e| Error::PklSend)?;
+
+        let Some(map) = create_eval_response.response.as_map() else {
+            return Err(Error::PklMalformedResponse {
+                message: "expected map in response".to_string(),
+            });
+        };
+
+        let Some(evaluator_id) = map
+            .iter()
+            .find(|(k, _v)| k.as_str() == Some("evaluatorId"))
+            .and_then(|(_, v)| v.as_i64())
+        else {
+            return Err(Error::PklMalformedResponse {
+                message: "expected evaluatorId in CreateEvaluator response".into(),
+            });
+        };
 
         Ok(Evaluator {
-            evaluator_id: create_eval_response.response.evaluator_id,
+            evaluator_id,
             stdin: child.stdin.take().unwrap(),
             stdout: child_stdout,
         })
     }
 
-    pub fn evaluate_module(&mut self, path: PathBuf) -> anyhow::Result<PklMod> {
+    pub fn evaluate_module(&mut self, path: PathBuf) -> Result<PklMod> {
         let evaluator_id = self.id();
         let mut child_stdin = &mut self.stdin;
         let mut child_stdout = &mut self.stdout;
 
-        let path = path.canonicalize()?;
+        let path = path
+            .canonicalize()
+            .map_err(|_e| Error::Message("failed to canonicalize pkl module path".into()))?;
 
-        let eval_req = json!([
-          0x23,
-          {
-            "requestId": 9805131,
-            "evaluatorId": evaluator_id,
-            "moduleUri": format!("file://{}", path.to_str().unwrap()),
-          }
-        ]);
+        let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {
+            request_id: 9805131,
+            evaluator_id: evaluator_id,
+            module_uri: format!("file://{}", path.to_str().unwrap()),
+        });
 
-        let mut serialized_eval_req = Vec::new();
-        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        let eval_res =
-            pkl_send_msg_v2::<Value>(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
+        let serialized_eval_req = pack_msg(msg);
+        // rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
+        let eval_res = pkl_send_msg_raw(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
 
         if eval_res.header != EVALUATE_RESPONSE {
             todo!("handle case when header is not 0x24");
@@ -86,31 +103,25 @@ impl Evaluator {
         }
 
         let res = eval_res.response.as_map().unwrap();
-
         let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {
-            return Err(anyhow::anyhow!("expected result in response"));
+            // pkl module evaluation failed, return the error message from pkl
+            if let Some((_, error)) = res.iter().find(|(k, _v)| k.as_str() == Some("error")) {
+                return Err(Error::PklServerError {
+                    pkl_error: error.as_str().unwrap().to_owned(),
+                });
+            }
+
+            return Err(Error::PklMalformedResponse {
+                message: "expected result or error in evaluate response".into(),
+            });
         };
 
         let slice = result.as_slice().unwrap();
-        let ast: Value = rmp_serde::decode::from_slice(&slice)?;
+        let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
-        // println!("decoded ast: {:#?}", ast);
-        let pkl_mod = pkl_eval_module(ast)?;
+        let pkl_mod = pkl_eval_module(&rmpv_ast)?;
 
         Ok(pkl_mod)
-    }
-
-    pub fn close(self) -> anyhow::Result<()> {
-        let eval_req = json!([
-            0x22,
-          {
-            "evaluatorId": self.evaluator_id,
-          }
-        ]);
-
-        let mut serialized_eval_req = Vec::new();
-        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        Ok(())
     }
 }
 
@@ -118,21 +129,15 @@ impl Drop for Evaluator {
     fn drop(&mut self) {
         let mut child_stdin = &mut self.stdin;
 
-        let eval_req = json!([
-            0x22,
-          {
-            "evaluatorId": self.evaluator_id,
-          }
-        ]);
+        let msg = pack_msg(OutgoingMessage::CloseEvaluator(CloseEvaluator {
+            evaluator_id: self.evaluator_id,
+        }));
 
-        let mut serialized_eval_req = Vec::new();
-        rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        let _ = pkl_send_msg_one_way(&mut child_stdin, serialized_eval_req)
-            .expect("failed to close evaluator");
+        let _ = pkl_send_msg_one_way(&mut child_stdin, msg).expect("failed to close evaluator");
     }
 }
 
-pub fn start_pkl(pkl_debug: bool) -> anyhow::Result<Child> {
+pub fn start_pkl(pkl_debug: bool) -> Result<Child> {
     let mut command = Command::new("pkl");
 
     command
@@ -153,20 +158,93 @@ pub fn pkl_send_msg_one_way(
     child_stdin: &mut std::process::ChildStdin,
 
     serialized_request: Vec<u8>,
-) -> anyhow::Result<()> {
+) -> Result<()> {
     child_stdin.write_all(&serialized_request)?;
     child_stdin.flush()?;
     Ok(())
 }
 
-pub fn pkl_send_msg<T>(
+// pub fn pkl_send_msg<T>(
+//     child_stdin: &mut std::process::ChildStdin,
+//     child_stdout: &mut std::process::ChildStdout,
+//     serialized_request: Vec<u8>,
+// ) -> anyhow::Result<PklServerResponse<T>>
+// where
+//     T: serde::de::DeserializeOwned + std::fmt::Debug,
+// {
+//     child_stdin.write_all(&serialized_request)?;
+//     child_stdin.flush()?;
+
+//     match rmpv::decode::read_value(child_stdout) {
+//         Ok(response) => {
+//             let decoded_array = response
+//                 .as_array()
+//                 .expect("expected server response to be formatted as an array");
+//             let first_element = decoded_array.first().expect(
+//                 "malformed server response, received empty array, expected array of length 2",
+//             );
+//             let message_header_hex = first_element.as_u64().expect(
+//                 "malformed server response, expected first element to be a u64 representing the message header",
+//             );
+//             let second = decoded_array.get(1).expect(
+//                 "malformed server response, expected second element to be a u64 representing the message header",
+//             );
+//             let response: T = serde_json::from_str(&second.to_string()).expect(
+//                 "failed to deserialize response from server, expected response to be a json object",
+//             );
+//             // let map_t = second.as_map().unwrap().to_owned();
+
+//             return Ok(PklServerResponse {
+//                 header: message_header_hex,
+//                 response: response,
+//             });
+//         }
+//         Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
+//     }
+// }
+
+// TODO: finish refactoring this section
+
+// pub fn pkl_send_msg_v2<T>(
+//     child_stdin: &mut std::process::ChildStdin,
+//     child_stdout: &mut std::process::ChildStdout,
+//     serialized_request: Vec<u8>,
+// ) -> anyhow::Result<PklServerResponse2<T>>
+// where
+//     T: serde::de::DeserializeOwned + std::fmt::Debug,
+// {
+//     child_stdin.write_all(&serialized_request)?;
+//     child_stdin.flush()?;
+
+//     match rmpv::decode::read_value(child_stdout) {
+//         Ok(response) => {
+//             let decoded_array = response
+//                 .as_array()
+//                 .expect("expected server response to be formatted as an array");
+//             let first_element = decoded_array.first().expect(
+//                 "malformed server response, received empty array, expected array of length 2",
+//             );
+//             let message_header_hex = first_element.as_u64().expect(
+//                 "malformed server response, expected first element to be a u64 representing the message header",
+//             );
+//             let second = decoded_array.get(1).expect(
+//                 "malformed server response, expected second element to be a u64 representing the message header",
+//             );
+
+//             return Ok(PklServerResponse2 {
+//                 header: message_header_hex,
+//                 response: rmp_serde::from_slice(second.as_slice().unwrap()).unwrap(),
+//             });
+//         }
+//         Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
+//     }
+// }
+
+pub fn pkl_send_msg_raw(
     child_stdin: &mut std::process::ChildStdin,
     child_stdout: &mut std::process::ChildStdout,
     serialized_request: Vec<u8>,
-) -> anyhow::Result<PklServerResponse<T>>
-where
-    T: serde::de::DeserializeOwned + std::fmt::Debug,
-{
+) -> Result<PklServerResponseRaw> {
     child_stdin.write_all(&serialized_request)?;
     child_stdin.flush()?;
 
@@ -184,48 +262,15 @@ where
             let second = decoded_array.get(1).expect(
                 "malformed server response, expected second element to be a u64 representing the message header",
             );
-            let response: T = serde_json::from_str(&second.to_string()).expect(
-                "failed to deserialize response from server, expected response to be a json object",
-            );
-            // let map_t = second.as_map().unwrap().to_owned();
 
-            return Ok(PklServerResponse {
-                header: message_header_hex,
-                response: response,
-            });
-        }
-        Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
-    }
-}
-
-pub fn pkl_send_msg_v2<T>(
-    child_stdin: &mut std::process::ChildStdin,
-    child_stdout: &mut std::process::ChildStdout,
-    serialized_request: Vec<u8>,
-) -> anyhow::Result<PklServerResponse2> {
-    child_stdin.write_all(&serialized_request)?;
-    child_stdin.flush()?;
-
-    match rmpv::decode::read_value(child_stdout) {
-        Ok(response) => {
-            let decoded_array = response
-                .as_array()
-                .expect("expected server response to be formatted as an array");
-            let first_element = decoded_array.first().expect(
-                "malformed server response, received empty array, expected array of length 2",
-            );
-            let message_header_hex = first_element.as_u64().expect(
-                "malformed server response, expected first element to be a u64 representing the message header",
-            );
-            let second = decoded_array.get(1).expect(
-                "malformed server response, expected second element to be a u64 representing the message header",
-            );
-
-            return Ok(PklServerResponse2 {
+            return Ok(PklServerResponseRaw {
                 header: message_header_hex,
                 response: second.to_owned(),
             });
         }
-        Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
+        Err(e) => Err(Error::Message(format!(
+            "\nfailed to decode value from pkl process: {:?}",
+            e
+        ))),
     }
 }

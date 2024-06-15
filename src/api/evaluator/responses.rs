@@ -10,7 +10,13 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct PklServerResponse2 {
+pub struct PklServerResponse2<T> {
+    pub header: u64,
+    pub response: T,
+}
+
+#[derive(Debug, Clone)]
+pub struct PklServerResponseRaw {
     pub header: u64,
     pub response: rmpv::Value,
 }

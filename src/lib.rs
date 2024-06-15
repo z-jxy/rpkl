@@ -48,7 +48,7 @@ use tracing_subscriber::FmtSubscriber;
 /// ```
 pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
-    T: Sized + for<'de> serde::Deserialize<'de> + Debug,
+    T: Sized + for<'de> serde::Deserialize<'de>,
 {
     {
         #[cfg(feature = "trace")]

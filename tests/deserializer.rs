@@ -199,19 +199,19 @@ mod tests {
                 ]),
             ]),
         ]);
-        let now = std::time::Instant::now();
-        b.iter(|| {
-            for _ in 0..100 {
-                let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
-                let mut mapped = pkl_mod
-                    .serialize_pkl_ast()
-                    .expect("failed to serialize pkl module");
 
-                Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
-                    .expect("failed to deserialize");
-            }
-        });
-        let elapsed = now.elapsed();
-        print_time!(elapsed);
+        time! {
+            b.iter(|| {
+                for _ in 0..100 {
+                    let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
+                    let mut mapped = pkl_mod
+                        .serialize_pkl_ast()
+                        .expect("failed to serialize pkl module");
+
+                    Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+                        .expect("failed to deserialize");
+                }
+            });
+        }
     }
 }

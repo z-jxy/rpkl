@@ -9,7 +9,7 @@ pub mod error;
 pub mod pkl;
 
 pub use error::{Error, Result};
-pub use pkl::PklValue;
+pub use pkl::PklValue as Value;
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};

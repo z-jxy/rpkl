@@ -10,7 +10,7 @@ pub struct PklMod {
 
 #[cfg(feature = "codegen")]
 mod codegen {
-    #[cfg(feature = "codegen")]
+    // #[cfg(feature = "codegen")]
     use convert_case::{Case, Casing};
     use std::collections::HashSet;
 
@@ -19,11 +19,12 @@ mod codegen {
     use crate::pkl::internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive};
 
     use super::PklMod;
+    use crate::Result;
 
     impl PklMod {
-        pub fn codegen(&self) -> anyhow::Result<()> {
-            std::fs::create_dir_all("./src/gen")?;
-            let file = std::fs::File::create("./src/gen/mod.rs")?;
+        pub fn codegen(&self) -> Result<()> {
+            std::fs::create_dir_all("./generated")?;
+            let file = std::fs::File::create("./generated/mod.rs")?;
 
             let module_name = &self._module_name;
 
@@ -79,7 +80,7 @@ mod codegen {
                             PklPrimitive::Int(_) => "i64",
                             PklPrimitive::Float(_) => "f64",
                             PklPrimitive::String(_) => "String",
-                            PklPrimitive::Bool(_) => "bool",
+                            PklPrimitive::Boolean(_) => "bool",
                             PklPrimitive::Null => "Option<serde_json::Value>",
                         }
                     )
@@ -95,7 +96,7 @@ mod codegen {
             top_level_module_name: &str,
             deps: &mut Vec<String>,
             generated_structs: &mut HashSet<String>,
-        ) -> anyhow::Result<String> {
+        ) -> Result<String> {
             let mut field = String::new();
 
             if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, d)) = member_value
@@ -155,7 +156,7 @@ mod codegen {
             top_level_module_name: &str,
             pub_struct: bool,
             generated_structs: &mut HashSet<String>,
-        ) -> anyhow::Result<(String, Vec<String>)> {
+        ) -> Result<(String, Vec<String>)> {
             let upper_camel = struct_ident.to_case(Case::UpperCamel);
             if generated_structs.contains(&upper_camel) {
                 return Ok((String::new(), vec![]));

@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct ObjectMember(pub u64, pub String, pub IPklValue);
 
 impl ObjectMember {
-    // pub fn get_ident(&self) -> &str {
-    //     self.1.as_str()
-    // }
-    // pub fn get_value(&self) -> &IPklValue {
-    //     &self.2
-    // }
+    pub fn get_ident(&self) -> &str {
+        self.1.as_str()
+    }
+    pub fn get_value(&self) -> &IPklValue {
+        &self.2
+    }
 
     pub fn take(self) -> (u64, String, IPklValue) {
         (self.0, self.1, self.2)

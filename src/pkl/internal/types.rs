@@ -57,7 +57,7 @@ impl ObjectMember {
 }
 
 /// Represents a `.pkl` value
-#[derive(Debug, Clone, Serialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum PklValue {
     Map(HashMap<String, PklValue>),
     List(Vec<PklValue>),

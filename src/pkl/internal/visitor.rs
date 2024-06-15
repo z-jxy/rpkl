@@ -40,7 +40,11 @@ impl<'de> Visitor<'de> for PklVisitor {
 
         println!("visiting i64: {}", value);
         if value >= i64::from(i32::MIN) && value <= i64::from(i32::MAX) {
-            Ok(Value::Int(crate::pkl::internal::Integer::Neg(value as i64)))
+            if value >= 0 {
+                Ok(Value::Int(crate::pkl::internal::Integer::Pos(value as u64)))
+            } else {
+                Ok(Value::Int(crate::pkl::internal::Integer::Neg(value)))
+            }
         } else {
             Err(E::custom(format!("i32 out of range: {}", value)))
         }

@@ -13,6 +13,7 @@ mapping = new Mapping {
   ["map_key2"] = "map_value2"
 }
 
+// equivalent to a new struct
 anon_map = new {
   ["anon_key"] = "anon_value"
 }

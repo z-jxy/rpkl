@@ -1,5 +1,6 @@
 use super::internal::ObjectMember;
 
+#[derive(Debug)]
 pub struct PklMod {
     pub _module_name: String,
     pub _module_uri: String,

@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use api::deserializer::Deserializer;
 use pkl::PklSerialize;
 

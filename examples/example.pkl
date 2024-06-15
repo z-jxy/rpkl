@@ -10,7 +10,7 @@ birds: Listing<String> = new {
 
 mapping = new Mapping {
   ["map_key"] = "map_value"
-  ["map_key2"] = 2
+  ["map_key2"] = "map_value2"
 }
 
 // equivalent to a new struct

@@ -64,13 +64,6 @@ impl<'de> Visitor<'de> for PklVisitor {
         self.visit_i64(v as i64)
     }
 
-    fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        unimplemented!()
-    }
-
     fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
     where
         E: de::Error,
@@ -106,20 +99,6 @@ impl<'de> Visitor<'de> for PklVisitor {
         // Err(de::Error::invalid_type(de::Unexpected::Unsigned(v), &self))
     }
 
-    fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
-    where
-        E: de::Error,
-    {
-        unimplemented!()
-        // let mut buf = [0u8; 57];
-        // let mut writer = format::Buf::new(&mut buf);
-        // fmt::Write::write_fmt(&mut writer, format_args!("integer `{}` as u128", v)).unwrap();
-        // Err(de::Error::invalid_type(
-        //     de::Unexpected::Other(writer.as_str()),
-        //     &self,
-        // ))
-    }
-
     fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>
     where
         E: de::Error,
@@ -131,7 +110,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        Err(de::Error::invalid_type(de::Unexpected::Float(v), &self))
+        Ok(Value::Int(super::Integer::Float(v)))
     }
 
     fn visit_char<E>(self, v: char) -> Result<Self::Value, E>
@@ -187,7 +166,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        Err(de::Error::invalid_type(de::Unexpected::Option, &self))
+        Ok(Value::Null)
     }
 
     fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -216,12 +195,20 @@ impl<'de> Visitor<'de> for PklVisitor {
         ))
     }
 
-    fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: de::SeqAccess<'de>,
     {
-        let _ = seq;
-        Err(de::Error::invalid_type(de::Unexpected::Seq, &self))
+        let mut vec = match seq.size_hint() {
+            Some(size) => Vec::with_capacity(size),
+            None => Vec::new(),
+        };
+
+        while let Some(value) = seq.next_element()? {
+            vec.push(value);
+        }
+
+        Ok(Value::List(vec))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>

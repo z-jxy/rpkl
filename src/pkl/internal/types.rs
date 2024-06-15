@@ -12,9 +12,12 @@ use super::visitor::PklVisitor;
 pub(crate) struct ObjectMember(pub u64, pub String, pub IPklValue);
 
 impl ObjectMember {
+    #[cfg(feature = "codegen")]
     pub fn get_ident(&self) -> &str {
         self.1.as_str()
     }
+
+    #[cfg(feature = "codegen")]
     pub fn get_value(&self) -> &IPklValue {
         &self.2
     }
@@ -109,17 +112,30 @@ impl<'de> Deserialize<'de> for PklValue {
 }
 
 mod test {
-    use super::*;
+    use crate::{pkl::internal::Integer, Value};
+
     #[test]
-    fn deserialize() {
+    fn deserialize_map() {
         let json_data = r#"{"value": 123}"#;
-        let value: PklValue = serde_json::from_str(json_data).expect("Failed to deserialize");
+        let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");
         assert_eq!(map.len(), 1);
         assert_eq!(
             map.get("value").unwrap().as_int().unwrap(),
             &Integer::Pos(123)
         );
+    }
+
+    #[test]
+    fn deserialize_array() {
+        let json_data = r#"{"value": [123, 456]}"#;
+        let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
+        let map = value.as_map().expect("Expected a map");
+        // assert_eq!(map.len(), 1);
+        // assert_eq!(
+        //     map.get("value").unwrap().as_int().unwrap(),
+        //     &Integer::Pos(123)
+        // );
     }
 }
 

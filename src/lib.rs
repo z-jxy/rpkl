@@ -4,9 +4,11 @@ use api::deserializer::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;
+mod context;
 pub mod error;
 pub mod pkl;
 
+pub use error::{Error, Result};
 pub use pkl::PklValue;
 
 #[cfg(feature = "trace")]

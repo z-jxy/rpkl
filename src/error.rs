@@ -10,6 +10,14 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     Message(String),
 
+    PklSend,
+    PklRecv,
+    PklMalformedResponse { message: String },
+    PklProcessStart,
+    PklServerError { pkl_error: String },
+
+    MsgpackDecodeError(rmpv::decode::Error),
+
     Eof,
     Syntax,
     ExpectedBoolean,
@@ -51,3 +59,17 @@ impl Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+// std::io::Error
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Error::Message(e.to_string())
+    }
+}
+
+impl From<rmpv::decode::Error> for Error {
+    fn from(e: rmpv::decode::Error) -> Self {
+        Error::MsgpackDecodeError(e)
+    }
+}

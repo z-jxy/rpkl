@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
+use crate::context::Context;
+use crate::error::{Error, Result};
 use crate::pkl::internal::type_constants;
 use crate::pkl::{
     self,
     internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive, PklValue},
     PklMod,
 };
-
-use anyhow::{Context, Result};
-
+// use anyhow::Context as AnyContext;
 #[cfg(feature = "trace")]
 use tracing::trace;
 
@@ -16,7 +16,7 @@ use tracing::trace;
 fn parse_member_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
-) -> Result<ObjectMember> {
+) -> anyhow::Result<ObjectMember> {
     let ident = slots
         .next()
         .map(|v| {
@@ -44,7 +44,7 @@ fn parse_member_inner(
 }
 
 /// parses non-primitive members of a pkl object
-fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> anyhow::Result<PklNonPrimitive> {
     match type_id {
         type_constants::TYPED_DYNAMIC => {
             let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
@@ -253,7 +253,7 @@ fn parse_dynamic_list_inner(
 }
 
 /// For internal use
-pub fn pkl_eval_module(decoded: &rmpv::Value) -> anyhow::Result<PklMod> {
+pub fn pkl_eval_module(decoded: &rmpv::Value) -> Result<PklMod> {
     let root = decoded.as_array().unwrap();
     let module_name = root.get(1).context("expected root level module name")?;
     let module_uri = root.get(2).context("expected root level module uri")?;
@@ -263,8 +263,11 @@ pub fn pkl_eval_module(decoded: &rmpv::Value) -> anyhow::Result<PklMod> {
 
     let members = pkl_module
         .iter()
-        .map(|f| parse_pkl_obj_member(f.as_array().unwrap()))
-        .collect::<anyhow::Result<Vec<ObjectMember>>>()?;
+        .map(|f| {
+            parse_pkl_obj_member(f.as_array().unwrap())
+                .map_err(|e| Error::Message(format!("failed to parse pkl object member: {}", e)))
+        })
+        .collect::<Result<Vec<ObjectMember>>>()?;
 
     Ok(PklMod {
         _module_name: module_name

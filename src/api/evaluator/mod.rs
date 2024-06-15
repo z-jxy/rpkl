@@ -4,17 +4,16 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
+use crate::error::{Error, Result};
+
 pub const EVALUATE_RESPONSE: u64 = 0x24;
 
 use outgoing::{
     pack_msg, ClientModuleReader, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
 };
 use responses::PklServerResponseRaw;
-use serde::de::DeserializeOwned;
 
 use crate::{api::parser::pkl_eval_module, pkl::PklMod};
-
-use self::responses::{EvaluatorResponse, PklServerResponse, PklServerResponse2};
 
 pub mod outgoing;
 pub mod responses;
@@ -29,27 +28,11 @@ impl Evaluator {
         self.evaluator_id
     }
 
-    pub fn new() -> anyhow::Result<Self> {
-        let mut child = start_pkl(false)?;
+    pub fn new() -> Result<Self> {
+        let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
-        // Create a CreateEvaluatorRequest instance
-        // const CREATE_EVALUATOR_REQUEST_SIZE: usize = 140;
-        // let json_request = json!([
-        //   0x20,
-        //     {
-        //         "requestId": 135,
-        //         "allowedModules": ["pkl:", "repl:", "file:", "customfs:"],
-        //         "clientModuleReaders": [
-        //           {
-        //             "scheme": "customfs",
-        //             "hasHierarchicalUris": true,
-        //             "isGlobbable": true,
-        //             "isLocal": true
-        //           }
-        //         ]
-        //     }
-        // ]);
+
         let request = OutgoingMessage::CreateEvaluator(CreateEvaluator {
             request_id: 135,
             allowed_modules: vec![
@@ -68,13 +51,14 @@ impl Evaluator {
 
         let serialized_request = pack_msg(request);
 
-        // println!("serialized request2: {:?}", serialized_req2);
-
         let create_eval_response =
-            pkl_send_msg_raw(child_stdin, &mut child_stdout, serialized_request)?;
+            pkl_send_msg_raw(child_stdin, &mut child_stdout, serialized_request)
+                .map_err(|_e| Error::PklSend)?;
 
         let Some(map) = create_eval_response.response.as_map() else {
-            return Err(anyhow::anyhow!("expected map in CreateEvaluator response"));
+            return Err(Error::PklMalformedResponse {
+                message: "expected map in response".to_string(),
+            });
         };
 
         let Some(evaluator_id) = map
@@ -82,9 +66,9 @@ impl Evaluator {
             .find(|(k, _v)| k.as_str() == Some("evaluatorId"))
             .and_then(|(_, v)| v.as_i64())
         else {
-            return Err(anyhow::anyhow!(
-                "expected evaluatorId in CreateEvaluator response"
-            ));
+            return Err(Error::PklMalformedResponse {
+                message: "expected evaluatorId in CreateEvaluator response".into(),
+            });
         };
 
         Ok(Evaluator {
@@ -94,21 +78,14 @@ impl Evaluator {
         })
     }
 
-    pub fn evaluate_module(&mut self, path: PathBuf) -> anyhow::Result<PklMod> {
+    pub fn evaluate_module(&mut self, path: PathBuf) -> Result<PklMod> {
         let evaluator_id = self.id();
         let mut child_stdin = &mut self.stdin;
         let mut child_stdout = &mut self.stdout;
 
-        let path = path.canonicalize()?;
-
-        // let eval_req = json!([
-        //   0x23,
-        //   {
-        //     "requestId": 9805131,
-        //     "evaluatorId": evaluator_id,
-        //     "moduleUri": format!("file://{}", path.to_str().unwrap()),
-        //   }
-        // ]);
+        let path = path
+            .canonicalize()
+            .map_err(|_e| Error::Message("failed to canonicalize pkl module path".into()))?;
 
         let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {
             request_id: 9805131,
@@ -129,13 +106,14 @@ impl Evaluator {
         let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {
             // pkl module evaluation failed, return the error message from pkl
             if let Some((_, error)) = res.iter().find(|(k, _v)| k.as_str() == Some("error")) {
-                return Err(anyhow::anyhow!(
-                    "pkl module evaluation failed: {:?}",
-                    error.as_str().unwrap()
-                ));
+                return Err(Error::PklServerError {
+                    pkl_error: error.as_str().unwrap().to_owned(),
+                });
             }
 
-            return Err(anyhow::anyhow!("expected result in response"));
+            return Err(Error::PklMalformedResponse {
+                message: "expected result or error in evaluate response".into(),
+            });
         };
 
         let slice = result.as_slice().unwrap();
@@ -266,7 +244,7 @@ pub fn pkl_send_msg_raw(
     child_stdin: &mut std::process::ChildStdin,
     child_stdout: &mut std::process::ChildStdout,
     serialized_request: Vec<u8>,
-) -> anyhow::Result<PklServerResponseRaw> {
+) -> Result<PklServerResponseRaw> {
     child_stdin.write_all(&serialized_request)?;
     child_stdin.flush()?;
 
@@ -290,6 +268,9 @@ pub fn pkl_send_msg_raw(
                 response: second.to_owned(),
             });
         }
-        Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
+        Err(e) => Err(Error::Message(format!(
+            "\nfailed to decode value from pkl process: {:?}",
+            e
+        ))),
     }
 }

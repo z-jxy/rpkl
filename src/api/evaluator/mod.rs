@@ -4,7 +4,10 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    utils,
+};
 
 pub const EVALUATE_RESPONSE: u64 = 0x24;
 
@@ -83,8 +86,7 @@ impl Evaluator {
         let mut child_stdin = &mut self.stdin;
         let mut child_stdout = &mut self.stdout;
 
-        let path = path
-            .canonicalize()
+        let path = utils::canonicalize(path)
             .map_err(|_e| Error::Message("failed to canonicalize pkl module path".into()))?;
 
         let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {

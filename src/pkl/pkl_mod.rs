@@ -11,9 +11,8 @@ pub struct PklMod {
 
 #[cfg(feature = "codegen")]
 mod codegen {
-    // #[cfg(feature = "codegen")]
     use convert_case::{Case, Casing};
-    use std::collections::HashSet;
+    use std::{collections::HashSet, path::PathBuf};
 
     use std::io::Write;
 
@@ -24,8 +23,9 @@ mod codegen {
 
     impl PklMod {
         pub fn codegen(&self) -> Result<()> {
-            std::fs::create_dir_all("./generated")?;
-            let file = std::fs::File::create("./generated/mod.rs")?;
+            let path = PathBuf::from("./generated");
+            std::fs::create_dir_all(&path)?;
+            let file = std::fs::File::create(path.join("mod.rs"))?;
 
             let module_name = &self._module_name;
 

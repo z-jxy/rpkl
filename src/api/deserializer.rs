@@ -277,11 +277,6 @@ impl<'a, 'de> Enum<'a, 'de> {
     }
 }
 
-// `EnumAccess` is provided to the `Visitor` to give it the ability to determine
-// which variant of the enum is supposed to be deserialized.
-//
-// Note that all enum deserialization methods in Serde refer exclusively to the
-// "externally tagged" enum representation.
 impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
     type Variant = Self;
@@ -292,10 +287,7 @@ impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
     {
         #[cfg(feature = "trace")]
         debug!("EnumAccess variant_seed");
-        // todo!("implement variant_seed");
-        // The `deserialize_enum` method parsed a `{` character so we are
-        // currently inside of a map. The seed will be deserializing itself from
-        // the key of the map.
+
         let val = match seed.deserialize(&mut *self.de) {
             Ok(v) => v,
             Err(e) => {
@@ -304,21 +296,8 @@ impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
                 return Err(e);
             }
         };
-        // Parse the colon separating map key from value.
         Ok((val, self))
-        // if self.de.next_char()? == ':' {
-        //     Ok((val, self))
-        // } else {
-        //     Err(Error::ExpectedMapColon)
-        // }
     }
-
-    // fn variant<V>(self) -> std::result::Result<(V, Self::Variant), Self::Error>
-    // where
-    //     V: Deserialize<'de>,
-    // {
-    //     self.variant_seed(std::marker::PhantomData)
-    // }
 }
 
 // `VariantAccess` is provided to the `Visitor` to give it the ability to see
@@ -326,14 +305,10 @@ impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
 impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
     type Error = Error;
 
-    // If the `Visitor` expected this variant to be a unit variant, the input
-    // should have been the plain string case handled in `deserialize_enum`.
     fn unit_variant(self) -> Result<()> {
         Err(Error::ExpectedString)
     }
 
-    // Newtype variants are represented in JSON as `{ NAME: VALUE }` so
-    // deserialize the value here.
     fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
     where
         T: DeserializeSeed<'de>,
@@ -341,8 +316,6 @@ impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
         seed.deserialize(self.de)
     }
 
-    // Tuple variants are represented in JSON as `{ NAME: [DATA...] }` so
-    // deserialize the sequence of data here.
     fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
@@ -350,8 +323,6 @@ impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
         de::Deserializer::deserialize_seq(self.de, visitor)
     }
 
-    // Struct variants are represented in JSON as `{ NAME: { K: V, ... } }` so
-    // deserialize the inner map here.
     fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,

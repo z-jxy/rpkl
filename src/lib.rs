@@ -5,6 +5,7 @@ pub mod api;
 mod context;
 pub mod error;
 pub mod pkl;
+mod utils;
 
 pub use error::{Error, Result};
 pub use pkl::PklValue as Value;

@@ -45,8 +45,8 @@ use tracing_subscriber::FmtSubscriber;
 ///     password: String,
 /// }
 ///
-/// # fn main() -> Result<(), pkl_rs::Error> {
-/// let config: Database = pkl_rs::from_config("config.pkl")?;
+/// # fn main() -> Result<(), rpkl::Error> {
+/// let config: Database = rpkl::from_config("config.pkl")?;
 /// #    Ok(())
 /// # }
 /// ```

@@ -1,4 +1,4 @@
-# pkl-rs
+# rpkl
 
 Language bindings to Pkl for Rust.
 
@@ -28,14 +28,15 @@ struct Database {
     password: String,
 }
 
-let config: Config = pkl_rs::value_from_config("./config.pkl")?;
+let config: Config = rpkl::value_from_config("./config.pkl")?;
 ```
 
 ## Codegen
 
 Mostly works, but still a WIP. If you want to try it out, you can enable the `codegen` feature.
+
 ```rust
-let mut evaluator = pkl_rs::evaluator::Evaluator::new()?;
+let mut evaluator = rpkl::evaluator::Evaluator::new()?;
 let pkl_mod = evaluator.evaluate_module(PathBuf::from("./config.pkl"))?;
 pkl_mod.codegen()?;
 ```

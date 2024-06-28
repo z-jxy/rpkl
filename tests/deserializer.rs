@@ -5,10 +5,10 @@ extern crate test;
 #[cfg(test)]
 mod tests {
 
-    use pkl_rs::api;
-    use pkl_rs::pkl::Deserializer;
-    use pkl_rs::pkl::PklSerialize;
     use rmpv::Value;
+    use rpkl::api;
+    use rpkl::pkl::Deserializer;
+    use rpkl::pkl::PklSerialize;
     use serde::Deserialize;
     use test::Bencher;
 
@@ -60,7 +60,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/code/rust/pkl-rs/examples/example.pkl".into()),
+            Value::String("file:///Users/testing/code/rust/rpkl/examples/example.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),
@@ -152,7 +152,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/code/rust/pkl-rs/examples/example.pkl".into()),
+            Value::String("file:///Users/testing/code/rust/rpkl/examples/example.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),

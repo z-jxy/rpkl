@@ -230,21 +230,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bda66fc9667c18cb2758a2ac84d1167245054bcf85d5d1aaa6923f45801bdd02"
 
 [[package]]
-name = "pkl_rs"
-version = "0.1.0"
-dependencies = [
- "convert_case",
- "dhat",
- "dunce",
- "rmp-serde",
- "rmpv",
- "serde",
- "serde_json",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.85"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -301,6 +286,21 @@ checksum = "58450723cd9ee93273ce44a20b6ec4efe17f8ed2e3631474387bfdecf18bb2a9"
 dependencies = [
  "num-traits",
  "rmp",
+]
+
+[[package]]
+name = "rpkl"
+version = "0.1.0"
+dependencies = [
+ "convert_case",
+ "dhat",
+ "dunce",
+ "rmp-serde",
+ "rmpv",
+ "serde",
+ "serde_json",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

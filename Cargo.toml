@@ -6,6 +6,7 @@ license = "MIT"
 repository = "https://github.com/z-jxy/pkl-rs"
 description = "Bindings and codegen for Apple's Pkl configuration language"
 keywords = ["pkl", "apple", "codegen"]
+readme = "README.md"
 
 [dependencies]
 rmp-serde = "1.1.2"

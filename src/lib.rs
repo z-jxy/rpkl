@@ -15,7 +15,7 @@ use tracing::{debug, error, span, trace, Level};
 #[cfg(feature = "trace")]
 use tracing_subscriber::FmtSubscriber;
 
-/// Evaluates a `.pkl` file and interprets it as `T`
+/// Evaluates a `.pkl` file and deserializes it as `T`.
 ///
 /// `path`: The path to the `.pkl` file
 ///

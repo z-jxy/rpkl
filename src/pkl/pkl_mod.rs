@@ -4,8 +4,6 @@ use super::internal::ObjectMember;
 pub struct PklMod {
     pub(crate) _module_name: String,
     pub(crate) _module_uri: String,
-    // pub _members: Vec<PklNonPrimitive>,
-    // pub _mappings: HashMap<String, IPklValue>,
     pub(crate) members: Vec<ObjectMember>,
 }
 

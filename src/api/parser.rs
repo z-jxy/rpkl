@@ -8,7 +8,7 @@ use crate::pkl::{
     internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive, PklValue},
     PklMod,
 };
-// use anyhow::Context as AnyContext;
+
 #[cfg(feature = "trace")]
 use tracing::trace;
 
@@ -120,6 +120,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
 
             return Ok(PklNonPrimitive::List(type_id, values));
         }
+
         type_constants::DURATION
         | type_constants::DATA_SIZE
         | type_constants::PAIR
@@ -219,11 +220,12 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
 /// ```
 /// the dynamically typed listings have a different structure than the typed listings
 ///
-/// TODO: there has to be a bug here
 fn parse_dynamic_list_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> Result<ObjectMember> {
+    /// TODO: there has to be a bug here
+
     #[cfg(feature = "trace")]
     trace!("parse_dynamic_list_inner: type_id: {}", type_id);
     if type_id != type_constants::DYNAMIC_LISTING {

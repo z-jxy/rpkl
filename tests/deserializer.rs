@@ -5,8 +5,8 @@ extern crate test;
 #[cfg(test)]
 mod tests {
 
-    use api::deserializer::Deserializer;
     use pkl_rs::api;
+    use pkl_rs::pkl::Deserializer;
     use pkl_rs::pkl::PklSerialize;
     use rmpv::Value;
     use serde::Deserialize;

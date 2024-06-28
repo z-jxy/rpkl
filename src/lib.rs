@@ -1,4 +1,4 @@
-use api::deserializer::Deserializer;
+use pkl::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;

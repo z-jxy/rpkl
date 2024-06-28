@@ -208,3 +208,14 @@ pub(crate) enum PklNonPrimitive {
     Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),
 }
+
+struct DurationUnit(String);
+
+impl DurationUnit {
+    pub fn from_str(s: &str) -> Option<DurationUnit> {
+        match s {
+            "ns" | "us" | "ms" | "s" | "min" | "h" | "d" => Some(DurationUnit(s.to_string())),
+            _ => None,
+        }
+    }
+}

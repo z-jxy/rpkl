@@ -1,3 +1,5 @@
+#![feature(duration_constructors)]
+
 use pkl::Deserializer;
 use pkl::PklSerialize;
 

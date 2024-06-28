@@ -2,6 +2,8 @@
 ip = "127.0.0.1"
 port = 8080
 
+ints = IntSeq (1, 7)
+
 birds: Listing<String> = new {
   "Pigeon"
   "Hawk"

@@ -21,7 +21,7 @@ use tracing_subscriber::FmtSubscriber;
 ///
 /// # Example
 ///
-/// ```pkl
+/// ```ignore
 /// ip = "127.0.0.1"
 /// database {
 ///     username = "root"
@@ -29,7 +29,9 @@ use tracing_subscriber::FmtSubscriber;
 /// }
 /// ```
 /// -------------
-/// ```rust
+/// ```no_run
+///
+/// use serde::Deserialize;
 ///
 /// #[derive(Deserialize)]
 /// struct Config {
@@ -43,7 +45,10 @@ use tracing_subscriber::FmtSubscriber;
 ///     password: String,
 /// }
 ///
+/// # fn main() -> Result<(), pkl_rs::Error> {
 /// let config: Database = pkl_rs::from_config("config.pkl")?;
+/// #    Ok(())
+/// # }
 /// ```
 pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where

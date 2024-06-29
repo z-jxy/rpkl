@@ -123,18 +123,17 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
 
         type_constants::DURATION => {
             println!("slots: {:?}", slots);
-            let float_time = slots[0].as_f64().expect("expected float for duration");
-            println!("float_time: {}", float_time);
+            // need u64 to convert to Duration
+            let float_time = slots[0].as_f64().expect("expected float for duration") as u64;
             let duration_unit = slots[1].as_str().expect("expected time type");
-            println!("time_type: {}", duration_unit);
             let duration = match duration_unit {
-                "min" => std::time::Duration::from_mins(float_time as u64),
-                "h" => std::time::Duration::from_hours(float_time as u64),
-                "d" => std::time::Duration::from_days(float_time as u64),
-                "ns" => std::time::Duration::from_nanos(float_time as u64),
-                "us" => std::time::Duration::from_micros(float_time as u64),
-                "ms" => std::time::Duration::from_millis(float_time as u64),
-                "s" => std::time::Duration::from_secs(float_time as u64),
+                "min" => std::time::Duration::from_mins(float_time),
+                "h" => std::time::Duration::from_hours(float_time),
+                "d" => std::time::Duration::from_days(float_time),
+                "ns" => std::time::Duration::from_nanos(float_time),
+                "us" => std::time::Duration::from_micros(float_time),
+                "ms" => std::time::Duration::from_millis(float_time),
+                "s" => std::time::Duration::from_secs(float_time),
                 _ => {
                     return Err(Error::ParseError(format!(
                         "unsupported duration_unit, got {:?}",
@@ -142,7 +141,9 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
                     )));
                 }
             };
-            todo!("parse duration type");
+            println!("duration: {:?}", duration);
+            return Ok(PklNonPrimitive::Duration(type_id, duration));
+            // todo!("parse duration type");
         }
 
         type_constants::DATA_SIZE

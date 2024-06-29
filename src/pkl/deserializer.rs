@@ -21,6 +21,77 @@ pub struct Deserializer<'de> {
     map: &'de HashMap<String, PklValue>,
 }
 
+struct DurationVisitor;
+
+impl<'de> Visitor<'de> for DurationVisitor {
+    type Value = std::time::Duration;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a duration in milliseconds")
+    }
+
+    fn visit_u64<E>(self, value: u64) -> std::result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(std::time::Duration::from_millis(value))
+    }
+}
+
+struct DurationDeserializer;
+
+impl<'de> de::Deserializer<'de> for DurationDeserializer {
+    type Error = Error;
+
+    forward_to_deserialize_any! {
+        bool i8 i16 i32 u8 u16 u32 f32 char string
+        bytes byte_buf option unit unit_struct newtype_struct seq
+        tuple tuple_struct map struct enum identifier ignored_any
+    }
+
+    fn deserialize_any<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_u64(0)
+    }
+
+    fn deserialize_u64<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_u64(0)
+    }
+
+    fn deserialize_i64<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_i64(0)
+    }
+
+    fn deserialize_f64<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_f64(0.0)
+    }
+
+    fn deserialize_str<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_str("0")
+    }
+
+    // fn deserialize_duration<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    // where
+    //     V: Visitor<'de>,
+    // {
+    //     visitor.visit_u64(0)
+    // }
+}
+
 impl<'de> Deserializer<'de> {
     pub fn from_pkl_map(map: &'de HashMap<String, PklValue>) -> Self {
         Deserializer { map }
@@ -183,6 +254,16 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                 PklValue::Map(m) => seed.deserialize(&mut Deserializer::from_pkl_map(m)),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()),
                 PklValue::Null => seed.deserialize(().into_deserializer()),
+
+                PklValue::Duration(d) => {
+                    // deserialize_duration(d.as_millis().into_deserializer())
+                    todo!("deserialize duration");
+
+                    seed.deserialize(d.as_millis().into_deserializer())
+                }
+                PklValue::Range(r) => {
+                    todo!("deserialize range");
+                }
             }
         } else {
             Err(Error::Message(format!("no value found for: {key}")))
@@ -245,6 +326,16 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                     .map(Some),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()).map(Some),
                 PklValue::Null => seed.deserialize(().into_deserializer()).map(Some),
+                PklValue::Duration(d) => {
+                    todo!("deserialize duration");
+                    // seed.deserialize(d.as_millis().into_deserializer())
+                    //     .map(Some)
+
+                    // seed.deserialize(d).map(Some)
+                }
+                PklValue::Range(r) => {
+                    todo!("deserialize range");
+                }
             };
 
             return ret;
@@ -323,6 +414,16 @@ impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
 
         de::Deserializer::deserialize_map(self.de, visitor)
     }
+}
+
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<std::time::Duration>
+where
+    D: serde::Deserializer<'de>,
+{
+    let millis: u64 = serde::Deserialize::deserialize(deserializer).map_err(|e| {
+        Error::Message(format!("failed to deserialize duration: {}", e.to_string()))
+    })?;
+    Ok(std::time::Duration::from_millis(millis))
 }
 
 #[cfg(test)]

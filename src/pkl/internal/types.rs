@@ -43,6 +43,7 @@ impl ObjectMember {
                     PklValue::List(items.into_iter().map(|i| i.into()).collect())
                 }
                 PklNonPrimitive::Mapping(_, m) => m,
+                PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {
@@ -69,6 +70,10 @@ pub enum PklValue {
     String(String),
     Int(Integer),
     Boolean(bool),
+    #[serde(deserialize_with = "deserialize_duration")]
+    Duration(std::time::Duration),
+    // Pair(PklValue, PklValue),
+    Range(std::ops::Range<u64>),
     Null,
 }
 
@@ -207,6 +212,7 @@ pub(crate) enum PklNonPrimitive {
     List(u64, Vec<PklPrimitive>),
     Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),
+    Duration(u64, std::time::Duration),
 }
 
 struct DurationUnit(String);

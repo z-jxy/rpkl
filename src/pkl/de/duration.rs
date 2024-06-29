@@ -1,48 +1,14 @@
 use serde::{
-    de::{self, Deserialize, Deserializer, MapAccess, Visitor},
+    de::{self, Deserializer, MapAccess, Visitor},
     forward_to_deserialize_any,
 };
-use std::fmt;
-
-// pub struct DurationVisitor;
-
-// impl<'de> Visitor<'de> for DurationVisitor {
-//     type Value = std::time::Duration;
-
-//     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-//         formatter.write_str("a duration in milliseconds")
-//     }
-
-//     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-//     where
-//         E: de::Error,
-//     {
-//         println!("visit_str for duration");
-//         if let Some(ms_str) = value.strip_suffix("ms") {
-//             // PklDuration(
-//             //     ms_str
-//             //         .parse::<u64>()
-//             //         .map(std::time::Duration::from_millis)
-//             //         .map_err(E::custom),
-//             // )
-
-//             if let Ok(ms) = ms_str.parse::<u64>() {
-//                 return Ok(std::time::Duration::from_millis(ms));
-//             } else {
-//                 Err(E::custom("invalid duration format"))
-//             }
-//         } else {
-//             Err(E::custom("invalid duration format"))
-//         }
-//     }
-// }
 
 pub struct DurationDeserializer {
     pub input: String,
 }
 
 impl<'de> Deserializer<'de> for DurationDeserializer {
-    type Error = de::value::Error;
+    type Error = crate::Error;
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 u8 u16 u32 f32 char string str
@@ -56,10 +22,12 @@ impl<'de> Deserializer<'de> for DurationDeserializer {
     where
         V: Visitor<'de>,
     {
-        visitor.visit_map(DurationMapAccess {
-            input: self.input,
-            state: 0,
-        })
+        visitor
+            .visit_map(DurationMapAccess {
+                input: self.input,
+                state: 0,
+            })
+            .map_err(|_| crate::Error::Message("failed to deserialize duration".to_string()))
     }
 }
 
@@ -67,6 +35,8 @@ struct DurationMapAccess {
     input: String,
     state: u8,
 }
+
+// TODO: there must be a better way to implement thisß
 
 impl<'de> MapAccess<'de> for DurationMapAccess {
     type Error = de::value::Error;

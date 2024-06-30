@@ -6,8 +6,8 @@ use serde::{
 use crate::{pkl::deserializer::PklValueDeserializer, Value};
 
 pub struct TupleDeserializer<'a> {
-    pub input: &'a str,
-    pub pair: (Value, Value),
+    // pub input: &'a str,
+    pub pair: (&'a Value, &'a Value),
 }
 
 impl<'a, 'de> Deserializer<'de> for TupleDeserializer<'a> {
@@ -32,17 +32,15 @@ impl<'a, 'de> Deserializer<'de> for TupleDeserializer<'a> {
     {
         visitor
             .visit_seq(TupleSeqAccess {
-                input: self.input,
                 index: 0,
-                pair: self.pair,
+                pair: (&self.pair.0, &self.pair.1),
             })
             .map_err(|_| crate::Error::Message("failed to deserialize tuple".to_string()))
     }
 }
 
 struct TupleSeqAccess<'a> {
-    input: &'a str,
-    pair: (Value, Value),
+    pair: (&'a Value, &'a Value),
     index: usize,
 }
 
@@ -57,20 +55,13 @@ impl<'a, 'de> SeqAccess<'de> for TupleSeqAccess<'a> {
             return Ok(None);
         }
         let element = match self.index {
-            0 => &self.pair.0,
-            1 => &self.pair.1,
+            0 => self.pair.0,
+            1 => self.pair.1,
             _ => unreachable!(),
         };
 
-        // let element = self.input[1..self.input.len() - 1]
-        //     .split(',')
-        //     .nth(self.index)
-        //     .ok_or_else(|| de::Error::custom("invalid tuple format"))?
-        //     .trim();
-
         self.index += 1;
 
-        seed.deserialize(PklValueDeserializer(element.clone()))
-            .map(Some)
+        seed.deserialize(PklValueDeserializer(&element)).map(Some)
     }
 }

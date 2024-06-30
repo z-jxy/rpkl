@@ -188,10 +188,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                     #[cfg(feature = "trace")]
                     debug!("pair: {:?}, {:?}", a, b);
 
-                    seed.deserialize(TupleDeserializer {
-                        input: "",
-                        pair: (*a.clone(), *b.clone()),
-                    })
+                    seed.deserialize(TupleDeserializer { pair: (&*a, &*b) })
                     // todo!("deserialize pair");
                 }
 
@@ -384,9 +381,9 @@ impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
 //     Ok(std::time::Duration::from_millis(millis))
 // }
 
-pub struct PklValueDeserializer(pub PklValue);
+pub struct PklValueDeserializer<'v>(pub &'v PklValue);
 
-impl<'de> serde::Deserializer<'de> for PklValueDeserializer {
+impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
     type Error = crate::Error; // You'll need to define this error type
 
     forward_to_deserialize_any! {
@@ -401,12 +398,12 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer {
     {
         match self.0 {
             PklValue::Int(i) => match i {
-                internal::Integer::Pos(u) => visitor.visit_u64(u),
-                internal::Integer::Neg(n) => visitor.visit_i64(n),
-                internal::Integer::Float(f) => visitor.visit_f64(f),
+                internal::Integer::Pos(u) => visitor.visit_u64(*u),
+                internal::Integer::Neg(n) => visitor.visit_i64(*n),
+                internal::Integer::Float(f) => visitor.visit_f64(*f),
             },
-            PklValue::String(s) => visitor.visit_string(s),
-            PklValue::Boolean(b) => visitor.visit_bool(b),
+            PklValue::String(s) => visitor.visit_string(s.to_owned()),
+            PklValue::Boolean(b) => visitor.visit_bool(*b),
             PklValue::Null => visitor.visit_unit(),
             PklValue::List(elements) => {
                 // Implement sequence deserialization
@@ -447,8 +444,8 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer {
 }
 
 impl PklValue {
-    pub fn into_deserializer(self) -> PklValueDeserializer {
-        PklValueDeserializer(self)
+    pub fn into_deserializer(&self) -> PklValueDeserializer {
+        PklValueDeserializer(&self)
     }
 }
 

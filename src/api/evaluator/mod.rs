@@ -16,7 +16,7 @@ use outgoing::{
 };
 use responses::PklServerResponseRaw;
 
-use crate::{api::parser::pkl_eval_module, pkl::PklMod};
+use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
 
 pub mod outgoing;
 pub mod responses;

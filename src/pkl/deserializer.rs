@@ -462,7 +462,7 @@ mod tests {
         ]);
 
         let pkl_mod =
-            crate::api::parser::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
+            crate::api::decoder::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
         let mut mapped = pkl_mod
             .serialize_pkl_ast()
             .expect("failed to serialize pkl module");

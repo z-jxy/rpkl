@@ -62,6 +62,7 @@ impl<'de> MapAccess<'de> for DurationMapAccess {
     where
         V: de::DeserializeSeed<'de>,
     {
+        // TODO: refactor so we dont do this twice
         let (value, unit) = parse_duration(&self.input)?;
         match self.state {
             1 => {

@@ -1,3 +1,4 @@
+pub mod datasize;
 mod de;
 mod deserializer;
 pub(crate) mod internal;

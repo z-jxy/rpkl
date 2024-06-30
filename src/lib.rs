@@ -10,6 +10,7 @@ pub mod pkl;
 mod utils;
 
 pub use error::{Error, Result};
+pub use pkl::datasize::DataSize;
 pub use pkl::PklValue as Value;
 
 #[cfg(feature = "trace")]

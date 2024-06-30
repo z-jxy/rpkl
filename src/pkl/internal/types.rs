@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::pkl::datasize::DataSize;
 use crate::PklSerialize;
 use crate::Result;
 use serde::{Deserialize, Serialize};
@@ -44,6 +45,7 @@ impl ObjectMember {
                 }
                 PklNonPrimitive::Mapping(_, m) => m,
                 PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
+                PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {
@@ -62,6 +64,9 @@ impl ObjectMember {
     }
 }
 
+// #[derive(Debug, Clone, Serialize, PartialEq)]
+// struct Pair(pub PklValue, pub PklValue);
+
 /// Represents a `.pkl` value
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum PklValue {
@@ -72,8 +77,10 @@ pub enum PklValue {
     Boolean(bool),
     #[serde(deserialize_with = "deserialize_duration")]
     Duration(std::time::Duration),
-    // Pair(PklValue, PklValue),
+
+    Pair(Box<PklValue>, Box<PklValue>), // requires box to avoid infinite size compiler error
     Range(std::ops::Range<u64>),
+    DataSize(DataSize),
     Null,
 }
 
@@ -196,6 +203,7 @@ pub enum PklPrimitive {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
+// TODO: do we still need to keep the type id here?
 pub(crate) enum PklNonPrimitive {
     /// See `Typed, Dynamic` on <https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#non-primitives>
     ///
@@ -212,7 +220,9 @@ pub(crate) enum PklNonPrimitive {
     List(u64, Vec<PklPrimitive>),
     Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),
+    // Pair(u64, PklValue, PklValue),
     Duration(u64, std::time::Duration),
+    DataSize(u64, DataSize),
 }
 
 struct DurationUnit(String);

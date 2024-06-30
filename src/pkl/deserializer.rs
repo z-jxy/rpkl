@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::pkl::datasize::DataSizeDeserializer;
 use crate::pkl::de::DurationDeserializer;
 use crate::pkl::internal::{self};
 use serde::de::{
@@ -183,23 +184,24 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                 PklValue::Map(m) => seed.deserialize(&mut Deserializer::from_pkl_map(m)),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()),
                 PklValue::Null => seed.deserialize(().into_deserializer()),
+                PklValue::Pair(a, b) => {
+                    #[cfg(feature = "trace")]
+                    debug!("pair: {:?}, {:?}", a, b);
+                    todo!("deserialize pair");
+                }
 
                 PklValue::Duration(d) => {
-                    // deserialize_duration(d.as_millis().into_deserializer())
-                    // todo!("deserialize duration");
-                    // std::time::Duration::deserialize(DurationDeserializer {
-                    //     input: d.as_millis().to_string(),
-                    // });
-
+                    // TODO: implement this properly
                     seed.deserialize(DurationDeserializer {
                         input: format!("{}ms", d.as_millis()),
                     })
-                    // seed.deserialize()
-                    // seed.deserialize(d.as_millis().into_deserializer())
                 }
                 PklValue::Range(r) => {
                     todo!("deserialize range");
                 }
+                PklValue::DataSize(d) => seed.deserialize(DataSizeDeserializer {
+                    input: &format!("{}{}", d.value(), d.unit()),
+                }),
             }
         } else {
             Err(Error::Message(format!("no value found for: {key}")))
@@ -251,6 +253,16 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                         seed.deserialize((*n).into_deserializer()).map(Some)
                     }
                 },
+                PklValue::Pair(a, b) => {
+                    #[cfg(feature = "trace")]
+                    debug!("pair: {:?}, {:?}", a, b);
+                    todo!("deserialize pair");
+                }
+                PklValue::DataSize(d) => seed
+                    .deserialize(DataSizeDeserializer {
+                        input: &format!("{}{}", d.value(), d.unit()),
+                    })
+                    .map(Some),
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
                 PklValue::List(elements) => seed
                     .deserialize(SeqAccessDeserializer {

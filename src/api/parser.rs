@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use crate::context::Context;
 use crate::error::{Error, Result};
+use crate::pkl::datasize::{DataSize, DataSizeUnit};
 use crate::pkl::internal::type_constants;
 use crate::pkl::{
     self,
@@ -146,8 +147,18 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
             // todo!("parse duration type");
         }
 
-        type_constants::DATA_SIZE
-        | type_constants::PAIR
+        type_constants::DATA_SIZE => {
+            let float = slots[0].as_f64().expect("expected float for data size");
+            println!("size: {:?}", float);
+            let size_unit = slots[1].as_str().expect("expected size type");
+
+            let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
+            // println!("ds: {:?}", ds);
+            // todo!("decode data size type");
+            return Ok(PklNonPrimitive::DataSize(type_id, ds));
+        }
+
+        type_constants::PAIR
         | type_constants::INT_SEQ
         | type_constants::REGEX
         | type_constants::TYPE_ALIAS => {

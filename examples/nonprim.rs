@@ -3,6 +3,7 @@ use std::path::PathBuf;
 #[derive(serde::Deserialize, Debug)]
 pub struct Config {
     duration: std::time::Duration,
+    size: rpkl::DataSize,
 }
 
 fn main() {

@@ -46,6 +46,9 @@ impl ObjectMember {
                 PklNonPrimitive::Mapping(_, m) => m,
                 PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
                 PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
+                PklNonPrimitive::Pair(_, a, b) => {
+                    PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
+                }
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {
@@ -223,6 +226,7 @@ pub(crate) enum PklNonPrimitive {
     // Pair(u64, PklValue, PklValue),
     Duration(u64, std::time::Duration),
     DataSize(u64, DataSize),
+    Pair(u64, PklValue, PklValue),
 }
 
 struct DurationUnit(String);

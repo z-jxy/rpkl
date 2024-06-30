@@ -1,2 +1,3 @@
 duration = 12.ms
 size = 12.b
+pair = Pair(23, 11)

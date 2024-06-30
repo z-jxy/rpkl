@@ -157,11 +157,19 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
             // todo!("decode data size type");
             return Ok(PklNonPrimitive::DataSize(type_id, ds));
         }
+        type_constants::PAIR => {
+            // TODO: this should be another call to parse non primitive member
+            let first = &slots[0];
+            let second = &slots[1];
+            return Ok(PklNonPrimitive::Pair(
+                type_id,
+                parse_primitive_member(first)?.into(),
+                parse_primitive_member(second)?.into(),
+            ));
+            // todo!("parse pair type")
+        }
 
-        type_constants::PAIR
-        | type_constants::INT_SEQ
-        | type_constants::REGEX
-        | type_constants::TYPE_ALIAS => {
+        type_constants::INT_SEQ | type_constants::REGEX | type_constants::TYPE_ALIAS => {
             todo!("type {} cannot be rendered as json", type_id);
         }
         _ => {

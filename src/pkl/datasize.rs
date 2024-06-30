@@ -207,7 +207,7 @@ struct DataSizeMapAccess<'a> {
 }
 
 impl<'a, 'de> MapAccess<'de> for DataSizeMapAccess<'a> {
-    type Error = de::value::Error;
+    type Error = crate::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
     where
@@ -239,7 +239,7 @@ impl<'a, 'de> MapAccess<'de> for DataSizeMapAccess<'a> {
     }
 }
 
-fn parse_datasize(input: &str) -> Result<(f64, &str), de::value::Error> {
+fn parse_datasize(input: &str) -> Result<(f64, &str), crate::Error> {
     const UNITS: [&str; 11] = [
         "b", "kb", "mb", "gb", "tb", "pb", "kib", "mib", "gib", "tib", "pib",
     ];
@@ -255,7 +255,7 @@ fn parse_datasize(input: &str) -> Result<(f64, &str), de::value::Error> {
 
 struct KeyDeserializer(&'static str);
 impl<'de> Deserializer<'de> for KeyDeserializer {
-    type Error = de::value::Error;
+    type Error = crate::Error;
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 u8 u16 u32 f32 char str string

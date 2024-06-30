@@ -4,6 +4,7 @@ use std::path::PathBuf;
 pub struct Config {
     duration: std::time::Duration,
     size: rpkl::DataSize,
+    pair: (i32, i32),
 }
 
 fn main() {

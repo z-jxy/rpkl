@@ -112,6 +112,27 @@ impl From<PklPrimitive> for PklValue {
     }
 }
 
+impl From<PklNonPrimitive> for PklValue {
+    fn from(np: PklNonPrimitive) -> Self {
+        match np {
+            PklNonPrimitive::TypedDynamic(_, _, _, children) => {
+                PklValue::Map(children.serialize_pkl_ast().unwrap())
+            }
+            PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
+                PklValue::List(items.into_iter().map(|i| i.into()).collect())
+            }
+            PklNonPrimitive::Mapping(_, m) => m,
+            PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
+            PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
+            PklNonPrimitive::Pair(_, a, b) => {
+                PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
+            }
+            PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
+            PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
+        }
+    }
+}
+
 impl<'de> Deserialize<'de> for PklValue {
     fn deserialize<D>(deserializer: D) -> std::result::Result<PklValue, D::Error>
     where
@@ -135,6 +156,15 @@ pub enum Integer {
 pub(crate) enum IPklValue {
     Primitive(PklPrimitive),
     NonPrimitive(PklNonPrimitive),
+}
+
+impl From<IPklValue> for PklValue {
+    fn from(p: IPklValue) -> Self {
+        match p {
+            IPklValue::Primitive(p) => p.into(),
+            IPklValue::NonPrimitive(np) => np.into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

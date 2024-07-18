@@ -15,6 +15,10 @@ mod tests {
         range: std::ops::Range<i64>,
         #[serde(rename(deserialize = "emailRegex"))]
         email_regex: String,
+        #[serde(rename(deserialize = "intList"))]
+        int_list: Vec<i32>,
+
+        pair2: (Vec<i32>, Vec<i32>),
     }
 
     #[test]
@@ -24,6 +28,8 @@ mod tests {
             .join("pkl")
             .join("nonprim.pkl");
         let config = rpkl::from_config::<Config>(path)?;
+
+        println!("{:?}", config);
 
         assert!(config.duration.as_millis() == 12);
 

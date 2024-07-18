@@ -5,3 +5,8 @@ pair = Pair(23, 11)
 range = IntSeq(2, 5)
 emailRegex = Regex(#"([\w\.]+)@([\w\.]+)"#)
 
+intList = List(1, 2, 3)
+
+l2 = List(1, 2, 3, 4, 5)
+
+pair2 = Pair(intList, l2)

@@ -293,6 +293,35 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+pub struct PklSeqAccess<'a> {
+    elements: std::slice::Iter<'a, PklValue>,
+}
+
+impl<'a> PklSeqAccess<'a> {
+    fn new(elements: &'a [PklValue]) -> Self {
+        PklSeqAccess {
+            elements: elements.iter(),
+        }
+    }
+}
+
+impl<'de, 'a> SeqAccess<'de> for PklSeqAccess<'a> {
+    type Error = crate::Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+    where
+        T: serde::de::DeserializeSeed<'de>,
+    {
+        match self.elements.next() {
+            Some(element) => {
+                let deserializer = element.into_deserializer();
+                seed.deserialize(deserializer).map(Some)
+            }
+            None => Ok(None),
+        }
+    }
+}
+////////////////////////////////////////////////////////////////////////////////
 
 struct Enum<'a, 'de: 'a> {
     de: &'a mut Deserializer<'de>,
@@ -388,11 +417,12 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
             PklValue::Boolean(b) => visitor.visit_bool(*b),
             PklValue::Null => visitor.visit_unit(),
 
+            PklValue::List(elements) => visitor.visit_seq(PklSeqAccess::new(elements)),
+
             PklValue::Range(_)
             | PklValue::Duration(_)
             | PklValue::Pair(_, _)
-            | PklValue::Map(_)
-            | PklValue::List(_) => {
+            | PklValue::Map(_) => {
                 unreachable!(
                     "unhandled deserialization for PklValueDeserializer: {:?}",
                     self.0

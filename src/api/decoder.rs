@@ -156,14 +156,19 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             return Ok(PklNonPrimitive::DataSize(type_id, ds));
         }
         type_constants::PAIR => {
-            // TODO: ?this should be another call to parse non primitive member
-            let first = &slots[0];
-            let second = &slots[1];
-            return Ok(PklNonPrimitive::Pair(
-                type_id,
-                decode_primitive_member(first)?.into(),
-                decode_primitive_member(second)?.into(),
-            ));
+            let first_val: PklValue = if let Some(array) = slots[0].as_array() {
+                eval_inner_bin_array(array)?.into()
+            } else {
+                decode_primitive_member(&slots[0])?.into()
+            };
+
+            let second_val: PklValue = if let Some(array) = slots[1].as_array() {
+                eval_inner_bin_array(array)?.into()
+            } else {
+                decode_primitive_member(&slots[1])?.into()
+            };
+
+            return Ok(PklNonPrimitive::Pair(type_id, first_val, second_val));
         }
         type_constants::INT_SEQ => {
             let start = slots[0].as_i64().expect("expected start for int seq");
@@ -215,6 +220,7 @@ fn decode_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
                 return Err(Error::ParseError(format!("expected integer, got {:?}", n)));
             }
         }
+
         _ => {
             todo!("parse other primitive types. value: {}", value);
         }

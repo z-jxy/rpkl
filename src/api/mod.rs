@@ -1,5 +1,5 @@
 pub mod evaluator;
 pub use evaluator::Evaluator;
-pub(crate) mod parser;
+pub(crate) mod decoder;
 
-pub use parser::pkl_eval_module;
+pub use decoder::pkl_eval_module;

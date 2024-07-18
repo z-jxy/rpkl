@@ -13,7 +13,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     type Value = Value;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("an integer between -2^31 and 2^31")
+        formatter.write_str("an integer")
     }
 
     fn visit_i8<E>(self, value: i8) -> Result<Self::Value, E>
@@ -38,7 +38,6 @@ impl<'de> Visitor<'de> for PklVisitor {
         #[cfg(feature = "trace")]
         debug!("visiting i64: {}", value);
 
-        println!("visiting i64: {}", value);
         if value >= i64::from(i32::MIN) && value <= i64::from(i32::MAX) {
             if value >= 0 {
                 Ok(Value::Int(crate::pkl::internal::Integer::Pos(value as u64)))
@@ -96,7 +95,6 @@ impl<'de> Visitor<'de> for PklVisitor {
         } else {
             Err(E::custom(format!("u64 out of range: {}", v)))
         }
-        // Err(de::Error::invalid_type(de::Unexpected::Unsigned(v), &self))
     }
 
     fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>

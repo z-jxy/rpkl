@@ -2,10 +2,8 @@ use std::collections::HashMap;
 
 use crate::Result;
 
-use super::{
-    internal::{ObjectMember, PklValue},
-    PklMod,
-};
+use super::{internal::ObjectMember, PklMod};
+use crate::Value as PklValue;
 
 pub trait PklSerialize {
     fn serialize_pkl_ast(self) -> Result<HashMap<String, PklValue>>;

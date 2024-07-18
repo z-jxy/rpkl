@@ -16,10 +16,14 @@ use outgoing::{
 };
 use responses::PklServerResponseRaw;
 
-use crate::{api::parser::pkl_eval_module, pkl::PklMod};
+use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
 
 pub mod outgoing;
 pub mod responses;
+
+#[cfg(feature = "trace")]
+use tracing::debug;
+
 pub struct Evaluator {
     pub evaluator_id: i64,
     stdin: std::process::ChildStdin,
@@ -121,6 +125,9 @@ impl Evaluator {
         let slice = result.as_slice().unwrap();
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
+        #[cfg(feature = "trace")]
+        debug!("rmpv pkl module: {:#?}", rmpv_ast);
+
         let pkl_mod = pkl_eval_module(&rmpv_ast)?;
 
         Ok(pkl_mod)
@@ -165,82 +172,6 @@ pub fn pkl_send_msg_one_way(
     child_stdin.flush()?;
     Ok(())
 }
-
-// pub fn pkl_send_msg<T>(
-//     child_stdin: &mut std::process::ChildStdin,
-//     child_stdout: &mut std::process::ChildStdout,
-//     serialized_request: Vec<u8>,
-// ) -> anyhow::Result<PklServerResponse<T>>
-// where
-//     T: serde::de::DeserializeOwned + std::fmt::Debug,
-// {
-//     child_stdin.write_all(&serialized_request)?;
-//     child_stdin.flush()?;
-
-//     match rmpv::decode::read_value(child_stdout) {
-//         Ok(response) => {
-//             let decoded_array = response
-//                 .as_array()
-//                 .expect("expected server response to be formatted as an array");
-//             let first_element = decoded_array.first().expect(
-//                 "malformed server response, received empty array, expected array of length 2",
-//             );
-//             let message_header_hex = first_element.as_u64().expect(
-//                 "malformed server response, expected first element to be a u64 representing the message header",
-//             );
-//             let second = decoded_array.get(1).expect(
-//                 "malformed server response, expected second element to be a u64 representing the message header",
-//             );
-//             let response: T = serde_json::from_str(&second.to_string()).expect(
-//                 "failed to deserialize response from server, expected response to be a json object",
-//             );
-//             // let map_t = second.as_map().unwrap().to_owned();
-
-//             return Ok(PklServerResponse {
-//                 header: message_header_hex,
-//                 response: response,
-//             });
-//         }
-//         Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
-//     }
-// }
-
-// TODO: finish refactoring this section
-
-// pub fn pkl_send_msg_v2<T>(
-//     child_stdin: &mut std::process::ChildStdin,
-//     child_stdout: &mut std::process::ChildStdout,
-//     serialized_request: Vec<u8>,
-// ) -> anyhow::Result<PklServerResponse2<T>>
-// where
-//     T: serde::de::DeserializeOwned + std::fmt::Debug,
-// {
-//     child_stdin.write_all(&serialized_request)?;
-//     child_stdin.flush()?;
-
-//     match rmpv::decode::read_value(child_stdout) {
-//         Ok(response) => {
-//             let decoded_array = response
-//                 .as_array()
-//                 .expect("expected server response to be formatted as an array");
-//             let first_element = decoded_array.first().expect(
-//                 "malformed server response, received empty array, expected array of length 2",
-//             );
-//             let message_header_hex = first_element.as_u64().expect(
-//                 "malformed server response, expected first element to be a u64 representing the message header",
-//             );
-//             let second = decoded_array.get(1).expect(
-//                 "malformed server response, expected second element to be a u64 representing the message header",
-//             );
-
-//             return Ok(PklServerResponse2 {
-//                 header: message_header_hex,
-//                 response: rmp_serde::from_slice(second.as_slice().unwrap()).unwrap(),
-//             });
-//         }
-//         Err(e) => Err(anyhow::anyhow!("\n@[decoder]error: {:?}", e)),
-//     }
-// }
 
 pub fn pkl_send_msg_raw(
     child_stdin: &mut std::process::ChildStdin,

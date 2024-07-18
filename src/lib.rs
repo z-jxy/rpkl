@@ -1,3 +1,5 @@
+#![feature(duration_constructors)]
+
 use pkl::Deserializer;
 use pkl::PklSerialize;
 
@@ -6,9 +8,11 @@ mod context;
 pub mod error;
 pub mod pkl;
 mod utils;
+pub mod value;
 
 pub use error::{Error, Result};
-pub use pkl::PklValue as Value;
+
+pub use value::PklValue as Value;
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};
@@ -70,7 +74,7 @@ where
         let mut pkld = pkl_mod.serialize_pkl_ast()?;
 
         #[cfg(feature = "trace")]
-        trace!("serialized pkl ast {:?}", pkld);
+        trace!("serialized pkl data {:?}", pkld);
 
         T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
             .map_err(|e| Error::DeserializeError(format!("{}", e)))

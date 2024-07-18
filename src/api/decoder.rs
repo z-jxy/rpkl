@@ -5,15 +5,19 @@ use crate::error::{Error, Result};
 use crate::pkl::internal::type_constants;
 use crate::pkl::{
     self,
-    internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive, PklValue},
+    internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive},
     PklMod,
+};
+use crate::value::{
+    datasize::{DataSize, DataSizeUnit},
+    PklValue,
 };
 
 #[cfg(feature = "trace")]
 use tracing::trace;
 
-/// parses the inner member of a pkl object
-fn parse_member_inner(
+/// decodes the inner member of a pkl object
+fn decode_member_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> Result<ObjectMember> {
@@ -30,21 +34,20 @@ fn parse_member_inner(
 
     // nested object, map using the outer ident
     if let rmpv::Value::Array(array) = value {
-        let pkl_value = eval_inner_bin_array(&array)?;
+        let pkl_value = decode_inner_bin_array(&array)?;
         return Ok(ObjectMember(type_id, ident, pkl_value));
     }
 
-    let primitive = parse_primitive_member(value)?;
-
-    Ok(ObjectMember(
+    let primitive = decode_primitive_member(value)?;
+    return Ok(ObjectMember(
         type_id,
         ident,
         IPklValue::Primitive(primitive),
-    ))
+    ));
 }
 
-/// parses non-primitive members of a pkl object
-fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+/// decodes non-primitive members of a pkl object
+fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     match type_id {
         type_constants::TYPED_DYNAMIC => {
             let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
@@ -58,7 +61,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
 
             let members = members
                 .iter()
-                .map(|m| parse_pkl_obj_member(&m.as_array().unwrap()))
+                .map(|m| decode_pkl_obj_member(&m.as_array().unwrap()))
                 .collect::<Result<Vec<ObjectMember>>>()?;
 
             return Ok(PklNonPrimitive::TypedDynamic(
@@ -73,7 +76,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
             let values = values.as_array().unwrap().to_vec();
             let values = values
                 .iter()
-                .map(|v| parse_primitive_member(v))
+                .map(|v| decode_primitive_member(v))
                 .collect::<Result<Vec<PklPrimitive>>>()?;
             return Ok(PklNonPrimitive::Set(type_id, values));
         }
@@ -90,7 +93,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
                         _,
                         _,
                         members,
-                    )) = eval_inner_bin_array(array)?
+                    )) = decode_inner_bin_array(array)?
                     {
                         let mut fields = HashMap::new();
                         for member in members {
@@ -101,7 +104,7 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
                         mapping.insert(key.to_string(), PklValue::Map(fields));
                     }
                 } else {
-                    mapping.insert(key.to_string(), parse_primitive_member(v)?.into());
+                    mapping.insert(key.to_string(), decode_primitive_member(v)?.into());
                 }
             }
             return Ok(PklNonPrimitive::Mapping(type_id, PklValue::Map(mapping)));
@@ -115,19 +118,72 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
                 .to_vec();
             let values = values
                 .iter()
-                .map(|v| parse_primitive_member(v))
+                .map(|v| decode_primitive_member(v))
                 .collect::<Result<Vec<PklPrimitive>>>()?;
 
             return Ok(PklNonPrimitive::List(type_id, values));
         }
 
-        type_constants::DURATION
-        | type_constants::DATA_SIZE
-        | type_constants::PAIR
-        | type_constants::INT_SEQ
-        | type_constants::REGEX
-        | type_constants::TYPE_ALIAS => {
-            todo!("type {} cannot be rendered as json", type_id);
+        type_constants::DURATION => {
+            // need u64 to convert to Duration
+            let float_time = slots[0].as_f64().expect("expected float for duration") as u64;
+            let duration_unit = slots[1].as_str().expect("expected time type");
+            let duration = match duration_unit {
+                "min" => std::time::Duration::from_mins(float_time),
+                "h" => std::time::Duration::from_hours(float_time),
+                "d" => std::time::Duration::from_days(float_time),
+                "ns" => std::time::Duration::from_nanos(float_time),
+                "us" => std::time::Duration::from_micros(float_time),
+                "ms" => std::time::Duration::from_millis(float_time),
+                "s" => std::time::Duration::from_secs(float_time),
+                _ => {
+                    return Err(Error::ParseError(format!(
+                        "unsupported duration_unit, got {:?}",
+                        duration_unit
+                    )));
+                }
+            };
+            return Ok(PklNonPrimitive::Duration(type_id, duration));
+        }
+
+        type_constants::DATA_SIZE => {
+            let float = slots[0].as_f64().expect("expected float for data size");
+            let size_unit = slots[1].as_str().expect("expected size type");
+
+            let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
+
+            return Ok(PklNonPrimitive::DataSize(type_id, ds));
+        }
+        type_constants::PAIR => {
+            // if its an array, parse the inner object, otherwise parse the primitive value
+            let first_val: PklValue = if let Some(array) = slots[0].as_array() {
+                decode_inner_bin_array(array)?.into()
+            } else {
+                decode_primitive_member(&slots[0])?.into()
+            };
+
+            let second_val: PklValue = if let Some(array) = slots[1].as_array() {
+                decode_inner_bin_array(array)?.into()
+            } else {
+                decode_primitive_member(&slots[1])?.into()
+            };
+
+            return Ok(PklNonPrimitive::Pair(type_id, first_val, second_val));
+        }
+        type_constants::INT_SEQ => {
+            // nothing is done with 'step' slot of the int seq structure from pkl
+            let start = slots[0].as_i64().expect("expected start for int seq");
+            let end = slots[1].as_i64().expect("expected end for int seq");
+            return Ok(PklNonPrimitive::IntSeq(type_id, start, end));
+        }
+
+        type_constants::REGEX => {
+            let pattern = slots[0].as_str().expect("expected pattern for regex");
+            return Ok(PklNonPrimitive::Regex(type_id, pattern.to_string()));
+        }
+
+        type_constants::TYPE_ALIAS => {
+            unreachable!("found TYPE_ALIAS in pkl binary data {}", type_id);
         }
         _ => {
             todo!("parse other non-primitive types. type_id: {}", type_id);
@@ -135,8 +191,8 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
     }
 }
 
-/// parses primitive members of a pkl object
-fn parse_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
+/// decodes primitive members of a pkl object
+fn decode_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
     match value {
         rmpv::Value::String(s) => {
             let Some(s) = s.as_str() else {
@@ -164,29 +220,30 @@ fn parse_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
                 return Err(Error::ParseError(format!("expected integer, got {:?}", n)));
             }
         }
+
         _ => {
             todo!("parse other primitive types. value: {}", value);
         }
     }
 }
 
-/// evaluates the inner binary array of a pkl object
-fn eval_inner_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
+/// evaluates the inner binary array of a pkl object. used for decoding nested non-primitive types
+fn decode_inner_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
     let type_id = slots[0].as_u64().context("missing type id")?;
 
     if type_id == type_constants::OBJECT_MEMBER {
         // next slot is the ident,
         // we don't need rn bc it's in the object from the outer scope that called this function
         let value = &slots[2];
-        let primitive = parse_primitive_member(value)?;
+        let primitive = decode_primitive_member(value)?;
         return Ok(IPklValue::Primitive(primitive));
     }
 
-    let non_prim = parse_non_prim_member(type_id, &slots[1..])?;
+    let non_prim = decode_non_prim_member(type_id, &slots[1..])?;
     Ok(IPklValue::NonPrimitive(non_prim))
 }
 
-fn parse_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
+fn decode_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
     let mut slots = data.iter();
 
     let type_id = slots
@@ -196,10 +253,10 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
 
     match type_id {
         type_constants::OBJECT_MEMBER | type_constants::DYNAMIC_MAPPING => {
-            return parse_member_inner(type_id, &mut slots);
+            return decode_member_inner(type_id, &mut slots);
         }
         type_constants::DYNAMIC_LISTING => {
-            return parse_dynamic_list_inner(type_id, &mut slots);
+            return decode_dynamic_list_inner(type_id, &mut slots);
         }
         _ => {
             todo!("type_id is not OBJECT_MEMBER, or DYNAMIC_LISTING. implement parse other non-primitive types. type_id: {}\n", type_id);
@@ -220,7 +277,7 @@ fn parse_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
 /// ```
 /// the dynamically typed listings have a different structure than the typed listings
 ///
-fn parse_dynamic_list_inner(
+fn decode_dynamic_list_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> Result<ObjectMember> {
@@ -245,11 +302,11 @@ fn parse_dynamic_list_inner(
 
     // nested object, map using the outer ident
     if let rmpv::Value::Array(array) = value {
-        let pkl_value = eval_inner_bin_array(&array)?;
+        let pkl_value = decode_inner_bin_array(&array)?;
         return Ok(ObjectMember(type_id, index.to_string(), pkl_value));
     }
 
-    let primitive = parse_primitive_member(value)?;
+    let primitive = decode_primitive_member(value)?;
 
     Ok(ObjectMember(
         type_id,
@@ -270,7 +327,7 @@ pub fn pkl_eval_module(decoded: &rmpv::Value) -> Result<PklMod> {
     let members = pkl_module
         .iter()
         .map(|f| {
-            parse_pkl_obj_member(f.as_array().unwrap())
+            decode_pkl_obj_member(f.as_array().unwrap())
                 .map_err(|e| Error::Message(format!("failed to parse pkl object member: {}", e)))
         })
         .collect::<Result<Vec<ObjectMember>>>()?;

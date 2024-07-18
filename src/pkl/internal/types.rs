@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use crate::value::{DataSize, PklValue};
 use crate::PklSerialize;
 use crate::Result;
 use serde::{Deserialize, Serialize};
@@ -43,6 +42,13 @@ impl ObjectMember {
                     PklValue::List(items.into_iter().map(|i| i.into()).collect())
                 }
                 PklNonPrimitive::Mapping(_, m) => m,
+                PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
+                PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
+                PklNonPrimitive::Pair(_, a, b) => {
+                    PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
+                }
+                PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
+                PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {
@@ -61,55 +67,8 @@ impl ObjectMember {
     }
 }
 
-/// Represents a `.pkl` value
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub enum PklValue {
-    Map(HashMap<String, PklValue>),
-    List(Vec<PklValue>),
-    String(String),
-    Int(Integer),
-    Boolean(bool),
-    Null,
-}
-
-impl PklValue {
-    pub fn as_map(&self) -> Option<&HashMap<String, PklValue>> {
-        match self {
-            PklValue::Map(m) => Some(m),
-            _ => None,
-        }
-    }
-
-    pub fn as_array(&self) -> Option<&Vec<PklValue>> {
-        match self {
-            PklValue::List(l) => Some(l),
-            _ => None,
-        }
-    }
-
-    pub fn as_int(&self) -> Option<&Integer> {
-        match self {
-            PklValue::Int(i) => Some(i),
-            _ => None,
-        }
-    }
-
-    pub fn as_bool(&self) -> Option<&bool> {
-        match self {
-            PklValue::Boolean(b) => Some(b),
-            _ => None,
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for PklValue {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<PklValue, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(PklVisitor)
-    }
-}
+// #[derive(Debug, Clone, Serialize, PartialEq)]
+// struct Pair(pub PklValue, pub PklValue);
 
 #[cfg(test)]
 mod test {
@@ -153,6 +112,36 @@ impl From<PklPrimitive> for PklValue {
     }
 }
 
+impl From<PklNonPrimitive> for PklValue {
+    fn from(np: PklNonPrimitive) -> Self {
+        match np {
+            PklNonPrimitive::TypedDynamic(_, _, _, children) => {
+                PklValue::Map(children.serialize_pkl_ast().unwrap())
+            }
+            PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
+                PklValue::List(items.into_iter().map(|i| i.into()).collect())
+            }
+            PklNonPrimitive::Mapping(_, m) => m,
+            PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
+            PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
+            PklNonPrimitive::Pair(_, a, b) => {
+                PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
+            }
+            PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
+            PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for PklValue {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<PklValue, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(PklVisitor)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 #[serde(untagged)]
 pub enum Integer {
@@ -161,21 +150,21 @@ pub enum Integer {
     Neg(i64),
 }
 
-impl PklValue {
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            PklValue::String(s) => Some(s),
-            _ => None,
-        }
-    }
-}
-
 /// Internal struct used for deserializing `.pkl` objects
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub(crate) enum IPklValue {
     Primitive(PklPrimitive),
     NonPrimitive(PklNonPrimitive),
+}
+
+impl From<IPklValue> for PklValue {
+    fn from(p: IPklValue) -> Self {
+        match p {
+            IPklValue::Primitive(p) => p.into(),
+            IPklValue::NonPrimitive(np) => np.into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -191,6 +180,7 @@ pub enum PklPrimitive {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
+// TODO: do we still need to keep the type id here?
 pub(crate) enum PklNonPrimitive {
     /// See `Typed, Dynamic` on <https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#non-primitives>
     ///
@@ -207,4 +197,14 @@ pub(crate) enum PklNonPrimitive {
     List(u64, Vec<PklPrimitive>),
     Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),
+
+    Duration(u64, std::time::Duration),
+    DataSize(u64, DataSize),
+    Pair(u64, PklValue, PklValue),
+    /// 0: type id, 1: start, 2: end
+    IntSeq(u64, i64, i64),
+    Regex(u64, String),
 }
+
+/// https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq
+pub type IntSeq = std::ops::Range<i64>;

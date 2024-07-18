@@ -38,7 +38,6 @@ impl<'de> Visitor<'de> for PklVisitor {
         #[cfg(feature = "trace")]
         debug!("visiting i64: {}", value);
 
-        println!("visiting i64: {}", value);
         if value >= i64::from(i32::MIN) && value <= i64::from(i32::MAX) {
             if value >= 0 {
                 Ok(Value::Int(crate::pkl::internal::Integer::Pos(value as u64)))
@@ -96,7 +95,6 @@ impl<'de> Visitor<'de> for PklVisitor {
         } else {
             Err(E::custom(format!("u64 out of range: {}", v)))
         }
-        // Err(de::Error::invalid_type(de::Unexpected::Unsigned(v), &self))
     }
 
     fn visit_f32<E>(self, v: f32) -> Result<Self::Value, E>

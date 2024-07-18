@@ -48,7 +48,7 @@ impl ObjectMember {
                     PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
                 }
                 PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
-                PklNonPrimitive::Regex(_, r) => PklValue::String(r),
+                PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {

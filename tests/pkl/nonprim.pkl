@@ -1,0 +1,7 @@
+duration = 12.ms
+size = 12.b
+pair = Pair(23, 11)
+
+range = IntSeq(2, 5)
+emailRegex = Regex(#"([\w\.]+)@([\w\.]+)"#)
+

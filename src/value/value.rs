@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::{pkl::internal::Integer, DataSize};
+use crate::{pkl::internal::Integer, value::DataSize};
 
 /// Represents a `.pkl` value
 #[derive(Debug, Clone, Serialize, PartialEq)]

@@ -8,10 +8,10 @@ mod context;
 pub mod error;
 pub mod pkl;
 mod utils;
-mod value;
+pub mod value;
 
 pub use error::{Error, Result};
-pub use value::{DataSize, IntSeq};
+// pub use value::{DataSize, IntSeq};
 
 pub use value::PklValue as Value;
 
@@ -75,7 +75,7 @@ where
         let mut pkld = pkl_mod.serialize_pkl_ast()?;
 
         #[cfg(feature = "trace")]
-        trace!("serialized pkl ast {:?}", pkld);
+        trace!("serialized pkl data {:?}", pkld);
 
         T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
             .map_err(|e| Error::DeserializeError(format!("{}", e)))

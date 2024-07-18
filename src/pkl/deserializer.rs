@@ -384,6 +384,7 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
                 internal::Integer::Float(f) => visitor.visit_f64(*f),
             },
             PklValue::String(s) | PklValue::Regex(s) => visitor.visit_string(s.to_owned()),
+
             PklValue::Boolean(b) => visitor.visit_bool(*b),
             PklValue::Null => visitor.visit_unit(),
 

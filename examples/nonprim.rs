@@ -4,11 +4,11 @@ use std::path::PathBuf;
 #[allow(dead_code)]
 pub struct Config {
     duration: std::time::Duration,
-    size: rpkl::DataSize,
+    size: rpkl::value::DataSize,
     pair: (i32, i32),
     range: std::ops::Range<i64>,
     #[serde(rename(deserialize = "emailRegex"))]
-    email_regex: String,
+    email_regex: rpkl::Value,
 }
 
 fn main() {

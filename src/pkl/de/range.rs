@@ -5,11 +5,12 @@ use serde::{
 
 use super::KeyDeserializer;
 
-pub struct DurationDeserializer<'a> {
-    pub duration: &'a std::time::Duration,
+pub struct RangeDeserializer<'a> {
+    pub start: &'a i64,
+    pub end: &'a i64,
 }
 
-impl<'a, 'de> Deserializer<'de> for DurationDeserializer<'a> {
+impl<'a, 'de> Deserializer<'de> for RangeDeserializer<'a> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -20,25 +21,29 @@ impl<'a, 'de> Deserializer<'de> for DurationDeserializer<'a> {
         i64 u64 f64
     }
 
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
+    fn deserialize_any<V>(self, visitor: V) -> crate::Result<V::Value>
     where
         V: Visitor<'de>,
     {
         visitor
-            .visit_map(DurationMapAccess {
-                duration: &self.duration,
+            .visit_map(RangeMapAccess {
+                // input: self.input,
+                start: self.start,
+                end: self.end,
                 state: 0,
             })
-            .map_err(|_| crate::Error::Message("failed to deserialize duration".to_string()))
+            .map_err(|e| crate::Error::Message(format!("failed to deserialize range: {}", e)))
     }
 }
 
-struct DurationMapAccess<'a> {
-    duration: &'a std::time::Duration,
+struct RangeMapAccess<'a> {
+    // input: &'a str,
     state: u8,
+    start: &'a i64,
+    end: &'a i64,
 }
 
-impl<'a, 'de> MapAccess<'de> for DurationMapAccess<'a> {
+impl<'a, 'de> MapAccess<'de> for RangeMapAccess<'a> {
     type Error = de::value::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -48,11 +53,11 @@ impl<'a, 'de> MapAccess<'de> for DurationMapAccess<'a> {
         match self.state {
             0 => {
                 self.state += 1;
-                seed.deserialize(KeyDeserializer("secs")).map(Some)
+                seed.deserialize(KeyDeserializer("start")).map(Some)
             }
             1 => {
                 self.state += 1;
-                seed.deserialize(KeyDeserializer("nanos")).map(Some)
+                seed.deserialize(KeyDeserializer("end")).map(Some)
             }
             _ => Ok(None),
         }
@@ -63,10 +68,10 @@ impl<'a, 'de> MapAccess<'de> for DurationMapAccess<'a> {
         V: de::DeserializeSeed<'de>,
     {
         match self.state {
-            1 => seed.deserialize(de::value::U64Deserializer::new(self.duration.as_secs())),
-            2 => seed.deserialize(de::value::U32Deserializer::new(
-                self.duration.subsec_nanos(),
-            )),
+            // start of range
+            1 => seed.deserialize(de::value::I64Deserializer::new(*self.start)),
+            // end of range
+            2 => seed.deserialize(de::value::I64Deserializer::new(*self.end)),
             _ => Err(de::Error::custom("unexpected state")),
         }
     }

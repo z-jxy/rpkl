@@ -123,7 +123,6 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
         }
 
         type_constants::DURATION => {
-            println!("slots: {:?}", slots);
             // need u64 to convert to Duration
             let float_time = slots[0].as_f64().expect("expected float for duration") as u64;
             let duration_unit = slots[1].as_str().expect("expected time type");
@@ -142,19 +141,15 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
                     )));
                 }
             };
-            println!("duration: {:?}", duration);
             return Ok(PklNonPrimitive::Duration(type_id, duration));
-            // todo!("parse duration type");
         }
 
         type_constants::DATA_SIZE => {
             let float = slots[0].as_f64().expect("expected float for data size");
-            println!("size: {:?}", float);
             let size_unit = slots[1].as_str().expect("expected size type");
 
             let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
-            // println!("ds: {:?}", ds);
-            // todo!("decode data size type");
+
             return Ok(PklNonPrimitive::DataSize(type_id, ds));
         }
         type_constants::PAIR => {
@@ -168,8 +163,14 @@ fn parse_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPr
             ));
             // todo!("parse pair type")
         }
+        type_constants::INT_SEQ => {
+            let start = slots[0].as_i64().expect("expected start for int seq");
+            let end = slots[1].as_i64().expect("expected end for int seq");
+            // nothing is done with 'step' slot of the int seq structure from pkl
+            return Ok(PklNonPrimitive::IntSeq(type_id, start, end));
+        }
 
-        type_constants::INT_SEQ | type_constants::REGEX | type_constants::TYPE_ALIAS => {
+        type_constants::REGEX | type_constants::TYPE_ALIAS => {
             todo!("type {} cannot be rendered as json", type_id);
         }
         _ => {

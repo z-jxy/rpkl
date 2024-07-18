@@ -49,6 +49,7 @@ impl ObjectMember {
                 PklNonPrimitive::Pair(_, a, b) => {
                     PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
                 }
+                PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {
@@ -82,7 +83,8 @@ pub enum PklValue {
     Duration(std::time::Duration),
 
     Pair(Box<PklValue>, Box<PklValue>), // requires box to avoid infinite size compiler error
-    Range(std::ops::Range<u64>),
+    //
+    Range(std::ops::Range<i64>),
     DataSize(DataSize),
     Null,
 }
@@ -223,19 +225,13 @@ pub(crate) enum PklNonPrimitive {
     List(u64, Vec<PklPrimitive>),
     Mapping(u64, PklValue),
     Set(u64, Vec<PklPrimitive>),
-    // Pair(u64, PklValue, PklValue),
+
     Duration(u64, std::time::Duration),
     DataSize(u64, DataSize),
     Pair(u64, PklValue, PklValue),
+    /// 0: type id, 1: start, 2: end
+    IntSeq(u64, i64, i64),
 }
 
-struct DurationUnit(String);
-
-impl DurationUnit {
-    pub fn from_str(s: &str) -> Option<DurationUnit> {
-        match s {
-            "ns" | "us" | "ms" | "s" | "min" | "h" | "d" => Some(DurationUnit(s.to_string())),
-            _ => None,
-        }
-    }
-}
+/// https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq
+pub type IntSeq = std::ops::Range<i64>;

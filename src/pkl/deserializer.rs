@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use crate::pkl::datasize::DataSizeDeserializer;
-use crate::pkl::de::{DurationDeserializer, TupleDeserializer};
+use crate::pkl::de::{DurationDeserializer, RangeDeserializer, TupleDeserializer};
 use crate::pkl::internal::{self};
 use serde::de::{
     self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
     Visitor,
 };
-use serde::{forward_to_deserialize_any, Deserialize};
+use serde::forward_to_deserialize_any;
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};
@@ -157,7 +157,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
         let key = self.keys[self.index - 1];
         if let Some(value) = self.de.map.get(key) {
             #[cfg(feature = "trace")]
-            debug!("found value for key: {:?}: {:?}", key, value);
+            debug!("next_value_seed for key: {:?}: {:?}", key, value);
             match value {
                 PklValue::Int(i) => match i {
                     internal::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
@@ -189,21 +189,14 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                     debug!("pair: {:?}, {:?}", a, b);
 
                     seed.deserialize(TupleDeserializer { pair: (&*a, &*b) })
-                    // todo!("deserialize pair");
                 }
 
-                PklValue::Duration(d) => {
-                    // TODO: implement this properly
-                    seed.deserialize(DurationDeserializer {
-                        input: format!("{}ms", d.as_millis()),
-                    })
-                }
-                PklValue::Range(r) => {
-                    todo!("deserialize range");
-                }
-                PklValue::DataSize(d) => seed.deserialize(DataSizeDeserializer {
-                    input: &format!("{}{}", d.value(), d.unit()),
+                PklValue::Duration(duration) => seed.deserialize(DurationDeserializer { duration }),
+                PklValue::Range(r) => seed.deserialize(RangeDeserializer {
+                    start: &r.start,
+                    end: &r.end,
                 }),
+                PklValue::DataSize(d) => seed.deserialize(DataSizeDeserializer { input: &d }),
             }
         } else {
             Err(Error::Message(format!("no value found for: {key}")))
@@ -258,12 +251,11 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                 PklValue::Pair(a, b) => {
                     #[cfg(feature = "trace")]
                     debug!("pair: {:?}, {:?}", a, b);
-                    todo!("deserialize pair");
+                    seed.deserialize(TupleDeserializer { pair: (&*a, &*b) })
+                        .map(Some)
                 }
                 PklValue::DataSize(d) => seed
-                    .deserialize(DataSizeDeserializer {
-                        input: &format!("{}{}", d.value(), d.unit()),
-                    })
+                    .deserialize(DataSizeDeserializer { input: &d })
                     .map(Some),
                 PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
                 PklValue::List(elements) => seed
@@ -276,21 +268,15 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                     .map(Some),
                 PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()).map(Some),
                 PklValue::Null => seed.deserialize(().into_deserializer()).map(Some),
-                PklValue::Duration(d) => {
-                    // todo!("deserialize duration");
-                    // seed.deserialize(d.as_millis().into_deserializer())
-                    //     .map(Some)
-
-                    seed.deserialize(DurationDeserializer {
-                        input: d.as_millis().to_string(),
+                PklValue::Duration(d) => seed
+                    .deserialize(DurationDeserializer { duration: d })
+                    .map(Some),
+                PklValue::Range(r) => seed
+                    .deserialize(RangeDeserializer {
+                        start: &r.start,
+                        end: &r.end,
                     })
-                    .map(Some)
-
-                    // seed.deserialize(d).map(Some)
-                }
-                PklValue::Range(r) => {
-                    todo!("deserialize range");
-                }
+                    .map(Some),
             };
 
             return ret;
@@ -371,20 +357,11 @@ impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
     }
 }
 
-// fn deserialize_duration<'de, D>(deserializer: D) -> Result<std::time::Duration>
-// where
-//     D: serde::Deserializer<'de>,
-// {
-//     let millis: u64 = serde::Deserialize::deserialize(deserializer).map_err(|e| {
-//         Error::Message(format!("failed to deserialize duration: {}", e.to_string()))
-//     })?;
-//     Ok(std::time::Duration::from_millis(millis))
-// }
-
+/// Internal deserializer used for deserializing Tuples from PklValue
 pub struct PklValueDeserializer<'v>(pub &'v PklValue);
 
 impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
-    type Error = crate::Error; // You'll need to define this error type
+    type Error = crate::Error;
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
@@ -405,42 +382,20 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
             PklValue::String(s) => visitor.visit_string(s.to_owned()),
             PklValue::Boolean(b) => visitor.visit_bool(*b),
             PklValue::Null => visitor.visit_unit(),
-            PklValue::List(elements) => {
-                // Implement sequence deserialization
-                unimplemented!("List deserialization not implemented")
-            }
-            PklValue::Map(m) => {
-                // Implement map deserialization
-                unimplemented!("Map deserialization not implemented")
-            }
-            PklValue::Pair(a, b) => {
-                // Implement pair deserialization
-                unimplemented!("Pair deserialization not implemented")
-            }
-            PklValue::Duration(d) => {
-                // visitor.visit_u64(d.as_millis()),
-                todo!()
-            }
-            PklValue::Range(_r) => {
-                unimplemented!("Range deserialization not implemented")
+
+            PklValue::Range(_)
+            | PklValue::Duration(_)
+            | PklValue::Pair(_, _)
+            | PklValue::Map(_)
+            | PklValue::List(_) => {
+                unreachable!(
+                    "unhandled deserialization for PklValueDeserializer: {:?}",
+                    self.0
+                );
             }
             PklValue::DataSize(d) => visitor.visit_string(format!("{}{}", d.value(), d.unit())),
         }
     }
-
-    // Implement other methods of the Deserializer trait...
-    // You'll need to implement methods like deserialize_bool, deserialize_i8, etc.
-    // For most of these, you can just call deserialize_any.
-
-    // Example:
-    // fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    // where
-    //     V: Visitor<'de>,
-    // {
-    //     self.deserialize_any(visitor)
-    // }
-
-    // ... implement other methods similarly
 }
 
 impl PklValue {

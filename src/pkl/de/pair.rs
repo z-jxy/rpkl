@@ -1,6 +1,6 @@
 use serde::{
     de::{self, Deserializer, SeqAccess, Visitor},
-    forward_to_deserialize_any, Deserialize,
+    forward_to_deserialize_any,
 };
 
 use crate::{pkl::deserializer::PklValueDeserializer, Value};

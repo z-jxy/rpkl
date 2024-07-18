@@ -96,6 +96,22 @@ impl DataSizeUnit {
             | DataSizeUnit::Pebibytes => false,
         }
     }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            DataSizeUnit::Bytes => "b",
+            DataSizeUnit::Kilobytes => "kb",
+            DataSizeUnit::Megabytes => "mb",
+            DataSizeUnit::Gigabytes => "gb",
+            DataSizeUnit::Terabytes => "tb",
+            DataSizeUnit::Petabytes => "pb",
+            DataSizeUnit::Kibibytes => "kib",
+            DataSizeUnit::Mebibytes => "mib",
+            DataSizeUnit::Gibibytes => "gib",
+            DataSizeUnit::Tebibytes => "tib",
+            DataSizeUnit::Pebibytes => "pib",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
@@ -174,7 +190,7 @@ use serde::{
 };
 
 pub struct DataSizeDeserializer<'a> {
-    pub input: &'a str,
+    pub input: &'a DataSize,
 }
 
 impl<'a, 'de> Deserializer<'de> for DataSizeDeserializer<'a> {
@@ -202,7 +218,7 @@ impl<'a, 'de> Deserializer<'de> for DataSizeDeserializer<'a> {
 }
 
 struct DataSizeMapAccess<'a> {
-    input: &'a str,
+    input: &'a DataSize,
     state: u8,
 }
 
@@ -230,28 +246,28 @@ impl<'a, 'de> MapAccess<'de> for DataSizeMapAccess<'a> {
     where
         V: de::DeserializeSeed<'de>,
     {
-        let (value, unit) = parse_datasize(&self.input)?;
+        // let (value, unit) = parse_datasize(&self.input)?;
         match self.state {
-            1 => seed.deserialize(de::value::F64Deserializer::new(value)),
-            2 => seed.deserialize(de::value::StrDeserializer::new(unit)),
+            1 => seed.deserialize(de::value::F64Deserializer::new(self.input.value())),
+            2 => seed.deserialize(de::value::StrDeserializer::new(self.input.unit().as_str())),
             _ => Err(de::Error::custom("unexpected state")),
         }
     }
 }
 
-fn parse_datasize(input: &str) -> Result<(f64, &str), crate::Error> {
-    const UNITS: [&str; 11] = [
-        "b", "kb", "mb", "gb", "tb", "pb", "kib", "mib", "gib", "tib", "pib",
-    ];
-    for unit in UNITS.iter() {
-        if let Some(value_str) = input.strip_suffix(unit) {
-            if let Ok(value) = value_str.parse::<f64>() {
-                return Ok((value, unit));
-            }
-        }
-    }
-    Err(de::Error::custom("invalid duration format"))
-}
+// fn parse_datasize(input: &str) -> Result<(f64, &str), crate::Error> {
+//     const UNITS: [&str; 11] = [
+//         "b", "kb", "mb", "gb", "tb", "pb", "kib", "mib", "gib", "tib", "pib",
+//     ];
+//     for unit in UNITS.iter() {
+//         if let Some(value_str) = input.strip_suffix(unit) {
+//             if let Ok(value) = value_str.parse::<f64>() {
+//                 return Ok((value, unit));
+//             }
+//         }
+//     }
+//     Err(de::Error::custom("invalid duration format"))
+// }
 
 struct KeyDeserializer(&'static str);
 impl<'de> Deserializer<'de> for KeyDeserializer {

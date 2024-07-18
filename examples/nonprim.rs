@@ -1,10 +1,12 @@
 use std::path::PathBuf;
 
 #[derive(serde::Deserialize, Debug)]
+#[allow(dead_code)]
 pub struct Config {
     duration: std::time::Duration,
     size: rpkl::DataSize,
     pair: (i32, i32),
+    range: std::ops::Range<i64>,
 }
 
 fn main() {

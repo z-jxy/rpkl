@@ -189,6 +189,8 @@ use serde::{
     forward_to_deserialize_any,
 };
 
+use crate::pkl::de::KeyDeserializer;
+
 pub struct DataSizeDeserializer<'a> {
     pub input: &'a DataSize,
 }
@@ -246,45 +248,10 @@ impl<'a, 'de> MapAccess<'de> for DataSizeMapAccess<'a> {
     where
         V: de::DeserializeSeed<'de>,
     {
-        // let (value, unit) = parse_datasize(&self.input)?;
         match self.state {
             1 => seed.deserialize(de::value::F64Deserializer::new(self.input.value())),
             2 => seed.deserialize(de::value::StrDeserializer::new(self.input.unit().as_str())),
             _ => Err(de::Error::custom("unexpected state")),
         }
-    }
-}
-
-// fn parse_datasize(input: &str) -> Result<(f64, &str), crate::Error> {
-//     const UNITS: [&str; 11] = [
-//         "b", "kb", "mb", "gb", "tb", "pb", "kib", "mib", "gib", "tib", "pib",
-//     ];
-//     for unit in UNITS.iter() {
-//         if let Some(value_str) = input.strip_suffix(unit) {
-//             if let Ok(value) = value_str.parse::<f64>() {
-//                 return Ok((value, unit));
-//             }
-//         }
-//     }
-//     Err(de::Error::custom("invalid duration format"))
-// }
-
-struct KeyDeserializer(&'static str);
-impl<'de> Deserializer<'de> for KeyDeserializer {
-    type Error = crate::Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 u8 u16 u32 f32 char str string
-        bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map enum struct identifier ignored_any
-
-        i64 u64 f64
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        visitor.visit_str(self.0)
     }
 }

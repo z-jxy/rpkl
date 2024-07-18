@@ -1,12 +1,12 @@
 use serde::{
-    de::{self, Deserializer, Visitor},
+    de::{Deserializer, Visitor},
     forward_to_deserialize_any,
 };
 
 /// Deserializer for struct keys
 pub(crate) struct KeyDeserializer(pub(crate) &'static str);
 impl<'de> Deserializer<'de> for KeyDeserializer {
-    type Error = de::value::Error;
+    type Error = crate::Error;
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 u8 u16 u32 f32 char str string

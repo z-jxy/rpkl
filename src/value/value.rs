@@ -49,9 +49,7 @@ impl PklValue {
             _ => None,
         }
     }
-}
 
-impl PklValue {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             PklValue::String(s) => Some(s),

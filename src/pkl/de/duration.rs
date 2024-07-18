@@ -39,7 +39,7 @@ struct DurationMapAccess<'a> {
 }
 
 impl<'a, 'de> MapAccess<'de> for DurationMapAccess<'a> {
-    type Error = de::value::Error;
+    type Error = crate::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
     where

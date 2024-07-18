@@ -9,6 +9,8 @@ use crate::{pkl::internal::Integer, DataSize};
 pub enum PklValue {
     Map(HashMap<String, PklValue>),
     List(Vec<PklValue>),
+    /// Represents a regex string
+    Regex(String),
     String(String),
     Int(Integer),
     Boolean(bool),

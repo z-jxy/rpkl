@@ -7,6 +7,8 @@ pub struct Config {
     size: rpkl::DataSize,
     pair: (i32, i32),
     range: std::ops::Range<i64>,
+    #[serde(rename(deserialize = "emailRegex"))]
+    email_regex: String,
 }
 
 fn main() {

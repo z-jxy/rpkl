@@ -197,6 +197,7 @@ impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
                     end: &r.end,
                 }),
                 PklValue::DataSize(d) => seed.deserialize(DataSizeDeserializer { input: &d }),
+                PklValue::Regex(s) => seed.deserialize(s.as_str().into_deserializer()),
             }
         } else {
             Err(Error::Message(format!("no value found for: {key}")))
@@ -237,6 +238,9 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
             #[cfg(feature = "trace")]
             debug!("el value: {:?}", value);
             let ret = match value {
+                PklValue::String(s) | PklValue::Regex(s) => {
+                    seed.deserialize(s.as_str().into_deserializer()).map(Some)
+                }
                 PklValue::Int(i) => match i {
                     pkl::internal::Integer::Pos(u) => {
                         seed.deserialize((*u).into_deserializer()).map(Some)
@@ -257,7 +261,7 @@ impl<'de, 'a> SeqAccess<'de> for SeqAccessImpl<'a, 'de> {
                 PklValue::DataSize(d) => seed
                     .deserialize(DataSizeDeserializer { input: &d })
                     .map(Some),
-                PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()).map(Some),
+
                 PklValue::List(elements) => seed
                     .deserialize(SeqAccessDeserializer {
                         seq: SeqAccessImpl::new(self.de, elements),
@@ -379,7 +383,7 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
                 internal::Integer::Neg(n) => visitor.visit_i64(*n),
                 internal::Integer::Float(f) => visitor.visit_f64(*f),
             },
-            PklValue::String(s) => visitor.visit_string(s.to_owned()),
+            PklValue::String(s) | PklValue::Regex(s) => visitor.visit_string(s.to_owned()),
             PklValue::Boolean(b) => visitor.visit_bool(*b),
             PklValue::Null => visitor.visit_unit(),
 

@@ -172,8 +172,13 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             return Ok(PklNonPrimitive::IntSeq(type_id, start, end));
         }
 
-        type_constants::REGEX | type_constants::TYPE_ALIAS => {
-            todo!("type {} cannot be rendered as json", type_id);
+        type_constants::REGEX => {
+            let pattern = slots[0].as_str().expect("expected pattern for regex");
+            return Ok(PklNonPrimitive::Regex(type_id, pattern.to_string()));
+        }
+
+        type_constants::TYPE_ALIAS => {
+            unreachable!("found TYPE_ALIAS in pkl binary data {}", type_id);
         }
         _ => {
             todo!("parse other non-primitive types. type_id: {}", type_id);

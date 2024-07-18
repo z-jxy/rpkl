@@ -48,6 +48,7 @@ impl ObjectMember {
                     PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
                 }
                 PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
+                PklNonPrimitive::Regex(_, r) => PklValue::String(r),
             },
             IPklValue::Primitive(p) => match p {
                 PklPrimitive::Int(i) => match i {
@@ -172,6 +173,7 @@ pub(crate) enum PklNonPrimitive {
     Pair(u64, PklValue, PklValue),
     /// 0: type id, 1: start, 2: end
     IntSeq(u64, i64, i64),
+    Regex(u64, String),
 }
 
 /// https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq

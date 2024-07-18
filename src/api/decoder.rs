@@ -34,17 +34,16 @@ fn decode_member_inner(
 
     // nested object, map using the outer ident
     if let rmpv::Value::Array(array) = value {
-        let pkl_value = eval_inner_bin_array(&array)?;
+        let pkl_value = decode_inner_bin_array(&array)?;
         return Ok(ObjectMember(type_id, ident, pkl_value));
     }
 
     let primitive = decode_primitive_member(value)?;
-
-    Ok(ObjectMember(
+    return Ok(ObjectMember(
         type_id,
         ident,
         IPklValue::Primitive(primitive),
-    ))
+    ));
 }
 
 /// decodes non-primitive members of a pkl object
@@ -94,7 +93,7 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
                         _,
                         _,
                         members,
-                    )) = eval_inner_bin_array(array)?
+                    )) = decode_inner_bin_array(array)?
                     {
                         let mut fields = HashMap::new();
                         for member in members {
@@ -156,14 +155,15 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             return Ok(PklNonPrimitive::DataSize(type_id, ds));
         }
         type_constants::PAIR => {
+            // if its an array, parse the inner object, otherwise parse the primitive value
             let first_val: PklValue = if let Some(array) = slots[0].as_array() {
-                eval_inner_bin_array(array)?.into()
+                decode_inner_bin_array(array)?.into()
             } else {
                 decode_primitive_member(&slots[0])?.into()
             };
 
             let second_val: PklValue = if let Some(array) = slots[1].as_array() {
-                eval_inner_bin_array(array)?.into()
+                decode_inner_bin_array(array)?.into()
             } else {
                 decode_primitive_member(&slots[1])?.into()
             };
@@ -171,9 +171,9 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             return Ok(PklNonPrimitive::Pair(type_id, first_val, second_val));
         }
         type_constants::INT_SEQ => {
+            // nothing is done with 'step' slot of the int seq structure from pkl
             let start = slots[0].as_i64().expect("expected start for int seq");
             let end = slots[1].as_i64().expect("expected end for int seq");
-            // nothing is done with 'step' slot of the int seq structure from pkl
             return Ok(PklNonPrimitive::IntSeq(type_id, start, end));
         }
 
@@ -227,8 +227,8 @@ fn decode_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
     }
 }
 
-/// evaluates the inner binary array of a pkl object
-fn eval_inner_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
+/// evaluates the inner binary array of a pkl object. used for decoding nested non-primitive types
+fn decode_inner_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
     let type_id = slots[0].as_u64().context("missing type id")?;
 
     if type_id == type_constants::OBJECT_MEMBER {
@@ -256,7 +256,7 @@ fn decode_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
             return decode_member_inner(type_id, &mut slots);
         }
         type_constants::DYNAMIC_LISTING => {
-            return parse_dynamic_list_inner(type_id, &mut slots);
+            return decode_dynamic_list_inner(type_id, &mut slots);
         }
         _ => {
             todo!("type_id is not OBJECT_MEMBER, or DYNAMIC_LISTING. implement parse other non-primitive types. type_id: {}\n", type_id);
@@ -277,7 +277,7 @@ fn decode_pkl_obj_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
 /// ```
 /// the dynamically typed listings have a different structure than the typed listings
 ///
-fn parse_dynamic_list_inner(
+fn decode_dynamic_list_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> Result<ObjectMember> {
@@ -302,7 +302,7 @@ fn parse_dynamic_list_inner(
 
     // nested object, map using the outer ident
     if let rmpv::Value::Array(array) = value {
-        let pkl_value = eval_inner_bin_array(&array)?;
+        let pkl_value = decode_inner_bin_array(&array)?;
         return Ok(ObjectMember(type_id, index.to_string(), pkl_value));
     }
 

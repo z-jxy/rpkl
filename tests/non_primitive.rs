@@ -29,9 +29,13 @@ mod tests {
             .join("nonprim.pkl");
         let config = rpkl::from_config::<Config>(path)?;
 
-        println!("{:?}", config);
+        // println!("{:?}", config);
 
         assert!(config.duration.as_millis() == 12);
+
+        assert!(config.pair2.0 == vec![1, 2, 3] && config.pair2.1 == vec![4, 5, 6]);
+
+        assert!(config.range.start == 2 && config.range.end == 5);
 
         Ok(())
     }

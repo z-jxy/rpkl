@@ -5,7 +5,6 @@ use serde::{de, ser};
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-// This is a bare-bones implementation.
 #[derive(Debug)]
 pub enum Error {
     Message(String),
@@ -57,14 +56,11 @@ impl Display for Error {
             Error::Message(msg) => formatter.write_str(msg),
             Error::Eof => formatter.write_str("unexpected end of input"),
             _ => formatter.write_str("unknown error"),
-            /* and so forth */
         }
     }
 }
 
 impl std::error::Error for Error {}
-
-// std::io::Error
 
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {

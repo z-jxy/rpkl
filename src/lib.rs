@@ -11,7 +11,6 @@ mod utils;
 pub mod value;
 
 pub use error::{Error, Result};
-// pub use value::{DataSize, IntSeq};
 
 pub use value::PklValue as Value;
 

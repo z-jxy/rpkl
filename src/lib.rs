@@ -8,10 +8,12 @@ mod context;
 pub mod error;
 pub mod pkl;
 mod utils;
+mod value;
 
 pub use error::{Error, Result};
-pub use pkl::datasize::DataSize;
-pub use pkl::PklValue as Value;
+pub use value::{DataSize, IntSeq};
+
+pub use value::PklValue as Value;
 
 #[cfg(feature = "trace")]
 use tracing::{debug, error, span, trace, Level};

@@ -2,12 +2,15 @@ use std::collections::HashMap;
 
 use crate::context::Context;
 use crate::error::{Error, Result};
-use crate::pkl::datasize::{DataSize, DataSizeUnit};
 use crate::pkl::internal::type_constants;
 use crate::pkl::{
     self,
-    internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive, PklValue},
+    internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive},
     PklMod,
+};
+use crate::value::{
+    datasize::{DataSize, DataSizeUnit},
+    PklValue,
 };
 
 #[cfg(feature = "trace")]
@@ -153,7 +156,7 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             return Ok(PklNonPrimitive::DataSize(type_id, ds));
         }
         type_constants::PAIR => {
-            // TODO: this should be another call to parse non primitive member
+            // TODO: ?this should be another call to parse non primitive member
             let first = &slots[0];
             let second = &slots[1];
             return Ok(PklNonPrimitive::Pair(
@@ -161,7 +164,6 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
                 decode_primitive_member(first)?.into(),
                 decode_primitive_member(second)?.into(),
             ));
-            // todo!("parse pair type")
         }
         type_constants::INT_SEQ => {
             let start = slots[0].as_i64().expect("expected start for int seq");

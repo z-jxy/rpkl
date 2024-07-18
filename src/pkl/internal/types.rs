@@ -1,6 +1,4 @@
-use std::collections::HashMap;
-
-use crate::pkl::datasize::DataSize;
+use crate::value::{DataSize, PklValue};
 use crate::PklSerialize;
 use crate::Result;
 use serde::{Deserialize, Serialize};
@@ -71,63 +69,6 @@ impl ObjectMember {
 // #[derive(Debug, Clone, Serialize, PartialEq)]
 // struct Pair(pub PklValue, pub PklValue);
 
-/// Represents a `.pkl` value
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub enum PklValue {
-    Map(HashMap<String, PklValue>),
-    List(Vec<PklValue>),
-    String(String),
-    Int(Integer),
-    Boolean(bool),
-    #[serde(deserialize_with = "deserialize_duration")]
-    Duration(std::time::Duration),
-
-    Pair(Box<PklValue>, Box<PklValue>), // requires box to avoid infinite size compiler error
-    //
-    Range(std::ops::Range<i64>),
-    DataSize(DataSize),
-    Null,
-}
-
-impl PklValue {
-    pub fn as_map(&self) -> Option<&HashMap<String, PklValue>> {
-        match self {
-            PklValue::Map(m) => Some(m),
-            _ => None,
-        }
-    }
-
-    pub fn as_array(&self) -> Option<&Vec<PklValue>> {
-        match self {
-            PklValue::List(l) => Some(l),
-            _ => None,
-        }
-    }
-
-    pub fn as_int(&self) -> Option<&Integer> {
-        match self {
-            PklValue::Int(i) => Some(i),
-            _ => None,
-        }
-    }
-
-    pub fn as_bool(&self) -> Option<&bool> {
-        match self {
-            PklValue::Boolean(b) => Some(b),
-            _ => None,
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for PklValue {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<PklValue, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_any(PklVisitor)
-    }
-}
-
 #[cfg(test)]
 mod test {
     #[test]
@@ -170,21 +111,21 @@ impl From<PklPrimitive> for PklValue {
     }
 }
 
+impl<'de> Deserialize<'de> for PklValue {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<PklValue, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(PklVisitor)
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 #[serde(untagged)]
 pub enum Integer {
     Pos(u64),
     Float(f64),
     Neg(i64),
-}
-
-impl PklValue {
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            PklValue::String(s) => Some(s),
-            _ => None,
-        }
-    }
 }
 
 /// Internal struct used for deserializing `.pkl` objects

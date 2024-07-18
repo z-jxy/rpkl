@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::pkl::datasize::DataSizeDeserializer;
 use crate::pkl::de::{DurationDeserializer, RangeDeserializer, TupleDeserializer};
 use crate::pkl::internal::{self};
+use crate::value::datasize::DataSizeDeserializer;
 use serde::de::{
     self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
     Visitor,
@@ -14,8 +14,8 @@ use tracing::{debug, error, span, trace, Level};
 #[cfg(feature = "trace")]
 use tracing_subscriber::FmtSubscriber;
 
-use crate::pkl::internal::PklValue;
 use crate::pkl::{self};
+use crate::Value as PklValue;
 
 use crate::error::{Error, Result};
 

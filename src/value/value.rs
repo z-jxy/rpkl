@@ -58,4 +58,20 @@ impl PklValue {
             _ => None,
         }
     }
+
+    pub fn is_int(&self) -> bool {
+        matches!(self, PklValue::Int(_))
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(self, PklValue::String(_))
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self, PklValue::Boolean(_))
+    }
+
+    pub fn is_map(&self) -> bool {
+        matches!(self, PklValue::Map(_))
+    }
 }

@@ -19,5 +19,5 @@ numbers = new Listing {
       name = "Parrot"
       lifespan = 20
     }
-    7
+    false
 }

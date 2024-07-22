@@ -19,6 +19,7 @@ mod tests {
         int_list: Vec<i32>,
 
         pair2: (Vec<i32>, Vec<i32>),
+        numbers: Vec<rpkl::Value>,
     }
 
     #[test]
@@ -36,6 +37,14 @@ mod tests {
         assert!(config.pair2.0 == vec![1, 2, 3] && config.pair2.1 == vec![4, 5, 6]);
 
         assert!(config.range.start == 2 && config.range.end == 5);
+
+        assert!(config.numbers.len() == 4);
+
+        assert!(config.numbers[0].is_int() == false);
+
+        assert!(config.numbers[2].is_int() == true);
+
+        assert!(config.numbers[3].is_bool() == true);
 
         Ok(())
     }

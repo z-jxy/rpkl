@@ -4,3 +4,20 @@ pair = Pair(23, 11)
 
 range = IntSeq(2, 5)
 emailRegex = Regex(#"([\w\.]+)@([\w\.]+)"#)
+
+class Bird {
+  name: String
+  lifespan: Int
+}
+
+numbers = new Listing {
+    new {
+        name = "Pigeon"
+        lifespan = 8
+    }
+    new {
+      name = "Parrot"
+      lifespan = 20
+    }
+    7
+}

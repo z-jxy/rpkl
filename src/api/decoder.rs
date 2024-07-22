@@ -74,11 +74,33 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
         type_constants::SET => {
             let values = &slots[0];
             let values = values.as_array().unwrap().to_vec();
-            let values = values
-                .iter()
-                .map(|v| decode_primitive_member(v))
-                .collect::<Result<Vec<PklPrimitive>>>()?;
-            return Ok(PklNonPrimitive::Set(type_id, values));
+
+            let mut set_values = vec![];
+
+            for v in values.iter() {
+                if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, members)) =
+                    decode_inner_bin_array(v.as_array().unwrap())?
+                {
+                    let mut fields = HashMap::new();
+                    for member in members {
+                        let (ident, value) = member.to_pkl_value()?;
+                        fields.insert(ident, value);
+                    }
+
+                    set_values.push(PklValue::Map(fields));
+
+                    // Ok(PklValue::Map(fields));
+                } else {
+                    let prim = decode_primitive_member(v)?;
+                    set_values.push(prim.into());
+                }
+            }
+
+            // let values = values
+            //     .iter()
+            //     .map(|v| decode_primitive_member(v))
+            //     .collect::<Result<Vec<PklPrimitive>>>()?;
+            return Ok(PklNonPrimitive::Set(type_id, set_values));
         }
         type_constants::MAPPING | type_constants::MAP => {
             let values = &slots[0];
@@ -111,17 +133,58 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
         }
 
         type_constants::LIST | type_constants::LISTING => {
+            #[cfg(feature = "trace")]
+            {
+                trace!("LIST | LISTING: type_id: {}", type_id);
+                trace!("slots: {:#?}", slots);
+            }
+
             let values = &slots[0];
             let values = values
                 .as_array()
                 .expect(&format!("Expected array, got {:?}", values))
                 .to_vec();
-            let values = values
-                .iter()
-                .map(|v| decode_primitive_member(v))
-                .collect::<Result<Vec<PklPrimitive>>>()?;
 
-            return Ok(PklNonPrimitive::List(type_id, values));
+            let mut list_values = vec![];
+
+            for v in values.iter() {
+                if let Some(inner_array) = v.as_array() {
+                    if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(
+                        _,
+                        _,
+                        _,
+                        members,
+                    )) = decode_inner_bin_array(inner_array)?
+                    {
+                        let mut fields = HashMap::new();
+                        for member in members {
+                            let (ident, value) = member.to_pkl_value()?;
+                            fields.insert(ident, value);
+                        }
+
+                        list_values.push(PklValue::Map(fields));
+
+                        // Ok(PklValue::Map(fields));
+                    } else {
+                        #[cfg(feature = "trace")]
+                        {
+                            warn!("inner array found but not TypedDynamic");
+                        }
+                    }
+                } else {
+                    let prim = decode_primitive_member(v)?;
+                    list_values.push(prim.into());
+                }
+            }
+
+            // let values = values
+            //     .iter()
+            //     .map(|v| {
+
+            //     })
+            //     .collect::<Result<Vec<PklValue>>>()?;
+
+            return Ok(PklNonPrimitive::List(type_id, list_values));
         }
 
         type_constants::DURATION => {

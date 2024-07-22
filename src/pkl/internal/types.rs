@@ -194,9 +194,9 @@ pub(crate) enum PklNonPrimitive {
     ///
     /// 3 (slot 4): members - array of [Object Members][https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#object-members]
     TypedDynamic(u64, String, String, Vec<ObjectMember>),
-    List(u64, Vec<PklPrimitive>),
+    List(u64, Vec<PklValue>),
     Mapping(u64, PklValue),
-    Set(u64, Vec<PklPrimitive>),
+    Set(u64, Vec<PklValue>),
 
     Duration(u64, std::time::Duration),
     DataSize(u64, DataSize),

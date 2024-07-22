@@ -148,41 +148,9 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             let mut list_values = vec![];
 
             for v in values.iter() {
-                if let Some(inner_array) = v.as_array() {
-                    if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(
-                        _,
-                        _,
-                        _,
-                        members,
-                    )) = decode_inner_bin_array(inner_array)?
-                    {
-                        let mut fields = HashMap::new();
-                        for member in members {
-                            let (ident, value) = member.to_pkl_value()?;
-                            fields.insert(ident, value);
-                        }
-
-                        list_values.push(PklValue::Map(fields));
-
-                        // Ok(PklValue::Map(fields));
-                    } else {
-                        #[cfg(feature = "trace")]
-                        {
-                            warn!("inner array found but not TypedDynamic");
-                        }
-                    }
-                } else {
-                    let prim = decode_primitive_member(v)?;
-                    list_values.push(prim.into());
-                }
+                let value = decode_prim_or_non_prim(v)?;
+                list_values.push(value);
             }
-
-            // let values = values
-            //     .iter()
-            //     .map(|v| {
-
-            //     })
-            //     .collect::<Result<Vec<PklValue>>>()?;
 
             return Ok(PklNonPrimitive::List(type_id, list_values));
         }
@@ -250,6 +218,30 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
         }
         _ => {
             todo!("parse other non-primitive types. type_id: {}", type_id);
+        }
+    }
+}
+
+/// decodes the inner binary array of a pkl object into a PklValue
+fn decode_prim_or_non_prim(value: &rmpv::Value) -> Result<PklValue> {
+    match value {
+        rmpv::Value::Array(array) => {
+            let inner = decode_inner_bin_array(array)?;
+            match inner {
+                IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, members)) => {
+                    let mut fields = HashMap::new();
+                    for member in members {
+                        let (ident, value) = member.to_pkl_value()?;
+                        fields.insert(ident, value);
+                    }
+                    Ok(PklValue::Map(fields))
+                }
+                _ => Ok(inner.into()),
+            }
+        }
+        _ => {
+            let prim = decode_primitive_member(value)?;
+            Ok(prim.into())
         }
     }
 }

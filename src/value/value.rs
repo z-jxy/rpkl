@@ -74,4 +74,8 @@ impl PklValue {
     pub fn is_map(&self) -> bool {
         matches!(self, PklValue::Map(_))
     }
+
+    pub fn is_array(&self) -> bool {
+        matches!(self, PklValue::List(_))
+    }
 }

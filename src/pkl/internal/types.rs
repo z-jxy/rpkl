@@ -142,8 +142,10 @@ impl<'de> Deserialize<'de> for PklValue {
     }
 }
 
+/// Represents an integer in `.pkl`
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 #[serde(untagged)]
+// TODO: this will always be a signed integer
 pub enum Integer {
     Pos(u64),
     Float(f64),
@@ -194,9 +196,9 @@ pub(crate) enum PklNonPrimitive {
     ///
     /// 3 (slot 4): members - array of [Object Members][https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#object-members]
     TypedDynamic(u64, String, String, Vec<ObjectMember>),
-    List(u64, Vec<PklPrimitive>),
+    List(u64, Vec<PklValue>),
     Mapping(u64, PklValue),
-    Set(u64, Vec<PklPrimitive>),
+    Set(u64, Vec<PklValue>),
 
     Duration(u64, std::time::Duration),
     DataSize(u64, DataSize),

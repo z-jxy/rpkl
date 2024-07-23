@@ -13,7 +13,11 @@ impl<'de> Visitor<'de> for PklVisitor {
     type Value = Value;
 
     fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("an integer")
+        #[cfg(feature = "trace")]
+        {
+            debug!("PklVisitor failed");
+        }
+        formatter.write_str("a valid pkl value")
     }
 
     fn visit_i8<E>(self, value: i8) -> Result<Self::Value, E>
@@ -53,7 +57,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        Err(de::Error::invalid_type(de::Unexpected::Bool(v), &self))
+        Ok(Value::Boolean(v))
     }
 
     fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>

@@ -58,4 +58,36 @@ impl PklValue {
             _ => None,
         }
     }
+
+    pub fn is_number(&self) -> bool {
+        matches!(self, PklValue::Int(_))
+    }
+
+    pub fn is_i64(&self) -> bool {
+        matches!(self, PklValue::Int(Integer::Neg(_)))
+    }
+
+    pub fn is_u64(&self) -> bool {
+        matches!(self, PklValue::Int(Integer::Pos(_)))
+    }
+
+    pub fn is_float(&self) -> bool {
+        matches!(self, PklValue::Int(Integer::Float(_)))
+    }
+
+    pub fn is_string(&self) -> bool {
+        matches!(self, PklValue::String(_))
+    }
+
+    pub fn is_bool(&self) -> bool {
+        matches!(self, PklValue::Boolean(_))
+    }
+
+    pub fn is_map(&self) -> bool {
+        matches!(self, PklValue::Map(_))
+    }
+
+    pub fn is_array(&self) -> bool {
+        matches!(self, PklValue::List(_))
+    }
 }

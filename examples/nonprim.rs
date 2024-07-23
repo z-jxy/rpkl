@@ -9,6 +9,9 @@ pub struct Config {
     range: std::ops::Range<i64>,
     #[serde(rename(deserialize = "emailRegex"))]
     email_regex: String,
+
+    #[serde(rename(deserialize = "birdsAndNumber"))]
+    birds_and_number: Vec<rpkl::Value>,
 }
 
 fn main() {

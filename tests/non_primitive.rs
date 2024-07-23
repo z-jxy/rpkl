@@ -6,6 +6,8 @@ extern crate test;
 mod tests {
     use std::path::PathBuf;
 
+    use rpkl::Value;
+
     #[derive(serde::Deserialize, Debug)]
     #[allow(dead_code)]
     pub struct Config {
@@ -19,6 +21,7 @@ mod tests {
         int_list: Vec<i32>,
 
         pair2: (Vec<i32>, Vec<i32>),
+        numbers: Vec<rpkl::Value>,
     }
 
     #[test]
@@ -29,13 +32,19 @@ mod tests {
             .join("nonprim.pkl");
         let config = rpkl::from_config::<Config>(path)?;
 
-        // println!("{:?}", config);
-
         assert!(config.duration.as_millis() == 12);
 
         assert!(config.pair2.0 == vec![1, 2, 3] && config.pair2.1 == vec![4, 5, 6]);
 
         assert!(config.range.start == 2 && config.range.end == 5);
+
+        assert!(config.numbers.len() == 4);
+
+        assert!(config.numbers[0].is_number() == false);
+
+        assert!(config.numbers[2].is_number() == true);
+
+        assert!(config.numbers[3].is_bool() == true);
 
         Ok(())
     }

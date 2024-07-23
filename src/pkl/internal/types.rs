@@ -142,8 +142,10 @@ impl<'de> Deserialize<'de> for PklValue {
     }
 }
 
+/// Represents an integer in `.pkl`
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, PartialOrd)]
 #[serde(untagged)]
+// TODO: this will always be a signed integer
 pub enum Integer {
     Pos(u64),
     Float(f64),

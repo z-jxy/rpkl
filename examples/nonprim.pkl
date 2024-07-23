@@ -10,7 +10,7 @@ class Bird {
   lifespan: Int
 }
 
-numbers = new Listing {
+birdsAndNumber = new Listing {
     new {
         name = "Pigeon"
         lifespan = 8
@@ -21,3 +21,4 @@ numbers = new Listing {
     }
     false
 }
+

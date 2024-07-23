@@ -28,5 +28,3 @@ numbers = new Listing {
     7
     false
 }
-
-float_val = 12.4

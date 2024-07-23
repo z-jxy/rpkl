@@ -59,8 +59,20 @@ impl PklValue {
         }
     }
 
-    pub fn is_int(&self) -> bool {
+    pub fn is_number(&self) -> bool {
         matches!(self, PklValue::Int(_))
+    }
+
+    pub fn is_i64(&self) -> bool {
+        matches!(self, PklValue::Int(Integer::Neg(_)))
+    }
+
+    pub fn is_u64(&self) -> bool {
+        matches!(self, PklValue::Int(Integer::Pos(_)))
+    }
+
+    pub fn is_float(&self) -> bool {
+        matches!(self, PklValue::Int(Integer::Float(_)))
     }
 
     pub fn is_string(&self) -> bool {

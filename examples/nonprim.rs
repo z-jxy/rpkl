@@ -10,7 +10,8 @@ pub struct Config {
     #[serde(rename(deserialize = "emailRegex"))]
     email_regex: String,
 
-    numbers: Vec<rpkl::Value>,
+    #[serde(rename(deserialize = "birdsAndNumber"))]
+    birds_and_number: Vec<rpkl::Value>,
 }
 
 fn main() {

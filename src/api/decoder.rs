@@ -227,17 +227,7 @@ fn decode_prim_or_non_prim(value: &rmpv::Value) -> Result<PklValue> {
     match value {
         rmpv::Value::Array(array) => {
             let inner = decode_inner_bin_array(array)?;
-            match inner {
-                IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, members)) => {
-                    let mut fields = HashMap::new();
-                    for member in members {
-                        let (ident, value) = member.to_pkl_value()?;
-                        fields.insert(ident, value);
-                    }
-                    Ok(PklValue::Map(fields))
-                }
-                _ => Ok(inner.into()),
-            }
+            Ok(inner.into())
         }
         _ => {
             let prim = decode_primitive_member(value)?;
@@ -275,6 +265,8 @@ fn decode_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
                 return Err(Error::ParseError(format!("expected integer, got {:?}", n)));
             }
         }
+        rmpv::Value::F32(f) => Ok(PklPrimitive::Float(*f as f64)),
+        rmpv::Value::F64(f) => Ok(PklPrimitive::Float(*f)),
 
         _ => {
             todo!("parse other primitive types. value: {}", value);

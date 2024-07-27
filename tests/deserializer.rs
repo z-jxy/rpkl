@@ -5,6 +5,8 @@ extern crate test;
 #[cfg(test)]
 mod tests {
 
+    use std::path::PathBuf;
+
     use rmpv::Value;
     use rpkl::api;
     use rpkl::pkl::Deserializer;
@@ -36,6 +38,36 @@ mod tests {
             let elapsed = now.elapsed();
             print_time!(elapsed);
         }
+    }
+
+    #[test]
+    fn optional_values() {
+        #[cfg(feature = "dhat-heap")]
+        let _profiler = dhat::Profiler::new_heap();
+
+        #[allow(dead_code)]
+        #[derive(Debug, Deserialize)]
+        struct Config {
+            ip: Option<String>,
+            port: u16,
+            database: Database,
+            pet_name: Option<String>,
+        }
+
+        #[allow(dead_code)]
+        #[derive(Debug, Deserialize)]
+        struct Database {
+            username: String,
+            password: String,
+        }
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join("database.pkl");
+        let config = rpkl::from_config::<Config>(path).unwrap();
+
+        assert_eq!(config.pet_name, Some("Doggo".into()));
     }
 
     #[test]

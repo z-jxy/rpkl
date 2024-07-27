@@ -8,6 +8,7 @@ use crate::pkl::{
     internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive},
     PklMod,
 };
+use crate::utils;
 use crate::value::{
     datasize::{DataSize, DataSizeUnit},
     PklValue,
@@ -160,9 +161,33 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             let float_time = slots[0].as_f64().expect("expected float for duration") as u64;
             let duration_unit = slots[1].as_str().expect("expected time type");
             let duration = match duration_unit {
-                "min" => std::time::Duration::from_mins(float_time),
-                "h" => std::time::Duration::from_hours(float_time),
-                "d" => std::time::Duration::from_days(float_time),
+                "min" => {
+                    let Some(d) = utils::duration::from_mins(float_time) else {
+                        return Err(Error::ParseError(format!(
+                            "failed to parse duration from mins: {}",
+                            float_time
+                        )));
+                    };
+                    d
+                }
+                "h" => {
+                    let Some(d) = utils::duration::from_hours(float_time) else {
+                        return Err(Error::ParseError(format!(
+                            "failed to parse duration from hours: {}",
+                            float_time
+                        )));
+                    };
+                    d
+                }
+                "d" => {
+                    let Some(d) = utils::duration::from_days(float_time) else {
+                        return Err(Error::ParseError(format!(
+                            "failed to parse duration from days: {}",
+                            float_time
+                        )));
+                    };
+                    d
+                }
                 "ns" => std::time::Duration::from_nanos(float_time),
                 "us" => std::time::Duration::from_micros(float_time),
                 "ms" => std::time::Duration::from_millis(float_time),

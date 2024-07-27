@@ -33,9 +33,9 @@ impl<'a, 'de> Deserializer<'de> for DurationDeserializer<'a> {
     }
 }
 
-struct DurationMapAccess<'a> {
-    duration: &'a std::time::Duration,
-    state: u8,
+pub struct DurationMapAccess<'a> {
+    pub duration: &'a std::time::Duration,
+    pub state: u8,
 }
 
 impl<'a, 'de> MapAccess<'de> for DurationMapAccess<'a> {

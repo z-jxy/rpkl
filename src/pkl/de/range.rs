@@ -36,11 +36,11 @@ impl<'a, 'de> Deserializer<'de> for RangeDeserializer<'a> {
     }
 }
 
-struct RangeMapAccess<'a> {
+pub struct RangeMapAccess<'a> {
     // input: &'a str,
-    state: u8,
-    start: &'a i64,
-    end: &'a i64,
+    pub state: u8,
+    pub start: &'a i64,
+    pub end: &'a i64,
 }
 
 impl<'a, 'de> MapAccess<'de> for RangeMapAccess<'a> {

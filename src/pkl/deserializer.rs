@@ -385,57 +385,15 @@ impl<'de, 'a> MapAccess<'de> for PklMapAccess<'a> {
         #[cfg(feature = "trace")]
         debug!("[next_value_seed]");
 
-        // seed.deserialize(&mut *self.de)
-
         let key = self.keys[self.index - 1];
-        if let Some(value) = self.de.map.get(key) {
-            #[cfg(feature = "trace")]
-            debug!("next_value_seed for key: {:?}: {:?}", key, value);
-            seed.deserialize(value.into_deserializer())
-            // match value {
-            //     PklValue::Int(i) => match i {
-            //         internal::Integer::Pos(u) => seed.deserialize((*u).into_deserializer()),
-            //         internal::Integer::Neg(n) => seed.deserialize((*n).into_deserializer()),
-            //         internal::Integer::Float(f) => seed.deserialize((*f).into_deserializer()),
-            //     },
-            //     PklValue::String(s) => seed.deserialize(s.as_str().into_deserializer()),
 
-            //     PklValue::List(elements) => {
-            //         #[cfg(feature = "trace")]
-            //         let _span = span!(Level::INFO, "start parsing list").entered();
+        let Some(value) = self.de.map.get(key) else {
+            return Err(Error::Message(format!("no value found for: {key}")));
+        };
 
-            //         #[cfg(feature = "trace")]
-            //         debug!("parsing list: {:?}", elements);
-
-            //         let seq = SeqAccessImpl::new(self.de, elements);
-            //         let result = seed.deserialize(SeqAccessDeserializer { seq });
-
-            //         #[cfg(feature = "trace")]
-            //         _span.exit();
-
-            //         result
-            //     }
-            //     PklValue::Map(m) => seed.deserialize(&mut Deserializer::from_pkl_map(m)),
-            //     PklValue::Boolean(b) => seed.deserialize(b.into_deserializer()),
-            //     PklValue::Null => seed.deserialize(().into_deserializer()),
-            //     PklValue::Pair(a, b) => {
-            //         #[cfg(feature = "trace")]
-            //         debug!("pair: {:?}, {:?}", a, b);
-
-            //         seed.deserialize(TupleDeserializer { pair: (&*a, &*b) })
-            //     }
-
-            //     PklValue::Duration(duration) => seed.deserialize(DurationDeserializer { duration }),
-            //     PklValue::Range(r) => seed.deserialize(RangeDeserializer {
-            //         start: &r.start,
-            //         end: &r.end,
-            //     }),
-            //     PklValue::DataSize(d) => seed.deserialize(DataSizeDeserializer { input: &d }),
-            //     PklValue::Regex(s) => seed.deserialize(s.as_str().into_deserializer()),
-            // }
-        } else {
-            Err(Error::Message(format!("no value found for: {key}")))
-        }
+        #[cfg(feature = "trace")]
+        debug!("next_value_seed for key: {:?}: {:?}", key, value);
+        seed.deserialize(value.into_deserializer())
     }
 }
 

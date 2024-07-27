@@ -219,9 +219,9 @@ impl<'a, 'de> Deserializer<'de> for DataSizeDeserializer<'a> {
     }
 }
 
-struct DataSizeMapAccess<'a> {
-    input: &'a DataSize,
-    state: u8,
+pub(crate) struct DataSizeMapAccess<'a> {
+    pub(crate) input: &'a DataSize,
+    pub(crate) state: u8,
 }
 
 impl<'a, 'de> MapAccess<'de> for DataSizeMapAccess<'a> {

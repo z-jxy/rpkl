@@ -4,7 +4,7 @@ use std::path::PathBuf;
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Config {
-    ip: String,
+    ip: Option<String>,
     port: u16,
     database: Database,
 }

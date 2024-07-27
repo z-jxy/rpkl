@@ -39,9 +39,9 @@ impl<'a, 'de> Deserializer<'de> for TupleDeserializer<'a> {
     }
 }
 
-struct TupleSeqAccess<'a> {
-    pair: (&'a Value, &'a Value),
-    index: usize,
+pub struct TupleSeqAccess<'a> {
+    pub pair: (&'a Value, &'a Value),
+    pub index: usize,
 }
 
 impl<'a, 'de> SeqAccess<'de> for TupleSeqAccess<'a> {

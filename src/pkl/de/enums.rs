@@ -1,6 +1,6 @@
 use serde::de::{self, DeserializeSeed, EnumAccess, VariantAccess, Visitor};
 
-use crate::pkl::{deserializer::PklValueDeserializer, Deserializer};
+use crate::pkl::deserializer::PklValueDeserializer;
 
 pub struct EnumDeserializer<'a> {
     de: PklValueDeserializer<'a>,

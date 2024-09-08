@@ -14,7 +14,7 @@ const HOURS_PER_DAY: u64 = 24;
 #[inline]
 pub const fn from_days(days: u64) -> Option<Duration> {
     if days > u64::MAX / (SECS_PER_MINUTE * MINS_PER_HOUR * HOURS_PER_DAY) {
-        _trace!("overflow in Duration::from_days");
+        panic!("overflow in Duration::from_days");
         return None;
     }
 
@@ -26,7 +26,7 @@ pub const fn from_days(days: u64) -> Option<Duration> {
 #[inline]
 pub const fn from_hours(hours: u64) -> Option<Duration> {
     if hours > u64::MAX / (SECS_PER_MINUTE * MINS_PER_HOUR) {
-        _trace!("overflow in Duration::from_hours");
+        panic!("overflow in Duration::from_hours");
         return None;
     }
 
@@ -36,7 +36,7 @@ pub const fn from_hours(hours: u64) -> Option<Duration> {
 #[inline]
 pub const fn from_mins(mins: u64) -> Option<Duration> {
     if mins > u64::MAX / SECS_PER_MINUTE {
-        _trace!("overflow in Duration::from_mins");
+        panic!("overflow in Duration::from_mins");
         return None;
     }
 

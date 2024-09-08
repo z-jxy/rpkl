@@ -1,12 +1,9 @@
 use std::collections::HashMap;
 
-use crate::pkl::de::{DurationMapAccess, RangeMapAccess, TupleSeqAccess};
+use crate::pkl::de::{DurationMapAccess, EnumDeserializer, RangeMapAccess, TupleSeqAccess};
 use crate::pkl::internal::{self};
 use crate::value::datasize::DataSizeMapAccess;
-use serde::de::{
-    self, DeserializeSeed, EnumAccess, IntoDeserializer, MapAccess, SeqAccess, VariantAccess,
-    Visitor,
-};
+use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
 #[cfg(feature = "trace")]
@@ -34,7 +31,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str option string
         bytes byte_buf unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct identifier ignored_any
+        tuple tuple_struct map struct enum identifier ignored_any
     }
 
     fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
@@ -44,28 +41,6 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         #[cfg(feature = "trace")]
         trace!("deserialize_any, using MapAccessImpl map");
         visitor.visit_map(MapAccessImpl::new(self))
-    }
-
-    fn deserialize_enum<V>(
-        self,
-        _name: &'static str,
-        _variants: &'static [&'static str],
-        visitor: V,
-    ) -> std::result::Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        #[cfg(feature = "trace")]
-        let _span = span!(Level::INFO, "deserialize_enum").entered();
-        #[cfg(feature = "trace")]
-        debug!("deserialize_enum: {:?}, {:?}", _name, _variants);
-
-        let ret = visitor.visit_enum(Enum::new(self));
-
-        #[cfg(feature = "trace")]
-        _span.exit();
-
-        ret
     }
 }
 
@@ -209,75 +184,8 @@ impl<'de, 'a> MapAccess<'de> for PklMapAccess<'a> {
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-struct Enum<'a, 'de: 'a> {
-    de: &'a mut Deserializer<'de>,
-}
-
-impl<'a, 'de> Enum<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
-        Enum { de }
-    }
-}
-
-impl<'de, 'a> EnumAccess<'de> for Enum<'a, 'de> {
-    type Error = Error;
-    type Variant = Self;
-
-    fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant)>
-    where
-        V: DeserializeSeed<'de>,
-    {
-        #[cfg(feature = "trace")]
-        debug!("EnumAccess variant_seed");
-
-        let val = match seed.deserialize(&mut *self.de) {
-            Ok(v) => v,
-            Err(e) => {
-                #[cfg(feature = "trace")]
-                error!("Failed to deserialize variant seed: {:?}", e);
-                return Err(e);
-            }
-        };
-        Ok((val, self))
-    }
-}
-
-// `VariantAccess` is provided to the `Visitor` to give it the ability to see
-// the content of the single variant that it decided to deserialize.
-impl<'de, 'a> VariantAccess<'de> for Enum<'a, 'de> {
-    type Error = Error;
-
-    fn unit_variant(self) -> Result<()> {
-        Err(Error::ExpectedString)
-    }
-
-    fn newtype_variant_seed<T>(self, seed: T) -> Result<T::Value>
-    where
-        T: DeserializeSeed<'de>,
-    {
-        seed.deserialize(self.de)
-    }
-
-    fn tuple_variant<V>(self, _len: usize, visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        de::Deserializer::deserialize_seq(self.de, visitor)
-    }
-
-    fn struct_variant<V>(self, _fields: &'static [&'static str], visitor: V) -> Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        #[cfg(feature = "trace")]
-        debug!("struct_variant, : {:?}", _fields);
-
-        de::Deserializer::deserialize_map(self.de, visitor)
-    }
-}
-
 /// Internal deserializer used for deserializing Tuples from PklValue
+#[derive(Clone, Copy)]
 pub struct PklValueDeserializer<'v>(pub &'v PklValue);
 
 impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
@@ -286,7 +194,24 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
         bytes byte_buf unit unit_struct newtype_struct seq
-        tuple tuple_struct map struct enum identifier ignored_any
+        tuple tuple_struct map struct identifier ignored_any
+    }
+
+    fn deserialize_enum<V>(
+        self,
+        _name: &'static str,
+        _variants: &'static [&'static str],
+        visitor: V,
+    ) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        // unit variants are handled upfront
+        if let Some(str_val) = self.0.as_str() {
+            return visitor.visit_enum(str_val.into_deserializer());
+        } else {
+            visitor.visit_enum(EnumDeserializer::new(self))
+        }
     }
 
     fn deserialize_option<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>

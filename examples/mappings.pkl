@@ -1,0 +1,5 @@
+
+
+paths = new Mapping {
+	["Birds"] = List("@admins")
+}

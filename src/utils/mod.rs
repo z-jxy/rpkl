@@ -1,7 +1,7 @@
 pub(crate) mod duration;
 
 // helper macro to conditionally log trace messages
-mod macros {
+pub(crate) mod macros {
     macro_rules! _trace {
         ($($arg:tt)*) => {
             #[cfg(feature = "trace")]

@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use crate::context::Context;
 use crate::error::{Error, Result};
+
+#[allow(unused_imports)]
 use crate::pkl::internal::type_constants::{self, pkl_type_id_str};
+
 use crate::pkl::{
     self,
     internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive},
@@ -89,28 +92,18 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             let mut set_values = vec![];
 
             for v in values.iter() {
-                if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, members)) =
-                    decode_inner_bin_array(v.as_array().unwrap())?
-                {
-                    let mut fields = HashMap::new();
-                    for member in members {
-                        let (ident, value) = member.to_pkl_value()?;
-                        fields.insert(ident, value);
-                    }
+                if let Some(array) = v.as_array() {
+                    _trace!("inserting values into set");
+                    let decoded_value = decode_inner_bin_array(array)?;
+                    let pkl_value: PklValue = decoded_value.into();
 
-                    set_values.push(PklValue::Map(fields));
-
-                    // Ok(PklValue::Map(fields));
+                    set_values.push(pkl_value);
                 } else {
                     let prim = decode_primitive_member(v)?;
                     set_values.push(prim.into());
                 }
             }
 
-            // let values = values
-            //     .iter()
-            //     .map(|v| decode_primitive_member(v))
-            //     .collect::<Result<Vec<PklPrimitive>>>()?;
             return Ok(PklNonPrimitive::Set(type_id, set_values));
         }
         type_constants::MAPPING | type_constants::MAP => {

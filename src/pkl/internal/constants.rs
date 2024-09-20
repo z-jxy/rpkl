@@ -16,4 +16,27 @@ pub mod type_constants {
     /// collections example at https://pkl-lang.org/main/current/language-tutorial/01_basic_config.html#collections returns 18 for the listing
     pub const DYNAMIC_MAPPING: u64 = 17;
     pub const DYNAMIC_LISTING: u64 = 18;
+
+    #[allow(dead_code)]
+    pub(crate) fn pkl_type_id_str(type_id: u64) -> &'static str {
+        match type_id {
+            TYPED_DYNAMIC => "TypedDynamic",
+            MAP => "Map",
+            MAPPING => "Mapping",
+            LIST => "List",
+            LISTING => "Listing",
+            SET => "Set",
+            DURATION => "Duration",
+            DATA_SIZE => "DataSize",
+            PAIR => "Pair",
+            INT_SEQ => "IntSeq",
+            REGEX => "Regex",
+            _CLASS => "Class",
+            TYPE_ALIAS => "TypeAlias",
+            OBJECT_MEMBER => "ObjectMember",
+            DYNAMIC_MAPPING => "DynamicMapping",
+            DYNAMIC_LISTING => "DynamicListing",
+            _ => "UNKNOWN",
+        }
+    }
 }

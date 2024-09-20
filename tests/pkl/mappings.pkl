@@ -1,0 +1,4 @@
+
+paths = new Mapping {
+	["*"] = List("@admins", "@users")
+}

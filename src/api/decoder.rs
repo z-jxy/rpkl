@@ -2,13 +2,18 @@ use std::collections::HashMap;
 
 use crate::context::Context;
 use crate::error::{Error, Result};
-use crate::pkl::internal::type_constants;
+
+#[allow(unused_imports)]
+use crate::pkl::internal::type_constants::{self, pkl_type_id_str};
+
 use crate::pkl::{
     self,
     internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive},
     PklMod,
 };
+
 use crate::utils;
+use crate::utils::macros::_trace;
 use crate::value::{
     datasize::{DataSize, DataSizeUnit},
     PklValue,
@@ -31,11 +36,19 @@ fn decode_member_inner(
         })
         .unwrap();
 
+    #[cfg(feature = "trace")]
+    trace!("decoding ident {:?}", ident);
+
     let value = slots.next().expect("[parse_member_inner] expected value");
 
     // nested object, map using the outer ident
     if let rmpv::Value::Array(array) = value {
+        _trace!("got array, decode inner bin {:?}", ident);
         let pkl_value = decode_inner_bin_array(&array)?;
+        _trace!(
+            "decoding for inner bin `{ident}` is complete: {:?}",
+            pkl_value
+        );
         return Ok(ObjectMember(type_id, ident, pkl_value));
     }
 
@@ -79,28 +92,18 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             let mut set_values = vec![];
 
             for v in values.iter() {
-                if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, members)) =
-                    decode_inner_bin_array(v.as_array().unwrap())?
-                {
-                    let mut fields = HashMap::new();
-                    for member in members {
-                        let (ident, value) = member.to_pkl_value()?;
-                        fields.insert(ident, value);
-                    }
+                if let Some(array) = v.as_array() {
+                    _trace!("inserting values into set");
+                    let decoded_value = decode_inner_bin_array(array)?;
+                    let pkl_value: PklValue = decoded_value.into();
 
-                    set_values.push(PklValue::Map(fields));
-
-                    // Ok(PklValue::Map(fields));
+                    set_values.push(pkl_value);
                 } else {
                     let prim = decode_primitive_member(v)?;
                     set_values.push(prim.into());
                 }
             }
 
-            // let values = values
-            //     .iter()
-            //     .map(|v| decode_primitive_member(v))
-            //     .collect::<Result<Vec<PklPrimitive>>>()?;
             return Ok(PklNonPrimitive::Set(type_id, set_values));
         }
         type_constants::MAPPING | type_constants::MAP => {
@@ -110,22 +113,11 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             for (k, v) in values.iter() {
                 let key = k.as_str().expect("expected key for mapping");
                 if let Some(array) = v.as_array() {
-                    // parse the inner object
-                    if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(
-                        _,
-                        _,
-                        _,
-                        members,
-                    )) = decode_inner_bin_array(array)?
-                    {
-                        let mut fields = HashMap::new();
-                        for member in members {
-                            let (ident, value) = member.to_pkl_value()?;
-                            fields.insert(ident, value);
-                        }
-
-                        mapping.insert(key.to_string(), PklValue::Map(fields));
-                    }
+                    // add the inner object
+                    _trace!("inserting fields into mapping");
+                    let decoded_value = decode_inner_bin_array(array)?;
+                    let pkl_value: PklValue = decoded_value.into();
+                    mapping.insert(key.to_string(), pkl_value);
                 } else {
                     mapping.insert(key.to_string(), decode_primitive_member(v)?.into());
                 }
@@ -306,12 +298,26 @@ fn decode_inner_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
     if type_id == type_constants::OBJECT_MEMBER {
         // next slot is the ident,
         // we don't need rn bc it's in the object from the outer scope that called this function
+        #[cfg(feature = "trace")]
+        trace!(
+            "decode_inner_bin_array :: found type const type_constants::OBJECT_MEMBER: {}",
+            type_id
+        );
         let value = &slots[2];
         let primitive = decode_primitive_member(value)?;
         return Ok(IPklValue::Primitive(primitive));
     }
 
+    // #[cfg(feature = "trace")]
+    _trace!(
+        "decode_inner_bin_array :: non prim member found. recurse for type_id: {}",
+        pkl_type_id_str(type_id)
+    );
+
     let non_prim = decode_non_prim_member(type_id, &slots[1..])?;
+    #[cfg(feature = "trace")]
+    trace!("decode_inner_bin_array :: decoded value: {:?}", non_prim);
+
     Ok(IPklValue::NonPrimitive(non_prim))
 }
 
@@ -396,6 +402,7 @@ pub fn pkl_eval_module(decoded: &rmpv::Value) -> Result<PklMod> {
 
     let pkl_module = children.as_array().context("expected array of children")?;
 
+    // parse the members of the module
     let members = pkl_module
         .iter()
         .map(|f| {

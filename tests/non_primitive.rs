@@ -48,4 +48,27 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn mappings() -> Result<(), rpkl::Error> {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join("mappings.pkl");
+
+        #[derive(serde::Deserialize, Debug)]
+        struct MappingConfig {
+            paths: std::collections::HashMap<String, Vec<String>>,
+        };
+
+        let config = rpkl::from_config::<MappingConfig>(path)?;
+
+        assert!(config.paths.len() == 1);
+
+        let val = config.paths.get("*").unwrap();
+
+        assert!(val.len() == 2);
+
+        Ok(())
+    }
 }

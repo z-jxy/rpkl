@@ -18,7 +18,6 @@ pub enum Error {
     SerializeAst,
     ParseError(String),
     DeserializeError(String),
-
     MsgpackDecodeError(rmpv::decode::Error),
 
     Eof,
@@ -53,8 +52,16 @@ impl de::Error for Error {
 impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::Message(msg) => formatter.write_str(msg),
+            Error::Message(msg)
+            | Error::DeserializeError(msg)
+            | Error::ParseError(msg)
+            | Error::PklServerError { pkl_error: msg }
+            | Error::PklMalformedResponse { message: msg } => formatter.write_str(msg),
+
+            Error::MsgpackDecodeError(e) => formatter.write_str(&e.to_string()),
+
             Error::Eof => formatter.write_str("unexpected end of input"),
+
             _ => formatter.write_str("unknown error"),
         }
     }

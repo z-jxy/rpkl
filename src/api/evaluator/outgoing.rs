@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use codes::*;
 use serde::{Deserialize, Serialize};
 
+use super::CREATE_EVALUATOR_REQUEST_ID;
+
 mod codes {
     pub const CREATE_EVALUATOR: u64 = 0x20;
     pub const EVALUATE_REQUEST: u64 = 0x23;
@@ -16,7 +18,39 @@ pub struct CreateEvaluator {
     pub allowed_modules: Vec<String>,
     pub allowed_resources: Vec<String>,
     pub client_module_readers: Vec<ClientModuleReader>,
-    pub env: HashMap<String, String>,
+    pub env: Option<HashMap<String, String>>,
+    pub properties: Option<HashMap<String, String>>,
+}
+
+impl Default for CreateEvaluator {
+    fn default() -> Self {
+        let env_vars: HashMap<String, String> = std::env::vars().collect();
+        Self {
+            request_id: CREATE_EVALUATOR_REQUEST_ID,
+            allowed_modules: vec![
+                "pkl:".into(),
+                "repl:".into(),
+                "file:".into(),
+                "https:".into(),
+                "package:".into(),
+            ],
+            allowed_resources: vec![
+                "env:".into(),
+                "prop:".into(),
+                "package:".into(),
+                "https:".into(),
+                "projectpackage:".into(),
+            ],
+            client_module_readers: vec![ClientModuleReader {
+                scheme: "customfs".to_string(),
+                has_hierarchical_uris: true,
+                is_globbable: true,
+                is_local: true,
+            }],
+            env: Some(env_vars),
+            properties: Some(HashMap::new()),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

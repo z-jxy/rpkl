@@ -1,3 +1,4 @@
+use api::evaluator::EvaluatorOptions;
 use pkl::Deserializer;
 use pkl::PklSerialize;
 
@@ -67,6 +68,36 @@ where
         }
 
         let mut evaluator = api::Evaluator::new()?;
+        let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
+
+        let mut pkld = pkl_mod.serialize_pkl_ast()?;
+
+        #[cfg(feature = "trace")]
+        trace!("serialized pkl data {:?}", pkld);
+
+        T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
+            .map_err(|e| Error::DeserializeError(format!("{}", e)))
+    }
+}
+
+pub fn from_config_with_options<T>(
+    path: impl AsRef<std::path::Path>,
+    options: Option<EvaluatorOptions>,
+) -> Result<T>
+where
+    T: Sized + for<'de> serde::Deserialize<'de>,
+{
+    {
+        #[cfg(feature = "trace")]
+        {
+            let subscriber = tracing_subscriber::FmtSubscriber::builder()
+                .with_max_level(Level::TRACE)
+                .finish();
+            tracing::subscriber::set_global_default(subscriber)
+                .expect("setting default subscriber failed");
+        }
+
+        let mut evaluator = api::Evaluator::new_from_options(options)?;
         let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
 
         let mut pkld = pkl_mod.serialize_pkl_ast()?;

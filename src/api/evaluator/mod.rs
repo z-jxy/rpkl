@@ -10,9 +10,7 @@ use crate::{
     utils::{self, macros::_trace},
 };
 
-use outgoing::{
-    pack_msg, ClientModuleReader, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
-};
+use outgoing::{pack_msg, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage};
 use responses::PklServerResponseRaw;
 
 use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
@@ -23,9 +21,56 @@ pub mod responses;
 #[cfg(feature = "trace")]
 use tracing::debug;
 
-pub const EVALUATE_RESPONSE: u64 = 0x24;
-const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
-const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
+pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;
+pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
+pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
+
+// options that can be provided to the evaluator, such as properties (-p flag from CLI)
+pub struct EvaluatorOptions {
+    pub properties: Option<HashMap<String, String>>,
+}
+
+impl Default for EvaluatorOptions {
+    fn default() -> Self {
+        Self {
+            properties: Some(HashMap::new()),
+        }
+    }
+}
+
+impl EvaluatorOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    // Add a property to the evaluator options map
+    pub fn property(mut self, key: String, value: String) -> Self {
+        if let Some(properties) = self.properties.as_mut() {
+            properties.insert(key, value);
+        } else {
+            let mut map = HashMap::new();
+            map.insert(key, value);
+            self.properties = Some(map);
+        }
+        self
+    }
+
+    // Set properties for the evaluator. This will replace any existing properties
+    pub fn properties<I, K, V>(mut self, properties: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.properties = Some(
+            properties
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        );
+        self
+    }
+}
 
 pub struct Evaluator {
     pub evaluator_id: i64,
@@ -43,30 +88,52 @@ impl Evaluator {
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
 
-        let env_vars: HashMap<String, String> = std::env::vars().collect();
+        // let env_vars: HashMap<String, String> = std::env::vars().collect();
 
-        let request = OutgoingMessage::CreateEvaluator(CreateEvaluator {
-            request_id: CREATE_EVALUATOR_REQUEST_ID,
-            allowed_modules: vec![
-                "pkl:".into(),
-                "repl:".into(),
-                "file:".into(),
-                "customfs:".into(),
-            ],
-            allowed_resources: vec![
-                "env:".into(),
-                "prop:".into(),
-                "package:".into(),
-                "projectpackage:".into(),
-            ],
-            client_module_readers: vec![ClientModuleReader {
-                scheme: "customfs".to_string(),
-                has_hierarchical_uris: true,
-                is_globbable: true,
-                is_local: true,
-            }],
-            env: env_vars,
-        });
+        let request = OutgoingMessage::CreateEvaluator(CreateEvaluator::default());
+
+        let serialized_request = pack_msg(request);
+
+        let create_eval_response =
+            pkl_send_msg_raw(child_stdin, &mut child_stdout, serialized_request)
+                .map_err(|_e| Error::PklSend)?;
+
+        let Some(map) = create_eval_response.response.as_map() else {
+            return Err(Error::PklMalformedResponse {
+                message: "expected map in response".to_string(),
+            });
+        };
+
+        let Some(evaluator_id) = map
+            .iter()
+            .find(|(k, _v)| k.as_str() == Some("evaluatorId"))
+            .and_then(|(_, v)| v.as_i64())
+        else {
+            return Err(Error::PklMalformedResponse {
+                message: "expected evaluatorId in CreateEvaluator response".into(),
+            });
+        };
+
+        Ok(Evaluator {
+            evaluator_id,
+            stdin: child.stdin.take().unwrap(),
+            stdout: child_stdout,
+        })
+    }
+
+    pub fn new_from_options(options: Option<EvaluatorOptions>) -> Result<Self> {
+        let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
+        let child_stdin = child.stdin.as_mut().unwrap();
+        let mut child_stdout = child.stdout.take().unwrap();
+
+        let mut evaluator_message = CreateEvaluator::default();
+        if let Some(options) = options {
+            if let Some(props) = options.properties {
+                evaluator_message.properties = Some(props);
+            }
+        }
+
+        let request = OutgoingMessage::CreateEvaluator(evaluator_message);
 
         let serialized_request = pack_msg(request);
 

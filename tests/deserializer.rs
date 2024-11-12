@@ -9,6 +9,7 @@ mod tests {
 
     use rmpv::Value;
     use rpkl::api;
+    use rpkl::api::evaluator::EvaluatorOptions;
     use rpkl::pkl::Deserializer;
     use rpkl::pkl::PklSerialize;
     use serde::Deserialize;
@@ -79,13 +80,20 @@ mod tests {
         #[derive(Debug, Deserialize)]
         struct Config {
             path: String,
+            name: String,
+            package: rpkl::Value,
         }
 
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests")
             .join("pkl")
             .join("allowed-resources.pkl");
-        rpkl::from_config::<Config>(path).unwrap();
+
+        let options = EvaluatorOptions::default().properties([("name", "zjxy")]);
+
+        let config = rpkl::from_config_with_options::<Config>(path, Some(options)).unwrap();
+
+        assert_eq!(config.name, "zjxy");
     }
 
     #[test]

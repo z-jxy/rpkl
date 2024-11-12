@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use codes::*;
 use serde::{Deserialize, Serialize};
 
@@ -12,7 +14,9 @@ mod codes {
 pub struct CreateEvaluator {
     pub request_id: u64,
     pub allowed_modules: Vec<String>,
+    pub allowed_resources: Vec<String>,
     pub client_module_readers: Vec<ClientModuleReader>,
+    pub env: HashMap<String, String>,
 }
 
 #[derive(Serialize, Deserialize)]

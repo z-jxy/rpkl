@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::Write,
     path::PathBuf,
     process::{Child, Command, Stdio},
@@ -6,10 +7,8 @@ use std::{
 
 use crate::{
     error::{Error, Result},
-    utils,
+    utils::{self, macros::_trace},
 };
-
-pub const EVALUATE_RESPONSE: u64 = 0x24;
 
 use outgoing::{
     pack_msg, ClientModuleReader, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
@@ -23,6 +22,10 @@ pub mod responses;
 
 #[cfg(feature = "trace")]
 use tracing::debug;
+
+pub const EVALUATE_RESPONSE: u64 = 0x24;
+const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
+const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 
 pub struct Evaluator {
     pub evaluator_id: i64,
@@ -40,13 +43,21 @@ impl Evaluator {
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
 
+        let env_vars: HashMap<String, String> = std::env::vars().collect();
+
         let request = OutgoingMessage::CreateEvaluator(CreateEvaluator {
-            request_id: 135,
+            request_id: CREATE_EVALUATOR_REQUEST_ID,
             allowed_modules: vec![
-                "pkl:".to_string(),
-                "repl:".to_string(),
-                "file:".to_string(),
-                "customfs:".to_string(),
+                "pkl:".into(),
+                "repl:".into(),
+                "file:".into(),
+                "customfs:".into(),
+            ],
+            allowed_resources: vec![
+                "env:".into(),
+                "prop:".into(),
+                "package:".into(),
+                "projectpackage:".into(),
             ],
             client_module_readers: vec![ClientModuleReader {
                 scheme: "customfs".to_string(),
@@ -54,6 +65,7 @@ impl Evaluator {
                 is_globbable: true,
                 is_local: true,
             }],
+            env: env_vars,
         });
 
         let serialized_request = pack_msg(request);
@@ -94,7 +106,7 @@ impl Evaluator {
             .map_err(|_e| Error::Message("failed to canonicalize pkl module path".into()))?;
 
         let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {
-            request_id: 9805131,
+            request_id: OUTGOING_MESSAGE_REQUEST_ID,
             evaluator_id: evaluator_id,
             module_uri: format!("file://{}", path.to_str().unwrap()),
         });
@@ -107,6 +119,8 @@ impl Evaluator {
             todo!("handle case when header is not 0x24");
             // return Err(anyhow::anyhow!("expected 0x24, got 0x{:X}", eval_res.header));
         }
+
+        _trace!("eval_res header: {:?}", eval_res.header);
 
         let res = eval_res.response.as_map().unwrap();
         let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {

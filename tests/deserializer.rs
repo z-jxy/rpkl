@@ -71,6 +71,24 @@ mod tests {
     }
 
     #[test]
+    fn resources() {
+        #[cfg(feature = "dhat-heap")]
+        let _profiler = dhat::Profiler::new_heap();
+
+        #[allow(dead_code)]
+        #[derive(Debug, Deserialize)]
+        struct Config {
+            path: String,
+        }
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join("allowed-resources.pkl");
+        rpkl::from_config::<Config>(path).unwrap();
+    }
+
+    #[test]
     fn deserialize_time() {
         #[cfg(feature = "dhat-heap")]
         let _profiler = dhat::Profiler::new_heap();

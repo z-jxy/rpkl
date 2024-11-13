@@ -60,7 +60,7 @@ where
     return from_config_with_options(path, None);
 }
 
-/// Allows for passing options to the evaluator, such as properties. See [`EvaluatorOptions`] for more information.
+/// Allows for passing options to the evaluator, such as properties (e.g. `read("prop:username")`). See [`EvaluatorOptions`] for more information.
 ///
 /// # Example
 ///

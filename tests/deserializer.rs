@@ -81,7 +81,7 @@ mod tests {
         struct Config {
             path: String,
             name: String,
-            package: rpkl::Value,
+            // package: rpkl::Value,
         }
 
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

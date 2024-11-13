@@ -1,17 +1,4 @@
-import "package://pkg.pkl-lang.org/pkl-pantry/pkl.toml@1.0.0#/toml.pkl"
-
 path = read("env:PATH")
 name = read("prop:name")
-// package = "sup"
 
-package = read("package://pkg.pkl-lang.org/pkl-pantry/pkl.toml@1.0.0#/toml.pkl")
-
-// output {
-//   renderer = new toml.Renderer {}
-// }
-// import "package://pkg.pkl-lang.org/pkl-pantry/pkl.toml@1.0.0#/toml.pkl"
-
-// error
-// proj_package = read("projectpackage://example.com/my/project@1.0.0#/path/to/file.pkl")
-
-// proj_package = read("projectpackage://example.com/my/project@1.0.0#/path/to/file.pkl")
+// package = read("package://pkg.pkl-lang.org/pkl-pantry/pkl.toml@1.0.0#/toml.pkl")

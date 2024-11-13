@@ -27,6 +27,7 @@ pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 
 // options that can be provided to the evaluator, such as properties (-p flag from CLI)
 pub struct EvaluatorOptions {
+    /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files.
     pub properties: Option<HashMap<String, String>>,
 }
 
@@ -84,41 +85,7 @@ impl Evaluator {
     }
 
     pub fn new() -> Result<Self> {
-        let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
-        let child_stdin = child.stdin.as_mut().unwrap();
-        let mut child_stdout = child.stdout.take().unwrap();
-
-        // let env_vars: HashMap<String, String> = std::env::vars().collect();
-
-        let request = OutgoingMessage::CreateEvaluator(CreateEvaluator::default());
-
-        let serialized_request = pack_msg(request);
-
-        let create_eval_response =
-            pkl_send_msg_raw(child_stdin, &mut child_stdout, serialized_request)
-                .map_err(|_e| Error::PklSend)?;
-
-        let Some(map) = create_eval_response.response.as_map() else {
-            return Err(Error::PklMalformedResponse {
-                message: "expected map in response".to_string(),
-            });
-        };
-
-        let Some(evaluator_id) = map
-            .iter()
-            .find(|(k, _v)| k.as_str() == Some("evaluatorId"))
-            .and_then(|(_, v)| v.as_i64())
-        else {
-            return Err(Error::PklMalformedResponse {
-                message: "expected evaluatorId in CreateEvaluator response".into(),
-            });
-        };
-
-        Ok(Evaluator {
-            evaluator_id,
-            stdin: child.stdin.take().unwrap(),
-            stdout: child_stdout,
-        })
+        return Self::new_from_options(None);
     }
 
     pub fn new_from_options(options: Option<EvaluatorOptions>) -> Result<Self> {

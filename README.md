@@ -38,6 +38,11 @@ let config: Config = rpkl::from_config("./config.pkl")?;
 
 You can pass options to the evaluator, such as properties, by using [`from_config_with_options`].
 
+```pkl
+username = read("prop:username")
+password = read("prop:password")
+```
+
 ```rust
 let options = EvaluatorOptions::default()
 .properties([("username", "root"), ("password", "password123")]);

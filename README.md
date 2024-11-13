@@ -31,7 +31,18 @@ struct Database {
     password: String,
 }
 
-let config: Config = rpkl::value_from_config("./config.pkl")?;
+let config: Config = rpkl::from_config("./config.pkl")?;
+```
+
+### Evaluator Options
+
+You can pass options to the evaluator, such as properties, by using [`from_config_with_options`].
+
+```rust
+let options = EvaluatorOptions::default()
+.properties([("username", "root"), ("password", "password123")]);
+
+let config: Config = rpkl::from_config_with_options("./config.pkl", Some(options))?;
 ```
 
 ## Codegen

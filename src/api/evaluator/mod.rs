@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::Write,
     path::PathBuf,
     process::{Child, Command, Stdio},
@@ -6,14 +7,10 @@ use std::{
 
 use crate::{
     error::{Error, Result},
-    utils,
+    utils::{self, macros::_trace},
 };
 
-pub const EVALUATE_RESPONSE: u64 = 0x24;
-
-use outgoing::{
-    pack_msg, ClientModuleReader, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
-};
+use outgoing::{pack_msg, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage};
 use responses::PklServerResponseRaw;
 
 use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
@@ -23,6 +20,58 @@ pub mod responses;
 
 #[cfg(feature = "trace")]
 use tracing::debug;
+
+pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;
+pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
+pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
+
+// options that can be provided to the evaluator, such as properties (-p flag from CLI)
+pub struct EvaluatorOptions {
+    /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files.
+    pub properties: Option<HashMap<String, String>>,
+}
+
+impl Default for EvaluatorOptions {
+    fn default() -> Self {
+        Self {
+            properties: Some(HashMap::new()),
+        }
+    }
+}
+
+impl EvaluatorOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    // Add a property to the evaluator options map
+    pub fn property(mut self, key: String, value: String) -> Self {
+        if let Some(properties) = self.properties.as_mut() {
+            properties.insert(key, value);
+        } else {
+            let mut map = HashMap::new();
+            map.insert(key, value);
+            self.properties = Some(map);
+        }
+        self
+    }
+
+    // Set properties for the evaluator. This will replace any existing properties
+    pub fn properties<I, K, V>(mut self, properties: I) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.properties = Some(
+            properties
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        );
+        self
+    }
+}
 
 pub struct Evaluator {
     pub evaluator_id: i64,
@@ -36,25 +85,22 @@ impl Evaluator {
     }
 
     pub fn new() -> Result<Self> {
+        return Self::new_from_options(None);
+    }
+
+    pub fn new_from_options(options: Option<EvaluatorOptions>) -> Result<Self> {
         let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
 
-        let request = OutgoingMessage::CreateEvaluator(CreateEvaluator {
-            request_id: 135,
-            allowed_modules: vec![
-                "pkl:".to_string(),
-                "repl:".to_string(),
-                "file:".to_string(),
-                "customfs:".to_string(),
-            ],
-            client_module_readers: vec![ClientModuleReader {
-                scheme: "customfs".to_string(),
-                has_hierarchical_uris: true,
-                is_globbable: true,
-                is_local: true,
-            }],
-        });
+        let mut evaluator_message = CreateEvaluator::default();
+        if let Some(options) = options {
+            if let Some(props) = options.properties {
+                evaluator_message.properties = Some(props);
+            }
+        }
+
+        let request = OutgoingMessage::CreateEvaluator(evaluator_message);
 
         let serialized_request = pack_msg(request);
 
@@ -94,7 +140,7 @@ impl Evaluator {
             .map_err(|_e| Error::Message("failed to canonicalize pkl module path".into()))?;
 
         let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {
-            request_id: 9805131,
+            request_id: OUTGOING_MESSAGE_REQUEST_ID,
             evaluator_id: evaluator_id,
             module_uri: format!("file://{}", path.to_str().unwrap()),
         });
@@ -107,6 +153,8 @@ impl Evaluator {
             todo!("handle case when header is not 0x24");
             // return Err(anyhow::anyhow!("expected 0x24, got 0x{:X}", eval_res.header));
         }
+
+        _trace!("eval_res header: {:?}", eval_res.header);
 
         let res = eval_res.response.as_map().unwrap();
         let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {

@@ -1,0 +1,4 @@
+path = read("env:PATH")
+name = read("prop:name")
+
+// package = read("package://pkg.pkl-lang.org/pkl-pantry/pkl.toml@1.0.0#/toml.pkl")

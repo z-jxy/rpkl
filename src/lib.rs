@@ -1,4 +1,3 @@
-use api::evaluator::EvaluatorOptions;
 use pkl::Deserializer;
 use pkl::PklSerialize;
 
@@ -11,6 +10,7 @@ pub mod value;
 
 pub use error::{Error, Result};
 
+pub use api::evaluator::EvaluatorOptions;
 pub use value::PklValue as Value;
 
 #[cfg(feature = "trace")]
@@ -49,7 +49,7 @@ use tracing_subscriber::FmtSubscriber;
 /// }
 ///
 /// # fn main() -> Result<(), rpkl::Error> {
-/// let config: Database = rpkl::from_config("config.pkl")?;
+/// let config: Config = rpkl::from_config("config.pkl")?;
 /// #    Ok(())
 /// # }
 /// ```
@@ -75,11 +75,12 @@ where
 /// ```no_run
 ///
 /// use serde::Deserialize;
+/// use rpkl::api::evaluator::EvaluatorOptions;
 ///
 /// #[derive(Deserialize)]
 /// struct Config {
 ///     ip: String,
-///     database: Database,
+///     database: Credentials,
 /// }
 ///
 /// #[derive(Deserialize)]
@@ -91,7 +92,7 @@ where
 /// # fn main() -> Result<(), rpkl::Error> {
 /// let options = EvaluatorOptions::default()
 ///     .properties([("username", "root"), ("password", "password123")]);
-/// let config: Database = rpkl::from_config("config.pkl")?;
+/// let config: Config = rpkl::from_config("config.pkl")?;
 /// #    Ok(())
 /// # }
 /// ```

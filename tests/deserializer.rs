@@ -91,7 +91,7 @@ mod tests {
 
         let options = EvaluatorOptions::default().properties([("name", "zjxy")]);
 
-        let config = rpkl::from_config_with_options::<Config>(path, Some(options)).unwrap();
+        let config = rpkl::from_config_with_options::<Config>(path, options).unwrap();
 
         assert_eq!(config.name, "zjxy");
     }
@@ -271,5 +271,37 @@ mod tests {
                 }
             });
         }
+    }
+
+    #[test]
+    pub fn external_resource_readers() {
+        #[allow(dead_code)]
+        #[derive(Debug, Deserialize)]
+        struct Config {
+            username: String,
+            email: String,
+            // package: rpkl::Value,
+        }
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join("external-reader.pkl");
+
+        let options = EvaluatorOptions::default()
+            .properties([("name", "zjxy")])
+            .property(
+                "path",
+                "file:///Users/testing/code/rust/rpkl/examples/example.pkl",
+            )
+            .external_resource_reader(
+                "ldap",
+                api::evaluator::ExternalReader {
+                    executable: "pkl-ldap".into(),
+                    arguments: vec![],
+                },
+            );
+
+        rpkl::from_config_with_options::<Config>(path, options).unwrap();
     }
 }

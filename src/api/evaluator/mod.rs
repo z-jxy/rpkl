@@ -12,6 +12,7 @@ use crate::{
 
 use outgoing::{pack_msg, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage};
 use responses::PklServerResponseRaw;
+use serde::{Deserialize, Serialize};
 
 use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
 
@@ -25,16 +26,29 @@ pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;
 pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
 pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 
+#[derive(Serialize, Deserialize)]
+pub struct ExternalReader {
+    /// May be specified as an absolute path to an executable
+    /// May also be specified as just an executable name, in which case it will be resolved according to the PATH environment variable
+    pub executable: String,
+
+    /// Command line arguments that will be passed to the reader process
+    pub arguments: Vec<String>,
+}
+
 // options that can be provided to the evaluator, such as properties (-p flag from CLI)
 pub struct EvaluatorOptions {
     /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files.
     pub properties: Option<HashMap<String, String>>,
+
+    pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
 }
 
 impl Default for EvaluatorOptions {
     fn default() -> Self {
         Self {
-            properties: Some(HashMap::new()),
+            properties: None,
+            external_resource_readers: None,
         }
     }
 }
@@ -44,19 +58,19 @@ impl EvaluatorOptions {
         Self::default()
     }
 
-    // Add a property to the evaluator options map
-    pub fn property(mut self, key: String, value: String) -> Self {
+    /// Add a property to the evaluator options map
+    pub fn property(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         if let Some(properties) = self.properties.as_mut() {
-            properties.insert(key, value);
+            properties.insert(key.into(), value.into());
         } else {
             let mut map = HashMap::new();
-            map.insert(key, value);
+            map.insert(key.into(), value.into());
             self.properties = Some(map);
         }
         self
     }
 
-    // Set properties for the evaluator. This will replace any existing properties
+    /// Set properties for the evaluator. This will replace any existing properties
     pub fn properties<I, K, V>(mut self, properties: I) -> Self
     where
         I: IntoIterator<Item = (K, V)>,
@@ -69,6 +83,22 @@ impl EvaluatorOptions {
                 .map(|(k, v)| (k.into(), v.into()))
                 .collect(),
         );
+        self
+    }
+
+    /// Add an external resource reader to the evaluator options map
+    pub fn external_resource_reader(
+        mut self,
+        key: impl Into<String>,
+        reader: ExternalReader,
+    ) -> Self {
+        if let Some(readers) = self.external_resource_readers.as_mut() {
+            readers.insert(key.into(), reader);
+        } else {
+            let mut map = HashMap::new();
+            map.insert(key.into(), reader);
+            self.external_resource_readers = Some(map);
+        }
         self
     }
 }
@@ -85,19 +115,17 @@ impl Evaluator {
     }
 
     pub fn new() -> Result<Self> {
-        return Self::new_from_options(None);
+        return Self::new_from_options(EvaluatorOptions::default());
     }
 
-    pub fn new_from_options(options: Option<EvaluatorOptions>) -> Result<Self> {
+    pub fn new_from_options(options: EvaluatorOptions) -> Result<Self> {
         let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
 
         let mut evaluator_message = CreateEvaluator::default();
-        if let Some(options) = options {
-            if let Some(props) = options.properties {
-                evaluator_message.properties = Some(props);
-            }
+        if let Some(props) = options.properties {
+            evaluator_message.properties = Some(props);
         }
 
         let request = OutgoingMessage::CreateEvaluator(evaluator_message);

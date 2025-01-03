@@ -22,7 +22,7 @@ use crate::value::{
 #[cfg(feature = "trace")]
 use tracing::trace;
 
-/// decodes the inner member of a pkl object
+/// Decodes the inner member of a pkl object
 fn decode_member_inner(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
@@ -393,7 +393,7 @@ fn decode_dynamic_list_inner(
     ))
 }
 
-/// For internal use
+/// Decode a pkl module from a messagepack value
 pub fn pkl_eval_module(decoded: &rmpv::Value) -> Result<PklMod> {
     let root = decoded.as_array().unwrap();
     let module_name = root.get(1).context("expected root level module name")?;

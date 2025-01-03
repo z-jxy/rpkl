@@ -3,23 +3,27 @@ use std::collections::HashMap;
 use codes::*;
 use serde::{Deserialize, Serialize};
 
-use super::CREATE_EVALUATOR_REQUEST_ID;
+use super::{ExternalReader, CREATE_EVALUATOR_REQUEST_ID};
 
 mod codes {
     pub const CREATE_EVALUATOR: u64 = 0x20;
     pub const EVALUATE_REQUEST: u64 = 0x23;
     pub const CLOSE: u64 = 0x22;
+
+    pub const INITIALIZE_RESOURCE_READER_REQUEST: u64 = 0x102;
+    pub const CLOSE_EXTERNAL_PROCESS: u64 = 0x104;
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct CreateEvaluator {
+pub(crate) struct CreateEvaluator {
     pub request_id: u64,
     pub allowed_modules: Vec<String>,
     pub allowed_resources: Vec<String>,
     pub client_module_readers: Vec<ClientModuleReader>,
     pub env: Option<HashMap<String, String>>,
     pub properties: Option<HashMap<String, String>>,
+    pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
 }
 
 impl Default for CreateEvaluator {
@@ -49,6 +53,7 @@ impl Default for CreateEvaluator {
             }],
             env: Some(env_vars),
             properties: Some(HashMap::new()),
+            external_resource_readers: Some(HashMap::new()),
         }
     }
 }
@@ -82,6 +87,18 @@ pub struct EvaluateRequest {
     pub request_id: u64,
     pub evaluator_id: i64,
     pub module_uri: String,
+}
+
+/// Code: 0x102
+/// Type: Server Request
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InitializeResourceReaderRequest {
+    /// A number identifying this request.
+    request_id: i64,
+
+    /// The scheme of the resource to initialize.
+    scheme: String,
 }
 
 pub fn get_messagepack_header(msg: &OutgoingMessage) -> u64 {

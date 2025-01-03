@@ -57,7 +57,7 @@ pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
 {
-    return from_config_with_options(path, None);
+    return from_config_with_options(path, EvaluatorOptions::default());
 }
 
 /// Allows for passing options to the evaluator, such as properties (e.g. `read("prop:username")`). See [`EvaluatorOptions`] for more information.
@@ -97,7 +97,7 @@ where
 /// ```
 pub fn from_config_with_options<T>(
     path: impl AsRef<std::path::Path>,
-    options: Option<EvaluatorOptions>,
+    options: EvaluatorOptions,
 ) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,

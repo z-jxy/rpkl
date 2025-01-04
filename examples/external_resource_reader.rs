@@ -1,40 +1,43 @@
-use rpkl::api::{
-    self,
-    external_reader::{reader::ExternalReaderRuntime, PklReader},
+use rpkl::api::external_reader::{
+    reader::ExternalReaderRuntime, PklModuleReader, PklResourceReader,
 };
 
 pub struct LdapReader;
 pub struct LdapsReader;
 
-impl PklReader for LdapReader {
-    // const READER_TYPE: api::external_reader::ReaderType =
-    //     api::external_reader::ReaderType::Resource;
+pub struct ModuleReader;
 
+impl PklResourceReader for LdapReader {
     fn scheme(&self) -> &str {
         "ldap"
     }
 
-    fn reader_type(&self) -> api::external_reader::ReaderType {
-        api::external_reader::ReaderType::Resource
-    }
-
     fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(uri.bytes().collect())
-        // Err("Not implemented".into())
     }
 }
 
-impl PklReader for LdapsReader {
+impl PklResourceReader for LdapsReader {
     fn scheme(&self) -> &str {
         "ldaps"
     }
 
-    fn reader_type(&self) -> api::external_reader::ReaderType {
-        api::external_reader::ReaderType::Resource
-    }
-
     fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(uri.bytes().collect())
+    }
+}
+
+impl PklModuleReader for ModuleReader {
+    fn scheme(&self) -> &str {
+        "module"
+    }
+
+    fn read(&self, uri: &str) -> Result<String, Box<dyn std::error::Error>> {
+        Ok("".to_string())
+    }
+
+    fn is_local(&self) -> bool {
+        true
     }
 }
 
@@ -64,5 +67,6 @@ pub fn main() {
 
     _ = ExternalReaderRuntime::new()
         .add_resource_readers((LdapReader, LdapsReader))
+        .add_module_readers(ModuleReader)
         .run();
 }

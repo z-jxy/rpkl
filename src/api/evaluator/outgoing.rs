@@ -12,6 +12,12 @@ pub mod codes {
 
     pub const READ_RESOURCE_REQUEST: u64 = 0x26;
     pub const READ_RESOURCE_RESPONSE: u64 = 0x27;
+    pub const READ_MODULE_REQUEST: u64 = 0x28;
+    pub const READ_MODULE_RESPONSE: u64 = 0x29;
+
+    pub const INITIALIZE_MODULE_READER_REQUEST: u64 = 0x2e;
+    pub const INITIALIZE_MODULE_READER_RESPONSE: u64 = 0x2f;
+
     pub const INITIALIZE_RESOURCE_READER_REQUEST: u64 = 0x30;
     pub const INITIALIZE_RESOURCE_READER_RESPONSE: u64 = 0x31;
     pub const CLOSE_EXTERNAL_PROCESS: u64 = 0x32;

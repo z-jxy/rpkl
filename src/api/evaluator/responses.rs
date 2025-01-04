@@ -2,24 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::outgoing::ClientResourceReader;
 
-/// Code: 0x103
-/// Type: Client Response
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InitializeResourceReaderResponse {
-    /// A number identifying this request.
-    pub request_id: i64,
-
-    /// Client-side resource reader spec.
-    ///
-    /// Null when the external process does not implement the requested scheme.
-    /// [ClientResourceReader] is defined at https://pkl-lang.org/main/current/bindings-specification/message-passing-api.html#create-evaluator-request
-    ///
-    ///
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub spec: Option<ClientResourceReader>,
-}
-
 // #[derive(Debug, Clone)]
 // pub struct PklServerResponse<T>
 // where

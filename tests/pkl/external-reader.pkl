@@ -1,3 +1,4 @@
+import "module:mappings.pkl" 
 username = "john_appleseed"
 
 ldap_email = read("ldap://ds.example.com:389/dc=example,dc=com?mail?sub?(uid=\(username))").text

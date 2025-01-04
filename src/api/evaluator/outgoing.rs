@@ -5,13 +5,15 @@ use serde::{Deserialize, Serialize};
 
 use super::{ExternalReader, CREATE_EVALUATOR_REQUEST_ID};
 
-mod codes {
+pub mod codes {
     pub const CREATE_EVALUATOR: u64 = 0x20;
-    pub const EVALUATE_REQUEST: u64 = 0x23;
     pub const CLOSE: u64 = 0x22;
+    pub const EVALUATE_REQUEST: u64 = 0x23;
 
-    pub const INITIALIZE_RESOURCE_READER_REQUEST: u64 = 0x102;
-    pub const CLOSE_EXTERNAL_PROCESS: u64 = 0x104;
+    pub const READ_RESOURCE_RESPONSE: u64 = 0x27;
+    pub const INITIALIZE_RESOURCE_READER_REQUEST: u64 = 0x30;
+    pub const INITIALIZE_RESOURCE_READER_RESPONSE: u64 = 0x31;
+    pub const CLOSE_EXTERNAL_PROCESS: u64 = 0x32;
 }
 
 #[derive(Serialize)]
@@ -67,6 +69,26 @@ pub struct ClientModuleReader {
     pub is_local: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientResourceReader {
+    /// The URI scheme this reader is responsible for reading.
+    pub scheme: String,
+
+    /// Tells whether the path part of ths URI has a
+    /// [hier-part](https://datatracker.ietf.org/doc/html/rfc3986#section-3).
+    ///
+    /// An example of a hierarchical URI is `file:///path/to/my/file`, where
+    /// `/path/to/my/file` designates a nested path through the `/` character.
+    ///
+    /// An example of a non-hierarchical URI is `pkl.base`, where the `base` does not denote
+    /// any form of hierarchy.
+    pub has_hierarchical_uris: bool,
+
+    /// Tells whether this reader supports globbing.
+    pub is_globbable: bool,
+}
+
 #[derive(Serialize)]
 #[serde(untagged)]
 pub enum OutgoingMessage {
@@ -91,14 +113,14 @@ pub struct EvaluateRequest {
 
 /// Code: 0x102
 /// Type: Server Request
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InitializeResourceReaderRequest {
     /// A number identifying this request.
-    request_id: i64,
+    pub request_id: i64,
 
     /// The scheme of the resource to initialize.
-    scheme: String,
+    pub scheme: String,
 }
 
 pub fn get_messagepack_header(msg: &OutgoingMessage) -> u64 {

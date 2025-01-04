@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    io::Write,
+    io::{Read, Write},
     path::PathBuf,
     process::{Child, Command, Stdio},
 };
@@ -124,16 +124,26 @@ impl Evaluator {
         let mut child_stdout = child.stdout.take().unwrap();
 
         let mut evaluator_message = CreateEvaluator::default();
+
+        //////// handle options
         if let Some(props) = options.properties {
             evaluator_message.properties = Some(props);
         }
+        if let Some(readers) = options.external_resource_readers {
+            for uri in readers.keys() {
+                evaluator_message.allowed_resources.push(uri.clone());
+            }
+
+            evaluator_message.external_resource_readers = Some(readers);
+        }
+        ////////
 
         let request = OutgoingMessage::CreateEvaluator(evaluator_message);
 
         let serialized_request = pack_msg(request);
 
         let create_eval_response =
-            pkl_send_msg_raw(child_stdin, &mut child_stdout, serialized_request)
+            pkl_send_msg_child(child_stdin, &mut child_stdout, serialized_request)
                 .map_err(|_e| Error::PklSend)?;
 
         let Some(map) = create_eval_response.response.as_map() else {
@@ -175,7 +185,8 @@ impl Evaluator {
 
         let serialized_eval_req = pack_msg(msg);
         // rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        let eval_res = pkl_send_msg_raw(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
+        let eval_res =
+            pkl_send_msg_child(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
 
         if eval_res.header != EVALUATE_RESPONSE {
             todo!("handle case when header is not 0x24");
@@ -249,9 +260,54 @@ pub fn pkl_send_msg_one_way(
     Ok(())
 }
 
-pub fn pkl_send_msg_raw(
+pub fn decode_pkl_message(value: rmpv::Value) -> Option<PklServerResponseRaw> {
+    let decoded_array = value.as_array()?;
+
+    let header = decoded_array.first()?.as_u64()?;
+    let response = decoded_array.get(1)?.to_owned();
+
+    Some(PklServerResponseRaw { header, response })
+}
+
+pub fn pkl_send_msg_child(
     child_stdin: &mut std::process::ChildStdin,
     child_stdout: &mut std::process::ChildStdout,
+    serialized_request: Vec<u8>,
+) -> Result<PklServerResponseRaw> {
+    child_stdin.write_all(&serialized_request)?;
+    child_stdin.flush()?;
+
+    // TODO: refactor this to use decode_pkl_message
+    match rmpv::decode::read_value(child_stdout) {
+        Ok(response) => {
+            let decoded_array = response
+                .as_array()
+                .expect("expected server response to be formatted as an array");
+            let first_element = decoded_array.first().expect(
+                "malformed server response, received empty array, expected array of length 2",
+            );
+            let message_header_hex = first_element.as_u64().expect(
+                "malformed server response, expected first element to be a u64 representing the message header",
+            );
+            let second = decoded_array.get(1).expect(
+                "malformed server response, expected second element to be a u64 representing the message header",
+            );
+
+            return Ok(PklServerResponseRaw {
+                header: message_header_hex,
+                response: second.to_owned(),
+            });
+        }
+        Err(e) => Err(Error::Message(format!(
+            "\nfailed to decode value from pkl process: {:?}",
+            e
+        ))),
+    }
+}
+
+pub fn pkl_send_msg_raw(
+    child_stdin: &mut impl Write,
+    child_stdout: &mut impl Read,
     serialized_request: Vec<u8>,
 ) -> Result<PklServerResponseRaw> {
     child_stdin.write_all(&serialized_request)?;

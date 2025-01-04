@@ -3,9 +3,10 @@ use rpkl::api::{
     external_reader::{reader::ExternalReaderRuntime, ExternalReaderClient},
 };
 
-pub struct Reader;
+pub struct LdapReader;
+pub struct LdapsReader;
 
-impl ExternalReaderClient for Reader {
+impl ExternalReaderClient for LdapReader {
     // const READER_TYPE: api::external_reader::ReaderType =
     //     api::external_reader::ReaderType::Resource;
 
@@ -20,6 +21,20 @@ impl ExternalReaderClient for Reader {
     fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(uri.bytes().collect())
         // Err("Not implemented".into())
+    }
+}
+
+impl ExternalReaderClient for LdapsReader {
+    fn scheme(&self) -> &str {
+        "ldaps"
+    }
+
+    fn reader_type(&self) -> api::external_reader::ReaderType {
+        api::external_reader::ReaderType::Resource
+    }
+
+    fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        Ok(uri.bytes().collect())
     }
 }
 
@@ -52,5 +67,5 @@ pub fn main() {
             .init();
     }
 
-    ExternalReaderRuntime::new(Reader).run();
+    _ = ExternalReaderRuntime::from_readers((LdapReader, LdapsReader)).run();
 }

@@ -1,3 +1,4 @@
 username = "john_appleseed"
 
 email = read("ldap://ds.example.com:389/dc=example,dc=com?mail?sub?(uid=\(username))").text
+email2 = read("ldaps://ds.example.com:389/dc=example,dc=com?mail?sub?(uid=\(username))").text

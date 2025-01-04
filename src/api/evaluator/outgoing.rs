@@ -10,6 +10,7 @@ pub mod codes {
     pub const CLOSE: u64 = 0x22;
     pub const EVALUATE_REQUEST: u64 = 0x23;
 
+    pub const READ_RESOURCE_REQUEST: u64 = 0x26;
     pub const READ_RESOURCE_RESPONSE: u64 = 0x27;
     pub const INITIALIZE_RESOURCE_READER_REQUEST: u64 = 0x30;
     pub const INITIALIZE_RESOURCE_READER_RESPONSE: u64 = 0x31;

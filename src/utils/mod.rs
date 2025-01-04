@@ -30,7 +30,10 @@ pub(crate) mod macros {
         };
     }
 
+    // pub(crate) use _debug;
+    pub(crate) use _info;
     pub(crate) use _trace;
+    pub(crate) use _warn;
 }
 
 pub fn canonicalize(path: impl AsRef<std::path::Path>) -> std::io::Result<std::path::PathBuf> {

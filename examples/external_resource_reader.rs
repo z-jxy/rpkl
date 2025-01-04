@@ -1,16 +1,7 @@
-use std::io::{Read, Write};
-
 use rpkl::api::{
     self,
-    evaluator::{
-        self, decode_pkl_message,
-        outgoing::{ClientResourceReader, OutgoingMessage},
-        pkl_send_msg_child, pkl_send_msg_raw, ExternalReader,
-    },
     external_reader::{reader::ExternalReaderRuntime, ExternalReaderClient},
 };
-
-use serde::{Deserialize, Serialize};
 
 pub struct Reader;
 
@@ -18,12 +9,17 @@ impl ExternalReaderClient for Reader {
     // const READER_TYPE: api::external_reader::ReaderType =
     //     api::external_reader::ReaderType::Resource;
 
+    fn scheme(&self) -> &str {
+        "ldap"
+    }
+
     fn reader_type(&self) -> api::external_reader::ReaderType {
         api::external_reader::ReaderType::Resource
     }
 
-    fn read(&self, uri: &str) -> Option<Vec<u8>> {
-        Some("hello world".as_bytes().to_vec())
+    fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        Ok(uri.bytes().collect())
+        // Err("Not implemented".into())
     }
 }
 

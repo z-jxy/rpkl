@@ -273,35 +273,37 @@ mod tests {
         }
     }
 
-    // #[test]
-    // pub fn external_resource_readers() {
-    //     #[allow(dead_code)]
-    //     #[derive(Debug, Deserialize)]
-    //     struct Config {
-    //         username: String,
-    //         email: String,
-    //         // package: rpkl::Value,
-    //     }
+    #[test]
+    pub fn external_resource_readers() {
+        #[allow(dead_code)]
+        #[derive(Debug, Deserialize)]
+        struct Config {
+            username: String,
+            ldap_email: String,
+            ldaps_email: String,
+        }
 
-    //     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-    //         .join("tests")
-    //         .join("pkl")
-    //         .join("external-reader.pkl");
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join("external-reader.pkl");
 
-    //     let options = EvaluatorOptions::default()
-    //         .properties([("name", "zjxy")])
-    //         .property(
-    //             "path",
-    //             "file:///Users/testing/code/rust/rpkl/examples/example.pkl",
-    //         )
-    //         .external_resource_reader(
-    //             "ldap",
-    //             api::evaluator::ExternalReader {
-    //                 executable: "target/debug/examples/external_resource_reader".into(),
-    //                 arguments: vec![],
-    //             },
-    //         );
+        let options = EvaluatorOptions::default()
+            .external_resource_reader(
+                "ldap",
+                api::evaluator::ExternalReader {
+                    executable: "target/debug/examples/external_resource_reader".into(),
+                    arguments: vec![],
+                },
+            )
+            .external_resource_reader(
+                "ldaps",
+                api::evaluator::ExternalReader {
+                    executable: "target/debug/examples/external_resource_reader".into(),
+                    arguments: vec![],
+                },
+            );
 
-    //     rpkl::from_config_with_options::<Config>(path, options).unwrap();
-    // }
+        rpkl::from_config_with_options::<Config>(path, options).unwrap();
+    }
 }

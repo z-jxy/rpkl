@@ -9,22 +9,26 @@ pub enum ReaderType {
     Resource,
 }
 
-pub trait ExternalReaderClient {
+pub trait PklReader {
     // const READER_TYPE: ReaderType;
 
     /// Scheme returns the scheme part of the URL that this reader can read.
     /// The value should be the URI scheme up to (not including) `:`
     fn scheme(&self) -> &str;
 
-    /// Schemes returns a list of schemes that this reader can read. Used when initalizing the reader. First the result from `scheme` is checked, otherwise this list is checked.
-    // fn schemes(&self) -> Vec<&str> {
-    //     vec![self.scheme()]
-    // }
-
+    /// Tells whether the path part of ths URI has a
+    /// [hier-part](https://datatracker.ietf.org/doc/html/rfc3986#section-3).
+    ///
+    /// An example of a hierarchical URI is `file:///path/to/my/file`, where
+    /// `/path/to/my/file` designates a nested path through the `/` character.
+    ///
+    /// An example of a non-hierarchical URI is `pkl.base`, where the `base` does not denote
+    /// any form of hierarchy.
     fn has_hierarchical_uris(&self) -> bool {
         false
     }
 
+    /// Tells whether this reader supports globbing.
     fn is_globbable(&self) -> bool {
         false
     }

@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use super::outgoing::ClientResourceReader;
 
-// TODO: move to a separate external_reader mod
 /// Code: 0x103
 /// Type: Client Response
 #[derive(Serialize, Deserialize)]
@@ -15,6 +14,9 @@ pub struct InitializeResourceReaderResponse {
     ///
     /// Null when the external process does not implement the requested scheme.
     /// [ClientResourceReader] is defined at https://pkl-lang.org/main/current/bindings-specification/message-passing-api.html#create-evaluator-request
+    ///
+    ///
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub spec: Option<ClientResourceReader>,
 }
 

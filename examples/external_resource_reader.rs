@@ -1,12 +1,12 @@
 use rpkl::api::{
     self,
-    external_reader::{reader::ExternalReaderRuntime, ExternalReaderClient},
+    external_reader::{reader::ExternalReaderRuntime, PklReader},
 };
 
 pub struct LdapReader;
 pub struct LdapsReader;
 
-impl ExternalReaderClient for LdapReader {
+impl PklReader for LdapReader {
     // const READER_TYPE: api::external_reader::ReaderType =
     //     api::external_reader::ReaderType::Resource;
 
@@ -24,7 +24,7 @@ impl ExternalReaderClient for LdapReader {
     }
 }
 
-impl ExternalReaderClient for LdapsReader {
+impl PklReader for LdapsReader {
     fn scheme(&self) -> &str {
         "ldaps"
     }
@@ -38,17 +38,12 @@ impl ExternalReaderClient for LdapsReader {
     }
 }
 
-#[cfg(feature = "trace")]
-use tracing::{error, info, warn};
-// use tracing_subscriber::filter::EnvFilter;
-#[cfg(feature = "trace")]
-use tracing_subscriber::{
-    fmt, fmt::writer::MakeWriterExt, layer::SubscriberExt, util::SubscriberInitExt,
-};
-
 pub fn main() {
     #[cfg(feature = "trace")]
     {
+        use tracing_subscriber::{
+            fmt, fmt::writer::MakeWriterExt, layer::SubscriberExt, util::SubscriberInitExt,
+        };
         // Create a log file
         let log_file = std::fs::File::create("output.log").unwrap();
 
@@ -67,5 +62,7 @@ pub fn main() {
             .init();
     }
 
-    _ = ExternalReaderRuntime::from_readers((LdapReader, LdapsReader)).run();
+    _ = ExternalReaderRuntime::new()
+        .add_resource_readers((LdapReader, LdapsReader))
+        .run();
 }

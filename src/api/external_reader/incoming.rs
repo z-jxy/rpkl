@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::{
-    evaluator::outgoing::codes::READ_MODULE_REQUEST, msgapi::macros::impl_pkl_message,
+    evaluator::outgoing::codes::{READ_MODULE_REQUEST, READ_RESOURCE_REQUEST},
+    msgapi::macros::impl_pkl_message,
 };
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadResource {
+pub struct ReadResourceRequest {
     /// A number identifying this request.
     request_id: i64,
 
@@ -35,4 +36,31 @@ pub struct ReadModuleRequest {
     uri: String,
 }
 
-impl_pkl_message!(ReadModuleRequest, READ_MODULE_REQUEST);
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListResourcesRequest {
+    /// A number identifying this request.
+    request_id: i64,
+
+    /// A number identifying this evaluator.
+    evaluator_id: i64,
+
+    /// The URI of the module.
+    uri: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListModulesRequest {
+    /// A number identifying this request.
+    request_id: i64,
+
+    /// A number identifying this evaluator.
+    evaluator_id: i64,
+
+    /// The URI of the module.
+    uri: String,
+}
+
+// impl_pkl_message!(ReadModuleRequest, READ_MODULE_REQUEST);
+// impl_pkl_message!(ReadResourceRequest, READ_RESOURCE_REQUEST);

@@ -15,6 +15,14 @@ impl PklResourceReader for LdapReader {
     fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(uri.bytes().collect())
     }
+
+    fn list(
+        &self,
+        uri: &str,
+    ) -> Result<Vec<rpkl::api::external_reader::outgoing::PathElements>, Box<dyn std::error::Error>>
+    {
+        Ok(vec![])
+    }
 }
 
 impl PklResourceReader for LdapsReader {
@@ -25,11 +33,19 @@ impl PklResourceReader for LdapsReader {
     fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         Ok(uri.bytes().collect())
     }
+
+    fn list(
+        &self,
+        uri: &str,
+    ) -> Result<Vec<rpkl::api::external_reader::outgoing::PathElements>, Box<dyn std::error::Error>>
+    {
+        Ok(vec![])
+    }
 }
 
 impl PklModuleReader for ModuleReader {
     fn scheme(&self) -> &str {
-        "module"
+        "remote"
     }
 
     fn read(&self, uri: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -38,6 +54,14 @@ impl PklModuleReader for ModuleReader {
 
     fn is_local(&self) -> bool {
         true
+    }
+
+    fn list(
+        &self,
+        uri: &str,
+    ) -> Result<Vec<rpkl::api::external_reader::outgoing::PathElements>, Box<dyn std::error::Error>>
+    {
+        Ok(vec![])
     }
 }
 

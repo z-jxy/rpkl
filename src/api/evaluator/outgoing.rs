@@ -15,6 +15,11 @@ pub mod codes {
     pub const READ_MODULE_REQUEST: u64 = 0x28;
     pub const READ_MODULE_RESPONSE: u64 = 0x29;
 
+    pub const LIST_RESOURCES_REQUEST: u64 = 0x2a;
+    pub const LIST_RESOURCES_RESPONSE: u64 = 0x2b;
+    pub const LIST_MODULES_REQUEST: u64 = 0x2c;
+    pub const LIST_MODULES_RESPONSE: u64 = 0x2d;
+
     pub const INITIALIZE_MODULE_READER_REQUEST: u64 = 0x2e;
     pub const INITIALIZE_MODULE_READER_RESPONSE: u64 = 0x2f;
 

@@ -1,3 +1,5 @@
+use outgoing::PathElements;
+
 pub mod incoming;
 pub mod outgoing;
 pub mod reader;
@@ -32,6 +34,7 @@ pub trait PklResourceReader {
     }
 
     fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>>;
+    fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>>;
 }
 
 pub trait PklModuleReader {
@@ -57,6 +60,7 @@ pub trait PklModuleReader {
     }
 
     fn read(&self, uri: &str) -> Result<String, Box<dyn std::error::Error>>;
+    fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>>;
 
     fn is_local(&self) -> bool;
 }

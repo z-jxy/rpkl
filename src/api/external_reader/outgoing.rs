@@ -4,7 +4,8 @@ use crate::api::{
     evaluator::outgoing::{
         codes::{
             INITIALIZE_MODULE_READER_RESPONSE, INITIALIZE_RESOURCE_READER_RESPONSE,
-            READ_MODULE_RESPONSE, READ_RESOURCE_RESPONSE,
+            LIST_MODULES_RESPONSE, LIST_RESOURCES_RESPONSE, READ_MODULE_RESPONSE,
+            READ_RESOURCE_RESPONSE,
         },
         ClientModuleReader, ClientResourceReader,
     },
@@ -89,6 +90,56 @@ pub struct InitializeModuleReaderResponse {
     pub spec: Option<ClientModuleReader>,
 }
 
+/// Code: 0x2a
+/// Type: Server Request
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListResourcesResponse {
+    /// A number identifying this request.
+    pub request_id: i64,
+
+    /// A number identifying this evaluator.
+    pub evaluator_id: i64,
+
+    /// The elements at the provided base path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_elements: Option<Vec<PathElements>>,
+
+    /// The description of the error that occured when listing elements.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// Code: 0x2c
+/// Type: Server Request
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ListModulesResponse {
+    /// A number identifying this request.
+    pub request_id: i64,
+
+    /// A number identifying this evaluator.
+    pub evaluator_id: i64,
+
+    /// The elements at the provided base path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_elements: Option<Vec<PathElements>>,
+
+    /// The description of the error that occured when listing elements.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathElements {
+    /// The name of the element at this path
+    pub name: String,
+
+    /// Tells whether the element is a directory.
+    pub is_directory: bool,
+}
+
 impl_pkl_message!(
     InitializeResourceReaderResponse,
     INITIALIZE_RESOURCE_READER_RESPONSE
@@ -101,3 +152,5 @@ impl_pkl_message!(
 
 impl_pkl_message!(ReadResourceResponse, READ_RESOURCE_RESPONSE);
 impl_pkl_message!(ReadModuleResponse, READ_MODULE_RESPONSE);
+impl_pkl_message!(ListResourcesResponse, LIST_RESOURCES_RESPONSE);
+impl_pkl_message!(ListModulesResponse, LIST_MODULES_RESPONSE);

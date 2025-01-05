@@ -6,11 +6,19 @@ use std::{
 };
 
 use crate::{
+    api::reader::{
+        handle_list_modules, handle_list_resources, handle_read_module, handle_read_resource,
+    },
     error::{Error, Result},
     utils::{self, macros::_trace},
 };
 
-use outgoing::{pack_msg, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage};
+use outgoing::{
+    codes::{
+        LIST_MODULES_REQUEST, LIST_RESOURCES_REQUEST, READ_MODULE_REQUEST, READ_RESOURCE_REQUEST,
+    },
+    pack_msg, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
+};
 use responses::PklServerResponseRaw;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +29,11 @@ pub mod responses;
 
 #[cfg(feature = "trace")]
 use tracing::debug;
+
+use super::external_reader::{
+    reader::{IntoModuleReaders, IntoResourceReaders},
+    PklModuleReader, PklResourceReader,
+};
 
 pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;
 pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
@@ -41,6 +54,9 @@ pub struct EvaluatorOptions {
     /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files.
     pub properties: Option<HashMap<String, String>>,
 
+    pub client_module_readers: Option<Vec<Box<dyn PklModuleReader>>>,
+    pub client_resource_readers: Option<Vec<Box<dyn PklResourceReader>>>,
+
     pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
     pub external_module_readers: Option<HashMap<String, ExternalReader>>,
 }
@@ -49,6 +65,8 @@ impl Default for EvaluatorOptions {
     fn default() -> Self {
         Self {
             properties: None,
+            client_module_readers: None,
+            client_resource_readers: None,
             external_resource_readers: None,
             external_module_readers: None,
         }
@@ -88,6 +106,26 @@ impl EvaluatorOptions {
         self
     }
 
+    /// Add client resource readers to the evaluator options map
+    pub fn client_resource_readers(mut self, readers: impl IntoResourceReaders) -> Self {
+        if let Some(vec) = self.client_resource_readers.as_mut() {
+            vec.extend(readers.into_readers());
+        } else {
+            self.client_resource_readers = Some(Vec::from(readers.into_readers()));
+        }
+        self
+    }
+
+    /// Add client module readers to the evaluator options map
+    pub fn client_module_readers(mut self, readers: impl IntoModuleReaders) -> Self {
+        if let Some(vec) = self.client_module_readers.as_mut() {
+            vec.extend(readers.into_readers());
+        } else {
+            self.client_module_readers = Some(Vec::from(readers.into_readers()));
+        }
+        self
+    }
+
     /// Add an external resource reader to the evaluator options map
     pub fn external_resource_reader(
         mut self,
@@ -124,6 +162,8 @@ pub struct Evaluator {
     pub evaluator_id: i64,
     stdin: std::process::ChildStdin,
     stdout: std::process::ChildStdout,
+    client_module_readers: Vec<Box<dyn PklModuleReader>>,
+    client_resource_readers: Vec<Box<dyn PklResourceReader>>,
 }
 
 impl Evaluator {
@@ -142,7 +182,7 @@ impl Evaluator {
 
         let mut evaluator_message = CreateEvaluator::default();
 
-        //////// handle options
+        //////// handle user defined options
         if let Some(props) = options.properties {
             evaluator_message.properties = Some(props);
         }
@@ -157,8 +197,27 @@ impl Evaluator {
             for uri in readers.keys() {
                 evaluator_message.allowed_modules.push(uri.clone());
             }
-
             evaluator_message.external_module_readers = Some(readers);
+        }
+        if let Some(readers) = options.client_module_readers.as_ref() {
+            for reader in readers.iter() {
+                evaluator_message
+                    .allowed_modules
+                    .push(reader.scheme().to_string());
+            }
+            let module_readers: Vec<outgoing::ClientModuleReader> =
+                readers.iter().map(|r| r.as_ref().into()).collect();
+            evaluator_message.client_module_readers = Some(module_readers);
+        }
+        if let Some(readers) = options.client_resource_readers.as_ref() {
+            for reader in readers.iter() {
+                evaluator_message
+                    .allowed_resources
+                    .push(reader.scheme().to_string());
+            }
+            let resource_readers: Vec<outgoing::ClientResourceReader> =
+                readers.iter().map(|r| r.as_ref().into()).collect();
+            evaluator_message.client_resource_readers = Some(resource_readers);
         }
         ////////
 
@@ -190,6 +249,8 @@ impl Evaluator {
             evaluator_id,
             stdin: child.stdin.take().unwrap(),
             stdout: child_stdout,
+            client_module_readers: options.client_module_readers.unwrap_or_default(),
+            client_resource_readers: options.client_resource_readers.unwrap_or_default(),
         })
     }
 
@@ -209,8 +270,41 @@ impl Evaluator {
 
         let serialized_eval_req = pack_msg(msg);
         // rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
-        let eval_res =
-            pkl_send_msg_child(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
+
+        // send the evaluate request
+        child_stdin.write_all(&serialized_eval_req)?;
+        child_stdin.flush()?;
+
+        // let eval_res =
+        //     pkl_send_msg_child(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
+        let mut eval_res;
+        loop {
+            let msg = recv_msg(&mut child_stdout)?;
+
+            // while EVALUATE_RESPONSE isn't recieved, resolve any other requests needed
+            if msg.header == EVALUATE_RESPONSE {
+                eval_res = msg;
+                break;
+            }
+
+            match msg.header {
+                READ_RESOURCE_REQUEST => {
+                    handle_read_resource(&self.client_resource_readers, &msg, &mut child_stdin)?;
+                }
+                READ_MODULE_REQUEST => {
+                    handle_read_module(&self.client_module_readers, &msg, &mut child_stdin)?;
+                }
+                LIST_MODULES_REQUEST => {
+                    handle_list_modules(&self.client_module_readers, &msg, &mut child_stdin)?;
+                }
+                LIST_RESOURCES_REQUEST => {
+                    handle_list_resources(&self.client_resource_readers, &msg, &mut child_stdin)?;
+                }
+                _ => {
+                    todo!("unhandled request from pkl server: 0x{:x}", msg.header);
+                }
+            }
+        }
 
         if eval_res.header != EVALUATE_RESPONSE {
             todo!("handle case when header is not 0x24");
@@ -362,4 +456,12 @@ pub fn pkl_send_msg_raw(
             e
         ))),
     }
+}
+
+pub fn recv_msg<R: Read>(reader: &mut R) -> std::result::Result<PklServerResponseRaw, Error> {
+    let data = rmpv::decode::read_value(reader)?;
+    let pkl_msg = decode_pkl_message(data).ok_or(Error::PklMalformedResponse {
+        message: "Failed to decode pkl message format".to_string(),
+    })?;
+    Ok(pkl_msg)
 }

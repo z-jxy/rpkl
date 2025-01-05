@@ -20,6 +20,7 @@ use crate::{
                 },
                 ClientModuleReader, ClientResourceReader,
             },
+            recv_msg,
             responses::PklServerResponseRaw,
         },
         external_reader::outgoing::{
@@ -27,6 +28,9 @@ use crate::{
             ListResourcesResponse,
         },
         msgapi::PklMessage,
+        reader::{
+            handle_list_modules, handle_list_resources, handle_read_module, handle_read_resource,
+        },
     },
     utils::macros::{_info, _warn},
 };
@@ -277,11 +281,7 @@ impl ExternalReaderRuntime {
         }
 
         loop {
-            let Ok(data) = rmpv::decode::read_value(&mut stdin) else {
-                _warn!("Failed to read data from stdin");
-                break;
-            };
-            let Some(pkl_msg) = decode_pkl_message(data) else {
+            let Ok(pkl_msg) = recv_msg(&mut stdin) else {
                 _warn!("Failed to decode message");
                 break;
             };
@@ -294,16 +294,16 @@ impl ExternalReaderRuntime {
                     self.handle_initalize_module_reader(&pkl_msg, &mut stdout)?;
                 }
                 Ok(ReaderCodes::ListResourcesRequest) => {
-                    self.handle_list_resources(&pkl_msg, &mut stdout)?;
+                    handle_list_resources(&self.resource_readers, &pkl_msg, &mut stdout)?;
                 }
                 Ok(ReaderCodes::ListModulesRequest) => {
-                    self.handle_list_modules(&pkl_msg, &mut stdout)?;
+                    handle_list_modules(&self.module_readers, &pkl_msg, &mut stdout)?;
                 }
                 Ok(ReaderCodes::ReadResourceRequest) => {
-                    self.handle_read_resource(&pkl_msg, &mut stdout)?;
+                    handle_read_resource(&self.resource_readers, &pkl_msg, &mut stdout)?;
                 }
                 Ok(ReaderCodes::ReadModuleRequest) => {
-                    self.handle_read_module(&pkl_msg, &mut stdout)?;
+                    handle_read_module(&self.module_readers, &pkl_msg, &mut stdout)?;
                 }
                 Ok(ReaderCodes::CloseExternalProcess) => {
                     _info!("CLOSE_EXTERNAL_PROCESS received");
@@ -314,236 +314,6 @@ impl ExternalReaderRuntime {
                 }
             }
         }
-
-        Ok(())
-    }
-
-    fn handle_list_resources<W: Write>(
-        &self,
-        msg: &PklServerResponseRaw,
-        writer: &mut W,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let response = msg.response.as_map().unwrap();
-
-        // TODO: could add `with-serde` feature to rmpv to make this easier
-        // but might be overkill for messages with a small number of fields
-
-        let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
-        let request_id: i64 = extract_field(response, "requestId")?;
-        let uri: &str = extract_field(response, "uri")?;
-
-        let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
-
-        let Some(reader) = self
-            .resource_readers
-            .iter()
-            .find(|r| r.scheme() == uri_scheme)
-        else {
-            _warn!("No reader found for scheme: {:?}", uri);
-            writer.write_all(
-                &ListResourcesResponse {
-                    request_id,
-                    evaluator_id,
-                    path_elements: None,
-                    error: Some(format!("No reader found for scheme: {:?}", uri)),
-                }
-                .encode_msg()?,
-            )?;
-            writer.flush()?;
-            return Ok(());
-        };
-
-        let data = reader.list(uri);
-
-        let out_msg = match data {
-            Ok(elements) => ListResourcesResponse {
-                request_id,
-                evaluator_id,
-                path_elements: Some(elements),
-                error: None,
-            },
-            Err(e) => ListResourcesResponse {
-                request_id,
-                evaluator_id,
-                path_elements: None,
-                error: Some(e.to_string()),
-            },
-        };
-
-        writer.write_all(&out_msg.encode_msg()?)?;
-        writer.flush()?;
-
-        Ok(())
-    }
-
-    fn handle_list_modules<W: Write>(
-        &self,
-        msg: &PklServerResponseRaw,
-        writer: &mut W,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let response = msg.response.as_map().unwrap();
-
-        // TODO: could add `with-serde` feature to rmpv to make this easier
-        // but might be overkill for messages with a small number of fields
-
-        let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
-        let request_id: i64 = extract_field(response, "requestId")?;
-        let uri: &str = extract_field(response, "uri")?;
-
-        let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
-
-        let Some(reader) = self
-            .module_readers
-            .iter()
-            .find(|r| r.scheme() == uri_scheme)
-        else {
-            _warn!("No reader found for scheme: {:?}", uri);
-            writer.write_all(
-                &ListModulesResponse {
-                    request_id,
-                    evaluator_id,
-                    path_elements: None,
-                    error: Some(format!("No reader found for scheme: {:?}", uri)),
-                }
-                .encode_msg()?,
-            )?;
-            writer.flush()?;
-            return Ok(());
-        };
-
-        let data = reader.list(uri);
-
-        let out_msg = match data {
-            Ok(elements) => ListModulesResponse {
-                request_id,
-                evaluator_id,
-                path_elements: Some(elements),
-                error: None,
-            },
-            Err(e) => ListModulesResponse {
-                request_id,
-                evaluator_id,
-                path_elements: None,
-                error: Some(e.to_string()),
-            },
-        };
-
-        writer.write_all(&out_msg.encode_msg()?)?;
-        writer.flush()?;
-
-        Ok(())
-    }
-
-    fn handle_read_resource<W: Write>(
-        &self,
-        msg: &PklServerResponseRaw,
-        writer: &mut W,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let response = msg.response.as_map().unwrap();
-
-        let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
-        let request_id: i64 = extract_field(response, "requestId")?;
-        let uri: &str = extract_field(response, "uri")?;
-
-        let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
-
-        let Some(reader) = self
-            .resource_readers
-            .iter()
-            .find(|r| r.scheme() == uri_scheme)
-        else {
-            _warn!("No reader found for scheme: {:?}", uri);
-            writer.write_all(
-                &ReadResourceResponse {
-                    request_id,
-                    evaluator_id,
-                    contents: None,
-                    error: Some(format!("No reader found for scheme: {:?}", uri)),
-                }
-                .encode_msg()?,
-            )?;
-            writer.flush()?;
-            return Ok(());
-        };
-
-        let data = reader.read(uri);
-
-        let out_msg = match data {
-            Ok(data) => ReadResourceResponse {
-                request_id,
-                evaluator_id,
-                contents: Some(data),
-                error: None,
-            },
-            Err(e) => ReadResourceResponse {
-                request_id,
-                evaluator_id,
-                contents: None,
-                error: Some(e.to_string()),
-            },
-        };
-
-        let serialized = out_msg.encode_msg()?;
-
-        writer.write_all(&serialized)?;
-        writer.flush()?;
-
-        Ok(())
-    }
-
-    fn handle_read_module<W: Write>(
-        &self,
-        msg: &PklServerResponseRaw,
-        writer: &mut W,
-    ) -> Result<(), Box<dyn std::error::Error>> {
-        let response = msg.response.as_map().unwrap();
-
-        let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
-        let request_id: i64 = extract_field(response, "requestId")?;
-        let uri: &str = extract_field(response, "uri")?;
-
-        let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
-
-        let Some(reader) = self
-            .module_readers
-            .iter()
-            .find(|r| r.scheme() == uri_scheme)
-        else {
-            _warn!("No reader found for scheme: {:?}", uri);
-            writer.write_all(
-                &ReadModuleResponse {
-                    request_id,
-                    evaluator_id,
-                    contents: None,
-                    error: Some(format!("No reader found for scheme: {:?}", uri)),
-                }
-                .encode_msg()?,
-            )?;
-            writer.flush()?;
-            return Ok(());
-        };
-
-        let data = reader.read(uri);
-
-        let out_msg = match data {
-            Ok(data) => ReadModuleResponse {
-                request_id,
-                evaluator_id,
-                contents: Some(data),
-                error: None,
-            },
-            Err(e) => ReadModuleResponse {
-                request_id,
-                evaluator_id,
-                contents: None,
-                error: Some(e.to_string()),
-            },
-        };
-
-        let serialized = out_msg.encode_msg()?;
-
-        writer.write_all(&serialized)?;
-        writer.flush()?;
 
         Ok(())
     }
@@ -560,77 +330,4 @@ fn reader_pack_msg<T: Serialize>(header: u64, msg: T) -> Vec<u8> {
         )
         .unwrap();
     serialized_request
-}
-
-fn parse_scheme(uri: &str) -> Option<&str> {
-    match uri.find(':') {
-        Some(pos) => {
-            let scheme = &uri[..pos];
-            if !scheme.is_empty()
-                && scheme
-                    .chars()
-                    .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '.' || c == '-')
-            {
-                Some(scheme)
-            } else {
-                None
-            }
-        }
-        None => None,
-    }
-}
-
-struct MapValue<'a>(&'a rmpv::Value);
-
-impl<'a> TryFrom<MapValue<'a>> for i64 {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(value: MapValue<'a>) -> Result<Self, Self::Error> {
-        match value.0 {
-            rmpv::Value::Integer(n) => n.as_i64().ok_or_else(|| "Failed to convert to i64".into()),
-            _ => Err("Expected integer value".into()),
-        }
-    }
-}
-
-impl<'a> TryFrom<MapValue<'a>> for &'a str {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(value: MapValue<'a>) -> Result<Self, Self::Error> {
-        match value.0 {
-            rmpv::Value::String(s) => s
-                .as_str()
-                .ok_or_else(|| "Failed to get str from string".into()),
-            _ => Err("Expected string value".into()),
-        }
-    }
-}
-
-impl<'a> TryFrom<MapValue<'a>> for String {
-    type Error = Box<dyn std::error::Error>;
-
-    fn try_from(value: MapValue<'a>) -> Result<Self, Self::Error> {
-        match value.0 {
-            rmpv::Value::String(s) => Ok(s
-                .as_str()
-                .ok_or_else(|| "Failed to get str from string")?
-                .to_owned()),
-            _ => Err("Expected string value".into()),
-        }
-    }
-}
-
-// Helper function to extract fields from response map
-fn extract_field<'a, T>(
-    map: &'a [(rmpv::Value, rmpv::Value)],
-    field: &str,
-) -> Result<T, Box<dyn std::error::Error>>
-where
-    T: TryFrom<MapValue<'a>, Error = Box<dyn std::error::Error>>,
-{
-    map.iter()
-        .find(|(k, _)| k.as_str() == Some(field))
-        .map(|(_, v)| MapValue(v))
-        .ok_or_else(|| format!("Field not found: {}", field).into())
-        .and_then(|v| v.try_into())
 }

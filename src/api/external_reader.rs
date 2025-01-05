@@ -1,5 +1,7 @@
 use outgoing::PathElements;
 
+use super::evaluator::outgoing::{ClientModuleReader, ClientResourceReader};
+
 pub mod incoming;
 pub mod outgoing;
 pub mod reader;
@@ -63,4 +65,25 @@ pub trait PklModuleReader {
     fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>>;
 
     fn is_local(&self) -> bool;
+}
+
+impl From<&dyn PklModuleReader> for ClientModuleReader {
+    fn from(reader: &dyn PklModuleReader) -> Self {
+        ClientModuleReader {
+            scheme: reader.scheme().to_string(),
+            has_hierarchical_uris: reader.has_hierarchical_uris(),
+            is_globbable: reader.is_globbable(),
+            is_local: reader.is_local(),
+        }
+    }
+}
+
+impl From<&dyn PklResourceReader> for ClientResourceReader {
+    fn from(reader: &dyn PklResourceReader) -> Self {
+        ClientResourceReader {
+            scheme: reader.scheme().to_string(),
+            has_hierarchical_uris: reader.has_hierarchical_uris(),
+            is_globbable: reader.is_globbable(),
+        }
+    }
 }

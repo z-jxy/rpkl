@@ -80,3 +80,9 @@ impl From<rmpv::decode::Error> for Error {
         Error::MsgpackDecodeError(e)
     }
 }
+
+impl From<Box<dyn std::error::Error>> for Error {
+    fn from(e: Box<dyn std::error::Error>) -> Self {
+        Error::Message(e.to_string())
+    }
+}

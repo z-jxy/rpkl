@@ -302,6 +302,13 @@ mod tests {
                     executable: "target/debug/examples/external_resource_reader".into(),
                     arguments: vec![],
                 },
+            )
+            .external_module_reader(
+                "remote",
+                api::evaluator::ExternalReader {
+                    executable: "target/debug/examples/external_resource_reader".into(),
+                    arguments: vec![],
+                },
             );
 
         rpkl::from_config_with_options::<Config>(path, options).unwrap();

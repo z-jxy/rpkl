@@ -1,5 +1,5 @@
 use rpkl::api::external_reader::{
-    reader::ExternalReaderRuntime, PklModuleReader, PklResourceReader,
+    outgoing::PathElements, reader::ExternalReaderRuntime, PklModuleReader, PklResourceReader,
 };
 
 pub struct LdapReader;
@@ -16,11 +16,7 @@ impl PklResourceReader for LdapReader {
         Ok(uri.bytes().collect())
     }
 
-    fn list(
-        &self,
-        uri: &str,
-    ) -> Result<Vec<rpkl::api::external_reader::outgoing::PathElements>, Box<dyn std::error::Error>>
-    {
+    fn list(&self, _uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>> {
         Ok(vec![])
     }
 }
@@ -34,11 +30,7 @@ impl PklResourceReader for LdapsReader {
         Ok(uri.bytes().collect())
     }
 
-    fn list(
-        &self,
-        uri: &str,
-    ) -> Result<Vec<rpkl::api::external_reader::outgoing::PathElements>, Box<dyn std::error::Error>>
-    {
+    fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>> {
         Ok(vec![])
     }
 }
@@ -56,11 +48,7 @@ impl PklModuleReader for ModuleReader {
         true
     }
 
-    fn list(
-        &self,
-        uri: &str,
-    ) -> Result<Vec<rpkl::api::external_reader::outgoing::PathElements>, Box<dyn std::error::Error>>
-    {
+    fn list(&self, _uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>> {
         Ok(vec![])
     }
 }

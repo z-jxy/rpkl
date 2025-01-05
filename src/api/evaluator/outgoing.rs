@@ -34,10 +34,16 @@ pub(crate) struct CreateEvaluator {
     pub request_id: u64,
     pub allowed_modules: Vec<String>,
     pub allowed_resources: Vec<String>,
-    pub client_module_readers: Vec<ClientModuleReader>,
+    pub client_module_readers: Option<Vec<ClientModuleReader>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_resource_readers: Option<Vec<ClientResourceReader>>,
     pub env: Option<HashMap<String, String>>,
     pub properties: Option<HashMap<String, String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_module_readers: Option<HashMap<String, ExternalReader>>,
 }
 
 impl Default for CreateEvaluator {
@@ -59,15 +65,17 @@ impl Default for CreateEvaluator {
                 "https:".into(),
                 "projectpackage:".into(),
             ],
-            client_module_readers: vec![ClientModuleReader {
+            client_module_readers: Some(vec![ClientModuleReader {
                 scheme: "customfs".to_string(),
                 has_hierarchical_uris: true,
                 is_globbable: true,
                 is_local: true,
-            }],
+            }]),
+            client_resource_readers: None,
             env: Some(env_vars),
             properties: Some(HashMap::new()),
-            external_resource_readers: Some(HashMap::new()),
+            external_resource_readers: None,
+            external_module_readers: None,
         }
     }
 }

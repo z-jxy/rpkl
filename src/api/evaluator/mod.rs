@@ -42,6 +42,7 @@ pub struct EvaluatorOptions {
     pub properties: Option<HashMap<String, String>>,
 
     pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
+    pub external_module_readers: Option<HashMap<String, ExternalReader>>,
 }
 
 impl Default for EvaluatorOptions {
@@ -49,6 +50,7 @@ impl Default for EvaluatorOptions {
         Self {
             properties: None,
             external_resource_readers: None,
+            external_module_readers: None,
         }
     }
 }
@@ -101,6 +103,21 @@ impl EvaluatorOptions {
         }
         self
     }
+
+    pub fn external_module_reader(
+        mut self,
+        key: impl Into<String>,
+        reader: ExternalReader,
+    ) -> Self {
+        if let Some(readers) = self.external_module_readers.as_mut() {
+            readers.insert(key.into(), reader);
+        } else {
+            let mut map = HashMap::new();
+            map.insert(key.into(), reader);
+            self.external_module_readers = Some(map);
+        }
+        self
+    }
 }
 
 pub struct Evaluator {
@@ -135,6 +152,13 @@ impl Evaluator {
             }
 
             evaluator_message.external_resource_readers = Some(readers);
+        }
+        if let Some(readers) = options.external_module_readers {
+            for uri in readers.keys() {
+                evaluator_message.allowed_modules.push(uri.clone());
+            }
+
+            evaluator_message.external_module_readers = Some(readers);
         }
         ////////
 

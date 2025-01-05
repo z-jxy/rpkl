@@ -6,9 +6,9 @@ pub mod reader;
 
 // pub use incoming::ReadResource;
 
-pub enum ReaderType {
-    Module,
-    Resource,
+pub trait PklReader {
+    fn read(&self);
+    fn list(&self);
 }
 
 pub trait PklResourceReader {

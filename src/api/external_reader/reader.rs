@@ -441,9 +441,6 @@ impl ExternalReaderRuntime {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let response = msg.response.as_map().unwrap();
 
-        // TODO: could add `with-serde` feature to rmpv to make this easier
-        // but might be overkill for messages with a small number of fields
-
         let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
         let request_id: i64 = extract_field(response, "requestId")?;
         let uri: &str = extract_field(response, "uri")?;
@@ -456,15 +453,15 @@ impl ExternalReaderRuntime {
             .find(|r| r.scheme() == uri_scheme)
         else {
             _warn!("No reader found for scheme: {:?}", uri);
-            writer.write_all(&reader_pack_msg(
-                READ_RESOURCE_RESPONSE,
-                ReadResourceResponse {
+            writer.write_all(
+                &ReadResourceResponse {
                     request_id,
                     evaluator_id,
                     contents: None,
                     error: Some(format!("No reader found for scheme: {:?}", uri)),
-                },
-            ))?;
+                }
+                .encode_msg()?,
+            )?;
             writer.flush()?;
             return Ok(());
         };

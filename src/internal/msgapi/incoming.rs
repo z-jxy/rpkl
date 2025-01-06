@@ -9,6 +9,18 @@ pub struct PklServerMessage {
 /*
 use serde::{Deserialize, Serialize};
 
+/// Code: 0x102
+/// Type: Server Request
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InitializeResourceReaderRequest {
+    /// A number identifying this request.
+    pub request_id: i64,
+
+    /// The scheme of the resource to initialize.
+    pub scheme: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct EvaluatorResponse {
     #[serde(rename = "requestId")]

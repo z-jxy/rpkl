@@ -12,12 +12,8 @@ pub mod value;
 pub use error::{Error, Result};
 
 pub use api::evaluator::EvaluatorOptions;
+use utils::macros::_trace;
 pub use value::PklValue as Value;
-
-#[cfg(feature = "trace")]
-use tracing::{debug, error, span, trace, Level};
-#[cfg(feature = "trace")]
-use tracing_subscriber::FmtSubscriber;
 
 /// Evaluates a `.pkl` file and deserializes it as `T`. If you need to pass options to the evaluator, such as properties, use [`from_config_with_options`].
 ///
@@ -106,6 +102,9 @@ where
 {
     #[cfg(feature = "trace")]
     {
+        use tracing::Level;
+        use tracing_subscriber::FmtSubscriber;
+
         let subscriber = tracing_subscriber::FmtSubscriber::builder()
             .with_max_level(Level::TRACE)
             .finish();
@@ -118,8 +117,7 @@ where
 
     let mut pkld = pkl_mod.serialize_pkl_ast()?;
 
-    #[cfg(feature = "trace")]
-    trace!("serialized pkl data {:?}", pkld);
+    _trace!("serialized pkl data {:?}", pkld);
 
     T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
         .map_err(|e| Error::DeserializeError(format!("{}", e)))

@@ -412,6 +412,6 @@ where
     map.iter()
         .find(|(k, _)| k.as_str() == Some(field))
         .map(|(_, v)| MapValue(v))
-        .ok_or_else(|| format!("Field not found: {}", field).into())
+        .ok_or_else(|| format!("Field not found in message: {}", field).into())
         .and_then(|v| v.try_into())
 }

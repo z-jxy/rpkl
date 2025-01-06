@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::internal::msgapi::codes::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     api::{
@@ -143,7 +143,7 @@ impl<'a> From<&'a EvaluatorOptions> for CreateEvaluator<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientModuleReader {
     pub scheme: String,
@@ -152,7 +152,7 @@ pub struct ClientModuleReader {
     pub is_local: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientResourceReader {
     /// The URI scheme this reader is responsible for reading.
@@ -186,22 +186,10 @@ pub struct EvaluateRequest {
     pub module_uri: String,
 }
 
-/// Code: 0x102
-/// Type: Server Request
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InitializeResourceReaderRequest {
-    /// A number identifying this request.
-    pub request_id: i64,
-
-    /// The scheme of the resource to initialize.
-    pub scheme: String,
-}
-
 /// Code: 0x27
 ///
 /// Type: Client Response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReadResourceResponse {
     /// A number identifying this request.
@@ -222,7 +210,7 @@ pub(crate) struct ReadResourceResponse {
 /// Code: 0x29
 ///
 /// Type: Client Response
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct ReadModuleResponse {
     /// A number identifying this request.
@@ -242,7 +230,7 @@ pub(crate) struct ReadModuleResponse {
 
 /// Code: 0x103
 /// Type: Client Response
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InitializeResourceReaderResponse {
     /// A number identifying this request.
@@ -260,7 +248,7 @@ pub(crate) struct InitializeResourceReaderResponse {
 
 /// Code: 0x2f
 /// Type: Client Response
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct InitializeModuleReaderResponse {
     /// A number identifying this request.
@@ -326,7 +314,7 @@ pub struct PathElements {
     pub is_directory: bool,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 pub struct ExternalReader {
     /// May be specified as an absolute path to an executable
     /// May also be specified as just an executable name, in which case it will be resolved according to the PATH environment variable

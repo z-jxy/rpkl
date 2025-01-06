@@ -74,8 +74,8 @@ pub fn main() {
 
     let options = EvaluatorOptions::default()
         .properties([("name", "Ferris")])
-        .client_module_readers(ModuleReader)
-        .client_resource_readers((LdapReader, LdapsReader));
+        .add_client_module_readers(ModuleReader)
+        .add_client_resource_readers((LdapReader, LdapsReader));
     let config: Config = rpkl::from_config_with_options(path, options).unwrap();
 
     println!("{:?}", config);

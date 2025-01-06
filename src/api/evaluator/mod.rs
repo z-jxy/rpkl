@@ -10,16 +10,16 @@ use crate::{
         handle_list_modules, handle_list_resources, handle_read_module, handle_read_resource,
     },
     error::{Error, Result},
-    utils::{self, macros::_trace},
+    utils::{self, macros::_debug},
 };
 
 use outgoing::{
     codes::{
         LIST_MODULES_REQUEST, LIST_RESOURCES_REQUEST, READ_MODULE_REQUEST, READ_RESOURCE_REQUEST,
     },
-    pack_msg, CloseEvaluator, CreateEvaluator, EvaluateRequest, OutgoingMessage,
+    CloseEvaluator, CreateEvaluator, EvaluateRequest,
 };
-use responses::PklServerResponseRaw;
+use responses::PklServerMessage;
 use serde::{Deserialize, Serialize};
 
 use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
@@ -30,9 +30,12 @@ pub mod responses;
 #[cfg(feature = "trace")]
 use tracing::debug;
 
-use super::external_reader::{
-    reader::{IntoModuleReaders, IntoResourceReaders},
-    PklModuleReader, PklResourceReader,
+use super::{
+    external_reader::{
+        reader::{IntoModuleReaders, IntoResourceReaders},
+        PklModuleReader, PklResourceReader,
+    },
+    msgapi::PklMessage,
 };
 
 pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;
@@ -54,10 +57,16 @@ pub struct EvaluatorOptions {
     /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files.
     pub properties: Option<HashMap<String, String>>,
 
+    /// Client-side module readers.
     pub client_module_readers: Option<Vec<Box<dyn PklModuleReader>>>,
+
+    /// Client-side resource readers.
     pub client_resource_readers: Option<Vec<Box<dyn PklResourceReader>>>,
 
+    /// External resource readers.
     pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
+
+    /// External module readers.
     pub external_module_readers: Option<HashMap<String, ExternalReader>>,
 }
 
@@ -106,8 +115,8 @@ impl EvaluatorOptions {
         self
     }
 
-    /// Add client resource readers to the evaluator options map
-    pub fn client_resource_readers(mut self, readers: impl IntoResourceReaders) -> Self {
+    /// Add client-side resource readers to the evaluator options map
+    pub fn add_client_resource_readers(mut self, readers: impl IntoResourceReaders) -> Self {
         if let Some(vec) = self.client_resource_readers.as_mut() {
             vec.extend(readers.into_readers());
         } else {
@@ -117,7 +126,7 @@ impl EvaluatorOptions {
     }
 
     /// Add client module readers to the evaluator options map
-    pub fn client_module_readers(mut self, readers: impl IntoModuleReaders) -> Self {
+    pub fn add_client_module_readers(mut self, readers: impl IntoModuleReaders) -> Self {
         if let Some(vec) = self.client_module_readers.as_mut() {
             vec.extend(readers.into_readers());
         } else {
@@ -180,50 +189,9 @@ impl Evaluator {
         let child_stdin = child.stdin.as_mut().unwrap();
         let mut child_stdout = child.stdout.take().unwrap();
 
-        let mut evaluator_message = CreateEvaluator::default();
+        let evaluator_message = CreateEvaluator::from(&options);
 
-        //////// handle user defined options
-        if let Some(props) = options.properties {
-            evaluator_message.properties = Some(props);
-        }
-        if let Some(readers) = options.external_resource_readers {
-            for uri in readers.keys() {
-                evaluator_message.allowed_resources.push(uri.clone());
-            }
-
-            evaluator_message.external_resource_readers = Some(readers);
-        }
-        if let Some(readers) = options.external_module_readers {
-            for uri in readers.keys() {
-                evaluator_message.allowed_modules.push(uri.clone());
-            }
-            evaluator_message.external_module_readers = Some(readers);
-        }
-        if let Some(readers) = options.client_module_readers.as_ref() {
-            for reader in readers.iter() {
-                evaluator_message
-                    .allowed_modules
-                    .push(reader.scheme().to_string());
-            }
-            let module_readers: Vec<outgoing::ClientModuleReader> =
-                readers.iter().map(|r| r.as_ref().into()).collect();
-            evaluator_message.client_module_readers = Some(module_readers);
-        }
-        if let Some(readers) = options.client_resource_readers.as_ref() {
-            for reader in readers.iter() {
-                evaluator_message
-                    .allowed_resources
-                    .push(reader.scheme().to_string());
-            }
-            let resource_readers: Vec<outgoing::ClientResourceReader> =
-                readers.iter().map(|r| r.as_ref().into()).collect();
-            evaluator_message.client_resource_readers = Some(resource_readers);
-        }
-        ////////
-
-        let request = OutgoingMessage::CreateEvaluator(evaluator_message);
-
-        let serialized_request = pack_msg(request);
+        let serialized_request = evaluator_message.encode_msg()?;
 
         let create_eval_response =
             pkl_send_msg_child(child_stdin, &mut child_stdout, serialized_request)
@@ -262,28 +230,22 @@ impl Evaluator {
         let path = utils::canonicalize(path)
             .map_err(|_e| Error::Message("failed to canonicalize pkl module path".into()))?;
 
-        let msg = OutgoingMessage::EvaluateRequest(EvaluateRequest {
+        let msg = EvaluateRequest {
             request_id: OUTGOING_MESSAGE_REQUEST_ID,
             evaluator_id: evaluator_id,
             module_uri: format!("file://{}", path.to_str().unwrap()),
-        });
-
-        let serialized_eval_req = pack_msg(msg);
-        // rmp_serde::encode::write(&mut serialized_eval_req, &eval_req).unwrap();
+        }
+        .encode_msg()?;
 
         // send the evaluate request
-        child_stdin.write_all(&serialized_eval_req)?;
+        child_stdin.write_all(&msg)?;
         child_stdin.flush()?;
 
-        // let eval_res =
-        //     pkl_send_msg_child(&mut child_stdin, &mut child_stdout, serialized_eval_req)?;
-        let mut eval_res;
-        loop {
-            let msg = recv_msg(&mut child_stdout)?;
-
-            // while EVALUATE_RESPONSE isn't recieved, resolve any other requests needed
+        // handle any requests until we get the evaluate response
+        let mut eval_res = None;
+        while let Ok(msg) = recv_msg(&mut child_stdout) {
             if msg.header == EVALUATE_RESPONSE {
-                eval_res = msg;
+                eval_res = Some(msg);
                 break;
             }
 
@@ -306,12 +268,9 @@ impl Evaluator {
             }
         }
 
-        if eval_res.header != EVALUATE_RESPONSE {
-            todo!("handle case when header is not 0x24");
-            // return Err(anyhow::anyhow!("expected 0x24, got 0x{:X}", eval_res.header));
-        }
-
-        _trace!("eval_res header: {:?}", eval_res.header);
+        let Some(eval_res) = eval_res else {
+            return Err(Error::Message("failed to evaluate pkl module".into()));
+        };
 
         let res = eval_res.response.as_map().unwrap();
         let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {
@@ -330,9 +289,7 @@ impl Evaluator {
         let slice = result.as_slice().unwrap();
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
-        #[cfg(feature = "trace")]
-        debug!("rmpv pkl module: {:#?}", rmpv_ast);
-
+        _debug!("rmpv pkl module: {:#?}", rmpv_ast);
         let pkl_mod = pkl_eval_module(&rmpv_ast)?;
 
         Ok(pkl_mod)
@@ -343,9 +300,11 @@ impl Drop for Evaluator {
     fn drop(&mut self) {
         let mut child_stdin = &mut self.stdin;
 
-        let msg = pack_msg(OutgoingMessage::CloseEvaluator(CloseEvaluator {
+        let msg = CloseEvaluator {
             evaluator_id: self.evaluator_id,
-        }));
+        }
+        .encode_msg()
+        .expect("failed to encode close evaluator message");
 
         let _ = pkl_send_msg_one_way(&mut child_stdin, msg).expect("failed to close evaluator");
     }
@@ -378,20 +337,20 @@ pub fn pkl_send_msg_one_way(
     Ok(())
 }
 
-pub fn decode_pkl_message(value: rmpv::Value) -> Option<PklServerResponseRaw> {
+pub fn decode_pkl_message(value: rmpv::Value) -> Option<PklServerMessage> {
     let decoded_array = value.as_array()?;
 
     let header = decoded_array.first()?.as_u64()?;
     let response = decoded_array.get(1)?.to_owned();
 
-    Some(PklServerResponseRaw { header, response })
+    Some(PklServerMessage { header, response })
 }
 
 pub fn pkl_send_msg_child(
     child_stdin: &mut std::process::ChildStdin,
     child_stdout: &mut std::process::ChildStdout,
     serialized_request: Vec<u8>,
-) -> Result<PklServerResponseRaw> {
+) -> Result<PklServerMessage> {
     child_stdin.write_all(&serialized_request)?;
     child_stdin.flush()?;
 
@@ -411,7 +370,7 @@ pub fn pkl_send_msg_child(
                 "malformed server response, expected second element to be a u64 representing the message header",
             );
 
-            return Ok(PklServerResponseRaw {
+            return Ok(PklServerMessage {
                 header: message_header_hex,
                 response: second.to_owned(),
             });
@@ -427,7 +386,7 @@ pub fn pkl_send_msg_raw(
     child_stdin: &mut impl Write,
     child_stdout: &mut impl Read,
     serialized_request: Vec<u8>,
-) -> Result<PklServerResponseRaw> {
+) -> Result<PklServerMessage> {
     child_stdin.write_all(&serialized_request)?;
     child_stdin.flush()?;
 
@@ -446,7 +405,7 @@ pub fn pkl_send_msg_raw(
                 "malformed server response, expected second element to be a u64 representing the message header",
             );
 
-            return Ok(PklServerResponseRaw {
+            return Ok(PklServerMessage {
                 header: message_header_hex,
                 response: second.to_owned(),
             });
@@ -458,7 +417,7 @@ pub fn pkl_send_msg_raw(
     }
 }
 
-pub fn recv_msg<R: Read>(reader: &mut R) -> std::result::Result<PklServerResponseRaw, Error> {
+pub fn recv_msg<R: Read>(reader: &mut R) -> std::result::Result<PklServerMessage, Error> {
     let data = rmpv::decode::read_value(reader)?;
     let pkl_msg = decode_pkl_message(data).ok_or(Error::PklMalformedResponse {
         message: "Failed to decode pkl message format".to_string(),

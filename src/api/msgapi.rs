@@ -22,6 +22,14 @@ pub trait PklMessage {
 
 pub(crate) mod macros {
     macro_rules! impl_pkl_message {
+        ($type:ident<$($lt:lifetime),+>, $id:expr) => {
+            impl<$($lt),+> $crate::api::msgapi::PklMessage for $type<$($lt),+> {
+                fn message_id() -> u64 {
+                    $id
+                }
+            }
+        };
+
         ($type:ty, $id:expr) => {
             impl $crate::api::msgapi::PklMessage for $type {
                 fn message_id() -> u64 {

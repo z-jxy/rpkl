@@ -1,10 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::{
-    evaluator::outgoing::codes::{READ_MODULE_REQUEST, READ_RESOURCE_REQUEST},
-    msgapi::macros::impl_pkl_message,
-};
-
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReadResourceRequest {

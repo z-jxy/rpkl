@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use codes::*;
 use serde::{Deserialize, Serialize};
 
-use super::{ExternalReader, CREATE_EVALUATOR_REQUEST_ID};
+use crate::api::msgapi::macros::impl_pkl_message;
+
+use super::{EvaluatorOptions, ExternalReader, CREATE_EVALUATOR_REQUEST_ID};
 
 pub mod codes {
     pub const CREATE_EVALUATOR: u64 = 0x20;
@@ -30,23 +32,30 @@ pub mod codes {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct CreateEvaluator {
+pub(crate) struct CreateEvaluator<'a> {
     pub request_id: u64,
     pub allowed_modules: Vec<String>,
     pub allowed_resources: Vec<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_module_readers: Option<Vec<ClientModuleReader>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_resource_readers: Option<Vec<ClientResourceReader>>,
-    pub env: Option<HashMap<String, String>>,
-    pub properties: Option<HashMap<String, String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
+    pub env: Option<HashMap<String, String>>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub external_module_readers: Option<HashMap<String, ExternalReader>>,
+    pub properties: Option<&'a HashMap<String, String>>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_resource_readers: Option<&'a HashMap<String, ExternalReader>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub external_module_readers: Option<&'a HashMap<String, ExternalReader>>,
 }
 
-impl Default for CreateEvaluator {
+impl Default for CreateEvaluator<'_> {
     fn default() -> Self {
         let env_vars: HashMap<String, String> = std::env::vars().collect();
         Self {
@@ -65,18 +74,67 @@ impl Default for CreateEvaluator {
                 "https:".into(),
                 "projectpackage:".into(),
             ],
-            client_module_readers: Some(vec![ClientModuleReader {
-                scheme: "customfs".to_string(),
-                has_hierarchical_uris: true,
-                is_globbable: true,
-                is_local: true,
-            }]),
-            client_resource_readers: None,
             env: Some(env_vars),
-            properties: Some(HashMap::new()),
+
+            client_module_readers: None,
+            client_resource_readers: None,
+            properties: None,
             external_resource_readers: None,
             external_module_readers: None,
         }
+    }
+}
+
+impl<'a> From<&'a EvaluatorOptions> for CreateEvaluator<'a> {
+    fn from(opts: &'a EvaluatorOptions) -> Self {
+        let mut evaluator_message = CreateEvaluator::default();
+
+        /* handle user defined options */
+        {
+            if let Some(props) = &opts.properties {
+                evaluator_message.properties = Some(props);
+            }
+
+            if let Some(readers) = opts.client_module_readers.as_ref() {
+                for reader in readers.iter() {
+                    evaluator_message
+                        .allowed_modules
+                        .push(reader.scheme().to_string());
+                }
+                let module_readers: Vec<ClientModuleReader> =
+                    readers.iter().map(|r| r.as_ref().into()).collect();
+                evaluator_message.client_module_readers = Some(module_readers);
+            }
+
+            if let Some(readers) = opts.client_resource_readers.as_ref() {
+                for reader in readers.iter() {
+                    evaluator_message
+                        .allowed_resources
+                        .push(reader.scheme().to_string());
+                }
+                let resource_readers: Vec<ClientResourceReader> =
+                    readers.iter().map(|r| r.as_ref().into()).collect();
+                evaluator_message.client_resource_readers = Some(resource_readers);
+            }
+
+            if let Some(readers) = &opts.external_resource_readers {
+                for uri in readers.keys() {
+                    evaluator_message.allowed_resources.push(uri.clone());
+                }
+
+                evaluator_message.external_resource_readers = Some(readers);
+            }
+
+            if let Some(readers) = &opts.external_module_readers {
+                for uri in readers.keys() {
+                    evaluator_message.allowed_modules.push(uri.clone());
+                }
+                evaluator_message.external_module_readers = Some(readers);
+            }
+        }
+        /* */
+
+        evaluator_message
     }
 }
 
@@ -111,8 +169,8 @@ pub struct ClientResourceReader {
 
 #[derive(Serialize)]
 #[serde(untagged)]
-pub enum OutgoingMessage {
-    CreateEvaluator(CreateEvaluator),
+pub(crate) enum OutgoingMessage<'a> {
+    CreateEvaluator(CreateEvaluator<'a>),
     EvaluateRequest(EvaluateRequest),
     CloseEvaluator(CloseEvaluator),
 }
@@ -143,23 +201,6 @@ pub struct InitializeResourceReaderRequest {
     pub scheme: String,
 }
 
-pub fn get_messagepack_header(msg: &OutgoingMessage) -> u64 {
-    match msg {
-        OutgoingMessage::CreateEvaluator(_) => CREATE_EVALUATOR,
-        OutgoingMessage::EvaluateRequest(_) => EVALUATE_REQUEST,
-        OutgoingMessage::CloseEvaluator(_) => CLOSE,
-    }
-}
-
-pub fn pack_msg(msg: OutgoingMessage) -> Vec<u8> {
-    let header = get_messagepack_header(&msg);
-    let mut serialized_request = Vec::new();
-    let _ = &(header, msg)
-        .serialize(
-            &mut rmp_serde::Serializer::new(&mut serialized_request)
-                .with_struct_map()
-                .with_binary(),
-        )
-        .unwrap();
-    serialized_request
-}
+impl_pkl_message!(CreateEvaluator<'a>, CREATE_EVALUATOR);
+impl_pkl_message!(EvaluateRequest, EVALUATE_REQUEST);
+impl_pkl_message!(CloseEvaluator, CLOSE);

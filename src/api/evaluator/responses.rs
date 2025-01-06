@@ -1,6 +1,4 @@
-use serde::{Deserialize, Serialize};
-
-use super::outgoing::ClientResourceReader;
+use serde::Deserialize;
 
 // #[derive(Debug, Clone)]
 // pub struct PklServerResponse<T>
@@ -11,14 +9,9 @@ use super::outgoing::ClientResourceReader;
 //     pub response: T,
 // }
 
+/// Represents a message received from the pkl server/process.
 #[derive(Debug, Clone)]
-pub struct PklServerResponse2<T> {
-    pub header: u64,
-    pub response: T,
-}
-
-#[derive(Debug, Clone)]
-pub struct PklServerResponseRaw {
+pub struct PklServerMessage {
     pub header: u64,
     pub response: rmpv::Value,
 }

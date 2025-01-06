@@ -21,7 +21,7 @@ use crate::{
                 ClientModuleReader, ClientResourceReader,
             },
             recv_msg,
-            responses::PklServerResponseRaw,
+            responses::PklServerMessage,
         },
         external_reader::outgoing::{
             InitializeModuleReaderResponse, InitializeResourceReaderResponse, ListModulesResponse,
@@ -183,7 +183,7 @@ impl ExternalReaderRuntime {
 
     fn handle_initalize_resource_reader<W: Write>(
         &self,
-        pkl_msg: &PklServerResponseRaw,
+        pkl_msg: &PklServerMessage,
         out: &mut W,
     ) -> Result<(), Box<dyn std::error::Error>> {
         debug_assert!(pkl_msg.header == INITIALIZE_RESOURCE_READER_REQUEST);
@@ -226,7 +226,7 @@ impl ExternalReaderRuntime {
 
     fn handle_initalize_module_reader<W: Write>(
         &self,
-        pkl_msg: &PklServerResponseRaw,
+        pkl_msg: &PklServerMessage,
         out: &mut W,
     ) -> Result<(), Box<dyn std::error::Error>> {
         debug_assert!(pkl_msg.header == INITIALIZE_MODULE_READER_REQUEST);

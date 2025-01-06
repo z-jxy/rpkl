@@ -3,7 +3,7 @@ use std::io::Write;
 use crate::utils::macros::_warn;
 
 use super::{
-    evaluator::responses::PklServerResponseRaw,
+    evaluator::responses::PklServerMessage,
     external_reader::{
         outgoing::{
             ListModulesResponse, ListResourcesResponse, ReadModuleResponse, ReadResourceResponse,
@@ -13,9 +13,12 @@ use super::{
     msgapi::PklMessage,
 };
 
+// TODO: there's a lot of duplicated code here
+// could be refactored, but the boilerplate needed and added complexity prob isn't worth it
+
 pub fn handle_list_resources<W: Write>(
     resource_readers: &[Box<dyn PklResourceReader>],
-    msg: &PklServerResponseRaw,
+    msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let response = msg.response.as_map().unwrap();
@@ -69,7 +72,7 @@ pub fn handle_list_resources<W: Write>(
 
 pub fn handle_list_modules<W: Write>(
     module_readers: &[Box<dyn PklModuleReader>],
-    msg: &PklServerResponseRaw,
+    msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let response = msg.response.as_map().unwrap();
@@ -123,7 +126,7 @@ pub fn handle_list_modules<W: Write>(
 
 pub fn handle_read_resource<W: Write>(
     resource_readers: &[Box<dyn PklResourceReader>],
-    msg: &PklServerResponseRaw,
+    msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let response = msg.response.as_map().unwrap();
@@ -176,7 +179,7 @@ pub fn handle_read_resource<W: Write>(
 
 pub fn handle_read_module<W: Write>(
     module_readers: &[Box<dyn PklModuleReader>],
-    msg: &PklServerResponseRaw,
+    msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let response = msg.response.as_map().unwrap();

@@ -1,6 +1,4 @@
-use rpkl::api::external_reader::{
-    outgoing::PathElements, reader::ExternalReaderRuntime, PklModuleReader, PklResourceReader,
-};
+use rpkl::api::external_reader::*;
 
 pub struct LdapReader;
 pub struct LdapsReader;
@@ -30,7 +28,7 @@ impl PklResourceReader for LdapsReader {
         Ok(uri.bytes().collect())
     }
 
-    fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>> {
+    fn list(&self, _uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>> {
         Ok(vec![])
     }
 }
@@ -40,7 +38,7 @@ impl PklModuleReader for ModuleReader {
         "remote"
     }
 
-    fn read(&self, uri: &str) -> Result<String, Box<dyn std::error::Error>> {
+    fn read(&self, _uri: &str) -> Result<String, Box<dyn std::error::Error>> {
         Ok("".to_string())
     }
 

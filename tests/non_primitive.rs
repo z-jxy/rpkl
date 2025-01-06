@@ -6,8 +6,6 @@ extern crate test;
 mod tests {
     use std::path::PathBuf;
 
-    use rpkl::Value;
-
     #[derive(serde::Deserialize, Debug)]
     #[allow(dead_code)]
     pub struct Config {
@@ -59,7 +57,7 @@ mod tests {
         #[derive(serde::Deserialize, Debug)]
         struct MappingConfig {
             paths: std::collections::HashMap<String, Vec<String>>,
-        };
+        }
 
         let config = rpkl::from_config::<MappingConfig>(path)?;
 

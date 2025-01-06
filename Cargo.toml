@@ -32,6 +32,3 @@ trace = ["tracing", "tracing-subscriber"]
 dhat-heap = ["dhat"]
 dhat-ad-hoc = ["dhat"]
 codegen = ["convert_case"]
-
-[profile.release]
-debug = 1

@@ -5,6 +5,10 @@ pub trait PklMessage {
 
     /// Encode/serialize the message to a byte vector.
     /// Used to ensure the proper message ID/code is associated with each message
+    ///
+    /// Also uses `.with_bytes(rmp_serde::config::BytesMode::ForceAll)` to serialize bytes
+    /// which is necessary to send the bytes in a way that the pkl process expects
+    /// (used by responses that contain binary; i.e `PklModuleReader`, `PklResourceReader`)
     fn encode_msg(&self) -> Result<Vec<u8>, rmp_serde::encode::Error>
     where
         Self: Serialize,
@@ -23,7 +27,7 @@ pub trait PklMessage {
 pub(crate) mod macros {
     macro_rules! impl_pkl_message {
         ($type:ident<$($lt:lifetime),+>, $id:expr) => {
-            impl<$($lt),+> $crate::api::msgapi::PklMessage for $type<$($lt),+> {
+            impl<$($lt),+> $crate::internal::msgapi::PklMessage for $type<$($lt),+> {
                 fn message_id() -> u64 {
                     $id
                 }
@@ -31,7 +35,7 @@ pub(crate) mod macros {
         };
 
         ($type:ty, $id:expr) => {
-            impl $crate::api::msgapi::PklMessage for $type {
+            impl $crate::internal::msgapi::PklMessage for $type {
                 fn message_id() -> u64 {
                     $id
                 }

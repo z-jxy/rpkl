@@ -1,22 +1,138 @@
+pub use crate::internal::msgapi::PathElements;
+use crate::internal::msgapi::{
+    incoming::PklServerMessage,
+    outgoing::{
+        ListModulesResponse, ListResourcesResponse, ReadModuleResponse, ReadResourceResponse,
+    },
+    PklMessage,
+};
+use crate::utils::macros::_warn;
 use std::io::Write;
 
-use crate::utils::macros::_warn;
+pub trait PklResourceReader {
+    /// Scheme returns the scheme part of the URL that this reader can read.
+    /// The value should be the URI scheme up to (not including) `:`
+    fn scheme(&self) -> &str;
 
-use super::{
-    evaluator::responses::PklServerMessage,
-    external_reader::{
-        outgoing::{
-            ListModulesResponse, ListResourcesResponse, ReadModuleResponse, ReadResourceResponse,
-        },
-        PklModuleReader, PklResourceReader,
-    },
-    msgapi::PklMessage,
-};
+    /// Tells whether the path part of ths URI has a
+    /// [hier-part](https://datatracker.ietf.org/doc/html/rfc3986#section-3).
+    ///
+    /// An example of a hierarchical URI is `file:///path/to/my/file`, where
+    /// `/path/to/my/file` designates a nested path through the `/` character.
+    ///
+    /// An example of a non-hierarchical URI is `pkl.base`, where the `base` does not denote
+    /// any form of hierarchy.
+    fn has_hierarchical_uris(&self) -> bool {
+        false
+    }
+
+    /// Tells whether this reader supports globbing.
+    fn is_globbable(&self) -> bool {
+        false
+    }
+
+    /// Read the contents of the resource at the given URI.
+    fn read(&self, uri: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>>;
+
+    /// List the contents of the resource at the given URI.
+    fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>>;
+}
+
+pub trait PklModuleReader {
+    /// Scheme returns the scheme part of the URL that this reader can read.
+    /// The value should be the URI scheme up to (not including) `:`
+    fn scheme(&self) -> &str;
+
+    /// Tells whether the path part of ths URI has a
+    /// [hier-part](https://datatracker.ietf.org/doc/html/rfc3986#section-3).
+    ///
+    /// An example of a hierarchical URI is `file:///path/to/my/file`, where
+    /// `/path/to/my/file` designates a nested path through the `/` character.
+    ///
+    /// An example of a non-hierarchical URI is `pkl.base`, where the `base` does not denote
+    /// any form of hierarchy.
+    fn has_hierarchical_uris(&self) -> bool {
+        false
+    }
+
+    /// Tells whether this reader supports globbing.
+    fn is_globbable(&self) -> bool {
+        false
+    }
+
+    /// Tells whether the module is local to the system.
+    ///
+    /// A local resource that [hasHierarchicalUris] supports triple-dot imports.
+    fn is_local(&self) -> bool;
+
+    /// Read the contents of the module at the given URI.
+    fn read(&self, uri: &str) -> Result<String, Box<dyn std::error::Error>>;
+
+    /// List the contents of the module at the given URI.
+    fn list(&self, uri: &str) -> Result<Vec<PathElements>, Box<dyn std::error::Error>>;
+}
+
+pub trait IntoResourceReaders {
+    fn into_readers(self) -> Vec<Box<dyn PklResourceReader>>;
+}
+
+pub trait IntoModuleReaders {
+    fn into_readers(self) -> Vec<Box<dyn PklModuleReader>>;
+}
+
+macro_rules! impl_into_readers {
+    (resource, $(($type:ident)),+) => {
+        #[allow(non_snake_case)]
+        impl<$($type),+> IntoResourceReaders for ($($type),+)
+        where
+            $($type: PklResourceReader + 'static),+
+        {
+            fn into_readers(self) -> Vec<Box<dyn PklResourceReader>> {
+                let ($($type),+) = self;
+                vec![$(Box::new($type)),+]
+            }
+        }
+    };
+    (module, $(($type:ident)),+) => {
+        #[allow(non_snake_case)]
+        impl<$($type),+> IntoModuleReaders for ($($type),+)
+        where
+            $($type: PklModuleReader + 'static),+
+        {
+            fn into_readers(self) -> Vec<Box<dyn PklModuleReader>> {
+                let ($($type),+) = self;
+                vec![$(Box::new($type)),+]
+            }
+        }
+    };
+}
+
+impl<T: PklResourceReader + 'static> IntoResourceReaders for T {
+    fn into_readers(self) -> Vec<Box<dyn PklResourceReader>> {
+        vec![Box::new(self)]
+    }
+}
+
+impl<T: PklModuleReader + 'static> IntoModuleReaders for T {
+    fn into_readers(self) -> Vec<Box<dyn PklModuleReader>> {
+        vec![Box::new(self)]
+    }
+}
+
+impl_into_readers!(resource, (T1), (T2));
+impl_into_readers!(resource, (T1), (T2), (T3));
+impl_into_readers!(resource, (T1), (T2), (T3), (T4));
+impl_into_readers!(resource, (T1), (T2), (T3), (T4), (T5));
+
+impl_into_readers!(module, (T1), (T2));
+impl_into_readers!(module, (T1), (T2), (T3));
+impl_into_readers!(module, (T1), (T2), (T3), (T4));
+impl_into_readers!(module, (T1), (T2), (T3), (T4), (T5));
 
 // TODO: there's a lot of duplicated code here
 // could be refactored, but the boilerplate needed and added complexity prob isn't worth it
 
-pub fn handle_list_resources<W: Write>(
+pub(crate) fn handle_list_resources<W: Write>(
     resource_readers: &[Box<dyn PklResourceReader>],
     msg: &PklServerMessage,
     writer: &mut W,
@@ -70,15 +186,12 @@ pub fn handle_list_resources<W: Write>(
     Ok(())
 }
 
-pub fn handle_list_modules<W: Write>(
+pub(crate) fn handle_list_modules<W: Write>(
     module_readers: &[Box<dyn PklModuleReader>],
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let response = msg.response.as_map().unwrap();
-
-    // TODO: could add `with-serde` feature to rmpv to make this easier
-    // but might be overkill for messages with a small number of fields
 
     let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
     let request_id: i64 = extract_field(response, "requestId")?;
@@ -124,7 +237,7 @@ pub fn handle_list_modules<W: Write>(
     Ok(())
 }
 
-pub fn handle_read_resource<W: Write>(
+pub(crate) fn handle_read_resource<W: Write>(
     resource_readers: &[Box<dyn PklResourceReader>],
     msg: &PklServerMessage,
     writer: &mut W,
@@ -177,7 +290,7 @@ pub fn handle_read_resource<W: Write>(
     Ok(())
 }
 
-pub fn handle_read_module<W: Write>(
+pub(crate) fn handle_read_module<W: Write>(
     module_readers: &[Box<dyn PklModuleReader>],
     msg: &PklServerMessage,
     writer: &mut W,

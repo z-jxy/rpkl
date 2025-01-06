@@ -291,24 +291,18 @@ mod tests {
         let options = EvaluatorOptions::default()
             .external_resource_reader(
                 "ldap",
-                api::evaluator::ExternalReader {
-                    executable: "target/debug/examples/external_resource_reader".into(),
-                    arguments: vec![],
-                },
+                "target/debug/examples/external_resource_reader",
+                &[],
             )
             .external_resource_reader(
                 "ldaps",
-                api::evaluator::ExternalReader {
-                    executable: "target/debug/examples/external_resource_reader".into(),
-                    arguments: vec![],
-                },
+                "target/debug/examples/external_resource_reader",
+                &[],
             )
             .external_module_reader(
                 "remote",
-                api::evaluator::ExternalReader {
-                    executable: "target/debug/examples/external_resource_reader".into(),
-                    arguments: vec![],
-                },
+                "target/debug/examples/external_resource_reader",
+                &[],
             );
 
         rpkl::from_config_with_options::<Config>(path, options).unwrap();

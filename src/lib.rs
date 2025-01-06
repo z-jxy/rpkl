@@ -4,6 +4,7 @@ use pkl::PklSerialize;
 pub mod api;
 mod context;
 pub mod error;
+mod internal;
 pub mod pkl;
 mod utils;
 pub mod value;

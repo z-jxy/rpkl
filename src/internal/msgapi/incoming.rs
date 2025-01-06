@@ -1,8 +1,25 @@
+/// Represents a message received from the pkl server/process.
+#[derive(Debug, Clone)]
+pub struct PklServerMessage {
+    pub header: u64,
+    pub response: rmpv::Value,
+}
+
+// TODO: decide whether to implement deserializing for message or keep the current approach
+/*
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize)]
+pub struct EvaluatorResponse {
+    #[serde(rename = "requestId")]
+    pub request_id: i64,
+    #[serde(rename = "evaluatorId")]
+    pub evaluator_id: i64,
+}
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadResourceRequest {
+struct ReadResourceRequest {
     /// A number identifying this request.
     request_id: i64,
 
@@ -20,42 +37,40 @@ pub struct ReadResourceRequest {
 /// Read a module at the given URI. This message occurs during the evaluation of an import statement or expression (import/import*), when a scheme matches a client module reader.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ReadModuleRequest {
+struct ReadModuleRequest {
     /// A number identifying this request.
-    request_id: i64,
+    _request_id: i64,
 
     /// A number identifying this evaluator.
-    evaluator_id: i64,
+    _evaluator_id: i64,
 
     /// The URI of the module.
-    uri: String,
+    _uri: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListResourcesRequest {
+struct ListResourcesRequest {
     /// A number identifying this request.
-    request_id: i64,
+    _request_id: i64,
 
     /// A number identifying this evaluator.
-    evaluator_id: i64,
+    _evaluator_id: i64,
 
     /// The URI of the module.
-    uri: String,
+    _uri: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListModulesRequest {
+struct ListModulesRequest {
     /// A number identifying this request.
-    request_id: i64,
+    _request_id: i64,
 
     /// A number identifying this evaluator.
-    evaluator_id: i64,
+    _evaluator_id: i64,
 
     /// The URI of the module.
-    uri: String,
+    _uri: String,
 }
-
-// impl_pkl_message!(ReadModuleRequest, READ_MODULE_REQUEST);
-// impl_pkl_message!(ReadResourceRequest, READ_RESOURCE_REQUEST);
+*/

@@ -31,7 +31,8 @@ pub mod example {
 
 fn main() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
+        .join("tests")
+        .join("pkl")
         .join("example.pkl");
 
     #[cfg(feature = "codegen")]

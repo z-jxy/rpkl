@@ -16,7 +16,8 @@ enum Mode {
 
 fn main() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
+        .join("tests")
+        .join("pkl")
         .join("enums.pkl");
     let value = rpkl::from_config::<Config>(path);
     println!("{:?}", value);

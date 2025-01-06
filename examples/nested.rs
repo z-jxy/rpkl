@@ -10,7 +10,8 @@ struct Config {
 
 fn main() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("examples")
+        .join("tests")
+        .join("pkl")
         .join("nested.pkl");
     let value = rpkl::from_config::<Config>(path);
 

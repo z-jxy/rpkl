@@ -17,7 +17,7 @@ fn main() {
         .join("allowed-resources.pkl");
 
     let options = EvaluatorOptions::default().properties([("name", "Ferris")]);
-    let config: Config = rpkl::from_config_with_options(path, Some(options)).unwrap();
+    let config: Config = rpkl::from_config_with_options(path, options).unwrap();
 
     println!("{:?}", config);
 }

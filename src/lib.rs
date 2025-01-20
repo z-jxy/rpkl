@@ -1,22 +1,19 @@
-use api::evaluator::EvaluatorOptions;
 use pkl::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;
 mod context;
 pub mod error;
+mod internal;
 pub mod pkl;
 mod utils;
 pub mod value;
 
 pub use error::{Error, Result};
 
+pub use api::evaluator::EvaluatorOptions;
+use utils::macros::_trace;
 pub use value::PklValue as Value;
-
-#[cfg(feature = "trace")]
-use tracing::{debug, error, span, trace, Level};
-#[cfg(feature = "trace")]
-use tracing_subscriber::FmtSubscriber;
 
 /// Evaluates a `.pkl` file and deserializes it as `T`. If you need to pass options to the evaluator, such as properties, use [`from_config_with_options`].
 ///
@@ -49,7 +46,7 @@ use tracing_subscriber::FmtSubscriber;
 /// }
 ///
 /// # fn main() -> Result<(), rpkl::Error> {
-/// let config: Database = rpkl::from_config("config.pkl")?;
+/// let config: Config = rpkl::from_config("config.pkl")?;
 /// #    Ok(())
 /// # }
 /// ```
@@ -57,7 +54,7 @@ pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
 {
-    return from_config_with_options(path, None);
+    return from_config_with_options(path, EvaluatorOptions::default());
 }
 
 /// Allows for passing options to the evaluator, such as properties (e.g. `read("prop:username")`). See [`EvaluatorOptions`] for more information.
@@ -75,11 +72,12 @@ where
 /// ```no_run
 ///
 /// use serde::Deserialize;
+/// use rpkl::api::evaluator::EvaluatorOptions;
 ///
 /// #[derive(Deserialize)]
 /// struct Config {
 ///     ip: String,
-///     database: Database,
+///     database: Credentials,
 /// }
 ///
 /// #[derive(Deserialize)]
@@ -91,19 +89,22 @@ where
 /// # fn main() -> Result<(), rpkl::Error> {
 /// let options = EvaluatorOptions::default()
 ///     .properties([("username", "root"), ("password", "password123")]);
-/// let config: Database = rpkl::from_config("config.pkl")?;
+/// let config: Config = rpkl::from_config("config.pkl")?;
 /// #    Ok(())
 /// # }
 /// ```
 pub fn from_config_with_options<T>(
     path: impl AsRef<std::path::Path>,
-    options: Option<EvaluatorOptions>,
+    options: EvaluatorOptions,
 ) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
 {
     #[cfg(feature = "trace")]
     {
+        use tracing::Level;
+        use tracing_subscriber::FmtSubscriber;
+
         let subscriber = tracing_subscriber::FmtSubscriber::builder()
             .with_max_level(Level::TRACE)
             .finish();
@@ -116,8 +117,7 @@ where
 
     let mut pkld = pkl_mod.serialize_pkl_ast()?;
 
-    #[cfg(feature = "trace")]
-    trace!("serialized pkl data {:?}", pkld);
+    _trace!("serialized pkl data {:?}", pkld);
 
     T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
         .map_err(|e| Error::DeserializeError(format!("{}", e)))

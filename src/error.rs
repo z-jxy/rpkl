@@ -18,6 +18,9 @@ pub enum Error {
     SerializeAst,
     ParseError(String),
     DeserializeError(String),
+
+    MsgpackSerializeError(rmp_serde::encode::Error),
+    MsgpackEncodeError(rmpv::encode::Error),
     MsgpackDecodeError(rmpv::decode::Error),
 
     Eof,
@@ -75,8 +78,26 @@ impl From<std::io::Error> for Error {
     }
 }
 
+impl From<rmp_serde::encode::Error> for Error {
+    fn from(e: rmp_serde::encode::Error) -> Self {
+        Error::MsgpackSerializeError(e)
+    }
+}
+
+impl From<rmpv::encode::Error> for Error {
+    fn from(e: rmpv::encode::Error) -> Self {
+        Error::MsgpackEncodeError(e)
+    }
+}
+
 impl From<rmpv::decode::Error> for Error {
     fn from(e: rmpv::decode::Error) -> Self {
         Error::MsgpackDecodeError(e)
+    }
+}
+
+impl From<Box<dyn std::error::Error>> for Error {
+    fn from(e: Box<dyn std::error::Error>) -> Self {
+        Error::Message(e.to_string())
     }
 }

@@ -309,7 +309,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/rpkl/examples/example.pkl".into()),
+            Value::String("file://placeholder.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),

@@ -118,7 +118,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/code/rust/rpkl/examples/example.pkl".into()),
+            Value::String("file:///placeholder.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),
@@ -210,7 +210,7 @@ mod tests {
         let ast = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
-            Value::String("file:///Users/testing/code/rust/rpkl/examples/example.pkl".into()),
+            Value::String("file://placeholder.pkl".into()),
             Value::Array(vec![
                 Value::Array(vec![
                     Value::Integer(16.into()),
@@ -289,17 +289,17 @@ mod tests {
             .join("external-reader.pkl");
 
         let options = EvaluatorOptions::default()
-            .external_resource_reader(
+            .add_external_resource_reader(
                 "ldap",
                 "target/debug/examples/external_resource_reader",
                 &[],
             )
-            .external_resource_reader(
+            .add_external_resource_reader(
                 "ldaps",
                 "target/debug/examples/external_resource_reader",
                 &[],
             )
-            .external_module_reader(
+            .add_external_module_reader(
                 "remote",
                 "target/debug/examples/external_resource_reader",
                 &[],

@@ -117,7 +117,7 @@ impl EvaluatorOptions {
     }
 
     /// Add an external resource reader to the evaluator options map
-    pub fn external_resource_reader(
+    pub fn add_external_resource_reader(
         mut self,
         key: impl Into<String>,
         executable: impl Into<String>,
@@ -140,7 +140,7 @@ impl EvaluatorOptions {
         self
     }
 
-    pub fn external_module_reader(
+    pub fn add_external_module_reader(
         mut self,
         key: impl Into<String>,
         executable: impl Into<String>,

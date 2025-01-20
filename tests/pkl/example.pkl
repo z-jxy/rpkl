@@ -1,0 +1,28 @@
+
+ip = "127.0.0.1"
+port = 8080
+
+ints = IntSeq (1, 7)
+
+birds: Listing<String> = new {
+  "Pigeon"
+  "Hawk"
+  "Penguin"
+}
+
+mapping = new Mapping {
+  ["map_key"] = "map_value"
+  ["map_key2"] = "map_value2"
+}
+
+// equivalent to a new struct
+anon_map = new {
+  ["anon_key"] = "anon_value"
+  ["anon_key2"] = "anon_value2"
+}
+
+database {
+    username = "admin"
+    password = "secret"
+}
+

@@ -1,13 +1,20 @@
 use std::collections::HashMap;
+#[cfg(feature = "indexmap")]
+use indexmap::IndexMap;
 
 use serde::Serialize;
 
 use crate::{pkl::internal::Integer, value::DataSize};
 
+#[cfg(feature = "indexmap")]
+pub type MapImpl<K, V> = IndexMap<K, V>;
+#[cfg(not(feature = "indexmap"))]
+pub type MapImpl<K, V> = HashMap<K, V>;
+
 /// Represents a `.pkl` value
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum PklValue {
-    Map(HashMap<String, PklValue>),
+    Map(MapImpl<String, PklValue>),
     List(Vec<PklValue>),
     /// Represents a regex string
     Regex(String),
@@ -24,7 +31,7 @@ pub enum PklValue {
 }
 
 impl PklValue {
-    pub fn as_map(&self) -> Option<&HashMap<String, PklValue>> {
+    pub fn as_map(&self) -> Option<&MapImpl<String, PklValue>> {
         match self {
             PklValue::Map(m) => Some(m),
             _ => None,

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use crate::value::value::MapImpl;
 
 use crate::internal::msgapi::codes::*;
 use serde::Serialize;
@@ -50,7 +51,7 @@ pub(crate) struct CreateEvaluator<'a> {
     pub env: Option<HashMap<String, String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub properties: Option<&'a HashMap<String, String>>,
+    pub properties: Option<&'a MapImpl<String, String>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_resource_readers: Option<&'a HashMap<String, ExternalReader>>,

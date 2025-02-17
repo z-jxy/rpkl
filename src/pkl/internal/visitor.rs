@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt};
-
+#[cfg(feature = "indexmap")]
+use indexmap::IndexMap;
 use serde::de::{self, Visitor};
 
 use crate::Value;
@@ -217,11 +218,23 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         A: de::MapAccess<'de>,
     {
-        let mut hashmap = HashMap::new();
+        let mut map_impl = if let Some(size) = map.size_hint() {
+            #[cfg(feature = "indexmap")]
+            let m = IndexMap::with_capacity(size);
+            #[cfg(not(feature = "indexmap"))]
+            let m = HashMap::with_capacity(size);
+            m
+        } else {
+            #[cfg(feature = "indexmap")]
+            let m = IndexMap::new();
+            #[cfg(not(feature = "indexmap"))]
+            let m = HashMap::new();
+            m
+        };
         while let Some((key, value)) = map.next_entry()? {
-            hashmap.insert(key, value);
+            map_impl.insert(key, value);
         }
-        Ok(Value::Map(hashmap))
+        Ok(Value::Map(map_impl))
     }
 
     fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>

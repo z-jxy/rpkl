@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use crate::pkl::de::{DurationMapAccess, EnumDeserializer, RangeMapAccess, TupleSeqAccess};
 use crate::pkl::internal::{self};
 use crate::value::datasize::DataSizeMapAccess;
+use crate::value::value::MapImpl;
 use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
@@ -16,11 +15,11 @@ use crate::Value as PklValue;
 use crate::error::{Error, Result};
 
 pub struct Deserializer<'de> {
-    map: &'de HashMap<String, PklValue>,
+    map: &'de MapImpl<String, PklValue>,
 }
 
 impl<'de> Deserializer<'de> {
-    pub fn from_pkl_map(map: &'de HashMap<String, PklValue>) -> Self {
+    pub fn from_pkl_map(map: &'de MapImpl<String, PklValue>) -> Self {
         Deserializer { map }
     }
 }
@@ -277,6 +276,10 @@ impl PklValue {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::pkl::PklSerialize;
+    use rmpv::Value;
+    use serde::Deserialize;
 
     #[cfg(feature = "dhat-heap")]
     #[global_allocator]
@@ -284,11 +287,6 @@ mod tests {
 
     #[test]
     fn deserialize() {
-        use super::*;
-        use crate::pkl::PklSerialize;
-        use rmpv::Value;
-        use serde::Deserialize;
-
         #[cfg(feature = "dhat-heap")]
         let _profiler = dhat::Profiler::new_heap();
 
@@ -376,5 +374,61 @@ mod tests {
             },
         };
         assert_eq!(expected, deserialized)
+    }
+
+    #[test]
+    #[cfg(feature = "indexmap")]
+    fn test_map_ordering() {
+        use crate::pkl::internal::ObjectMember;
+        use crate::pkl::internal::IPklValue;
+        use crate::pkl::internal::PklPrimitive;
+
+        // Create a sequence of members in a specific order
+        let members = vec![
+            ObjectMember(
+                16,
+                "third".to_string(),
+                IPklValue::Primitive(PklPrimitive::String("3".to_string())),
+            ),
+            ObjectMember(
+                16,
+                "first".to_string(),
+                IPklValue::Primitive(PklPrimitive::String("1".to_string())),
+            ),
+            ObjectMember(
+                16,
+                "second".to_string(),
+                IPklValue::Primitive(PklPrimitive::String("2".to_string())),
+            ),
+        ];
+
+        // Serialize to a map
+        let map = members.serialize_pkl_ast().unwrap();
+
+        // Verify the order is preserved
+        let keys: Vec<_> = map.keys().collect();
+        assert_eq!(keys, vec!["third", "first", "second"]);
+
+        // Verify values are also in the correct order
+        let values: Vec<_> = map
+            .values()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert_eq!(values, vec!["3", "1", "2"]);
+
+        // Test that order is preserved through deserialization
+        #[derive(Debug, Deserialize)]
+        struct OrderTest {
+            third: String,
+            first: String,
+            second: String,
+        }
+
+        let mut deserializer = Deserializer::from_pkl_map(&map);
+        let deserialized = OrderTest::deserialize(&mut deserializer).unwrap();
+        
+        assert_eq!(deserialized.third, "3");
+        assert_eq!(deserialized.first, "1");
+        assert_eq!(deserialized.second, "2");
     }
 }

@@ -5,6 +5,9 @@ use std::{
     process::{Child, Command, Stdio},
 };
 
+#[cfg(feature = "indexmap")]
+use indexmap::IndexMap;
+
 use crate::{
     api::reader::{
         handle_list_modules, handle_list_resources, handle_read_module, handle_read_resource,
@@ -16,6 +19,7 @@ use crate::{
         PklMessage,
     },
     utils::{self, macros::_debug},
+    value::value::MapImpl,
 };
 
 use crate::internal::msgapi::codes::{
@@ -36,7 +40,7 @@ pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 // options that can be provided to the evaluator, such as properties (-p flag from CLI)
 pub struct EvaluatorOptions {
     /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files
-    pub properties: Option<HashMap<String, String>>,
+    pub properties: Option<MapImpl<String, String>>,
 
     /// Client-side module readers
     pub client_module_readers: Option<Vec<Box<dyn PklModuleReader>>>,
@@ -73,6 +77,9 @@ impl EvaluatorOptions {
         if let Some(properties) = self.properties.as_mut() {
             properties.insert(key.into(), value.into());
         } else {
+            #[cfg(feature = "indexmap")]
+            let mut map = IndexMap::new();
+            #[cfg(not(feature = "indexmap"))]
             let mut map = HashMap::new();
             map.insert(key.into(), value.into());
             self.properties = Some(map);
@@ -91,7 +98,7 @@ impl EvaluatorOptions {
             properties
                 .into_iter()
                 .map(|(k, v)| (k.into(), v.into()))
-                .collect(),
+                .collect::<MapImpl<_, _>>(),
         );
         self
     }

@@ -1,13 +1,12 @@
-use std::collections::HashMap;
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
 use crate::context::Context;
 use crate::error::{Error, Result};
 use crate::value::value::MapImpl;
 
-#[allow(unused_imports)]
-use crate::pkl::internal::type_constants::{self, pkl_type_id_str};
+use crate::pkl::internal::type_constants::{self};
 
 use crate::pkl::{
     self,
@@ -111,19 +110,20 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
         }
         type_constants::MAPPING | type_constants::MAP => {
             let values = &slots[0];
-            let mut mapping: MapImpl<String, PklValue> = if let Some(size) = values.as_map().map(|m| m.len()) {
-                #[cfg(feature = "indexmap")]
-                let m = IndexMap::with_capacity(size);
-                #[cfg(not(feature = "indexmap"))]
-                let m = HashMap::with_capacity(size);
-                m
-            } else {
-                #[cfg(feature = "indexmap")]
-                let m = IndexMap::new();
-                #[cfg(not(feature = "indexmap"))]
-                let m = HashMap::new();
-                m
-            };
+            let mut mapping: MapImpl<String, PklValue> =
+                if let Some(size) = values.as_map().map(|m| m.len()) {
+                    #[cfg(feature = "indexmap")]
+                    let m = IndexMap::with_capacity(size);
+                    #[cfg(not(feature = "indexmap"))]
+                    let m = HashMap::with_capacity(size);
+                    m
+                } else {
+                    #[cfg(feature = "indexmap")]
+                    let m = IndexMap::new();
+                    #[cfg(not(feature = "indexmap"))]
+                    let m = HashMap::new();
+                    m
+                };
             let values = values.as_map().unwrap();
             for (k, v) in values.iter() {
                 let key = k.as_str().expect("expected key for mapping");

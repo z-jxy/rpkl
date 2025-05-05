@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
-use crate::Result;
 use crate::value::value::MapImpl;
+use crate::Result;
 
 use super::{internal::ObjectMember, PklMod};
 use crate::Value as PklValue;
@@ -47,7 +47,7 @@ fn serialize_members<T: IntoIterator<Item = ObjectMember>>(
     };
 
     for member in members {
-        let (k, v) = member.to_pkl_value()?;
+        let (k, v) = member.into_pkl_value()?;
         pkl_object.insert(k, v);
     }
 

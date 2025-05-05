@@ -13,7 +13,7 @@ impl<T> Context<T> for Error {
     where
         C: Display + Send + Sync + 'static,
     {
-        Err(Error::Message(format!("{}: {}", context, self)))
+        Err(Error::Message(format!("{context}: {self}")))
     }
 }
 
@@ -22,6 +22,6 @@ impl<T> Context<T> for Option<T> {
     where
         C: Display + Send + Sync + 'static,
     {
-        self.ok_or_else(|| Error::Message(format!("{}", context)))
+        self.ok_or_else(|| Error::Message(format!("{context}")))
     }
 }

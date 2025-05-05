@@ -1,7 +1,7 @@
-use std::{collections::HashMap, fmt};
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
 use serde::de::{self, Visitor};
+use std::{collections::HashMap, fmt};
 
 use crate::Value;
 
@@ -39,7 +39,6 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        use std::i32;
         #[cfg(feature = "trace")]
         debug!("visiting i64: {}", value);
 
@@ -50,7 +49,7 @@ impl<'de> Visitor<'de> for PklVisitor {
                 Ok(Value::Int(crate::pkl::internal::Integer::Neg(value)))
             }
         } else {
-            Err(E::custom(format!("i32 out of range: {}", value)))
+            Err(E::custom(format!("i32 out of range: {value}")))
         }
     }
 
@@ -98,7 +97,7 @@ impl<'de> Visitor<'de> for PklVisitor {
         if v <= i64::MAX as u64 {
             Ok(Value::Int(crate::pkl::internal::Integer::Pos(v)))
         } else {
-            Err(E::custom(format!("u64 out of range: {}", v)))
+            Err(E::custom(format!("u64 out of range: {v}")))
         }
     }
 

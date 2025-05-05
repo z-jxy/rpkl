@@ -33,7 +33,7 @@ impl<'a, 'de> Deserializer<'de> for TupleDeserializer<'a> {
         visitor
             .visit_seq(TupleSeqAccess {
                 index: 0,
-                pair: (&self.pair.0, &self.pair.1),
+                pair: (self.pair.0, self.pair.1),
             })
             .map_err(|_| crate::Error::Message("failed to deserialize tuple".to_string()))
     }
@@ -62,6 +62,6 @@ impl<'a, 'de> SeqAccess<'de> for TupleSeqAccess<'a> {
 
         self.index += 1;
 
-        seed.deserialize(PklValueDeserializer(&element)).map(Some)
+        seed.deserialize(PklValueDeserializer(element)).map(Some)
     }
 }

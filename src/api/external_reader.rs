@@ -24,6 +24,7 @@ use crate::{
     utils::macros::{_info, _warn},
 };
 
+#[derive(Default)]
 pub struct ExternalReaderRuntime {
     resource_readers: Vec<Box<dyn PklResourceReader>>,
     module_readers: Vec<Box<dyn PklModuleReader>>,
@@ -31,10 +32,7 @@ pub struct ExternalReaderRuntime {
 
 impl ExternalReaderRuntime {
     pub fn new() -> Self {
-        Self {
-            resource_readers: Vec::new(),
-            module_readers: Vec::new(),
-        }
+        Self::default()
     }
 
     /// Add a single, or tuple of resource readers to the client.
@@ -84,7 +82,7 @@ impl ExternalReaderRuntime {
         debug_assert!(pkl_msg.header == INITIALIZE_RESOURCE_READER_REQUEST);
 
         let map = pkl_msg.response.as_map().unwrap();
-        let request_id = map.get(0).unwrap().1.as_i64().unwrap();
+        let request_id = map.first().unwrap().1.as_i64().unwrap();
         let scheme = map.get(1).unwrap().1.as_str().unwrap();
 
         // TODO: send error to pkl
@@ -127,7 +125,7 @@ impl ExternalReaderRuntime {
         debug_assert!(pkl_msg.header == INITIALIZE_MODULE_READER_REQUEST);
 
         let map = pkl_msg.response.as_map().unwrap();
-        let request_id = map.get(0).unwrap().1.as_i64().unwrap();
+        let request_id = map.first().unwrap().1.as_i64().unwrap();
         let scheme = map.get(1).unwrap().1.as_str().unwrap();
 
         // TODO: send error to pkl

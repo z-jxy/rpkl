@@ -32,7 +32,7 @@ impl<'a, 'de> Deserializer<'de> for RangeDeserializer<'a> {
                 end: self.end,
                 state: 0,
             })
-            .map_err(|e| crate::Error::Message(format!("failed to deserialize range: {}", e)))
+            .map_err(|e| crate::Error::Message(format!("failed to deserialize range: {e}")))
     }
 }
 

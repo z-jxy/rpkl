@@ -19,5 +19,5 @@ fn main() {
     let options = EvaluatorOptions::default().properties([("name", "Ferris")]);
     let config: Config = rpkl::from_config_with_options(path, options).unwrap();
 
-    println!("{:?}", config);
+    println!("{config:?}");
 }

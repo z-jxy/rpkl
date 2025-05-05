@@ -30,7 +30,7 @@ impl ObjectMember {
     /// # Returns
     ///
     /// A tuple containing the member's identifier and its JSON value
-    pub fn to_pkl_value(self) -> Result<(String, PklValue)> {
+    pub(crate) fn into_pkl_value(self) -> Result<(String, PklValue)> {
         let (_, ident, value) = self.take();
         let v = match value {
             IPklValue::NonPrimitive(np) => match np {
@@ -39,14 +39,12 @@ impl ObjectMember {
                     PklValue::Map(children.serialize_pkl_ast()?)
                 }
                 PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
-                    PklValue::List(items.into_iter().map(|i| i.into()).collect())
+                    PklValue::List(items.into_iter().collect())
                 }
                 PklNonPrimitive::Mapping(_, m) => m,
                 PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
                 PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
-                PklNonPrimitive::Pair(_, a, b) => {
-                    PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
-                }
+                PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
                 PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
                 PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
             },
@@ -119,14 +117,12 @@ impl From<PklNonPrimitive> for PklValue {
                 PklValue::Map(children.serialize_pkl_ast().unwrap())
             }
             PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
-                PklValue::List(items.into_iter().map(|i| i.into()).collect())
+                PklValue::List(items.into_iter().collect())
             }
             PklNonPrimitive::Mapping(_, m) => m,
             PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
             PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
-            PklNonPrimitive::Pair(_, a, b) => {
-                PklValue::Pair(Box::new(a.into()), Box::new(b.into()))
-            }
+            PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
             PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
             PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
         }

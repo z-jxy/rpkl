@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::value::value::MapImpl;
+use std::collections::HashMap;
 
 use crate::internal::msgapi::codes::*;
 use serde::Serialize;
@@ -107,7 +107,10 @@ impl<'a> From<&'a EvaluatorOptions> for CreateEvaluator<'a> {
                 }
                 let module_readers: Vec<ClientModuleReader> = readers
                     .iter()
-                    .map(|r: &Box<dyn PklModuleReader>| r.as_ref().into())
+                    .map(|r| {
+                        let reader: &dyn PklModuleReader = r.as_ref();
+                        reader.into()
+                    })
                     .collect();
                 evaluator_message.client_module_readers = Some(module_readers);
             }

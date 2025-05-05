@@ -1,6 +1,6 @@
 [package]
 name = "rpkl"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/z-jxy/rpkl"
@@ -19,6 +19,9 @@ dhat = { version = "0.3.3", optional = true }
 indexmap = { version = "2.2.3", features = ["serde"], optional = true }
 tracing = { version = "0.1.40", optional = true }
 tracing-subscriber = { version = "0.3.18", optional = true }
+
+[lints.clippy]
+complexity = "warn"
 
 [target.'cfg(windows)'.dependencies]
 dunce = "1.0.4"

@@ -33,9 +33,9 @@ mod tests {
     macro_rules! time {
         ( $($s:stmt);* $(;)?) => {
             let now = std::time::Instant::now();
-            (||{
+            {
                 $($s)*
-            })();
+            };
             let elapsed = now.elapsed();
             print_time!(elapsed);
         }
@@ -176,11 +176,11 @@ mod tests {
         };
         let now = std::time::Instant::now();
         let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
-        let mut mapped = pkl_mod
+        let mapped = pkl_mod
             .serialize_pkl_ast()
             .expect("failed to serialize pkl module");
 
-        let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+        let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");
 
         let elapsed = now.elapsed();
@@ -262,11 +262,11 @@ mod tests {
             b.iter(|| {
                 for _ in 0..100 {
                     let pkl_mod = api::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
-                    let mut mapped = pkl_mod
+                    let mapped = pkl_mod
                         .serialize_pkl_ast()
                         .expect("failed to serialize pkl module");
 
-                    Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+                    Config::deserialize(&mut Deserializer::from_pkl_map(& mapped))
                         .expect("failed to deserialize");
                 }
             });
@@ -345,11 +345,11 @@ mod non_primitive_values {
 
         assert!(config.numbers.len() == 4);
 
-        assert!(config.numbers[0].is_number() == false);
+        assert!(!config.numbers[0].is_number());
 
-        assert!(config.numbers[2].is_number() == true);
+        assert!(config.numbers[2].is_number());
 
-        assert!(config.numbers[3].is_bool() == true);
+        assert!(config.numbers[3].is_bool());
 
         Ok(())
     }

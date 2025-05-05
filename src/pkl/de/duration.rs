@@ -26,7 +26,7 @@ impl<'a, 'de> Deserializer<'de> for DurationDeserializer<'a> {
     {
         visitor
             .visit_map(DurationMapAccess {
-                duration: &self.duration,
+                duration: self.duration,
                 state: 0,
             })
             .map_err(|_| crate::Error::Message("failed to deserialize duration".to_string()))

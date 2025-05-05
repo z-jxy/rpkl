@@ -54,7 +54,7 @@ pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
 {
-    return from_config_with_options(path, EvaluatorOptions::default());
+    from_config_with_options(path, EvaluatorOptions::default())
 }
 
 /// Allows for passing options to the evaluator, such as properties (e.g. `read("prop:username")`). See [`EvaluatorOptions`] for more information.
@@ -115,10 +115,10 @@ where
     let mut evaluator = api::Evaluator::new_from_options(options)?;
     let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
 
-    let mut pkld = pkl_mod.serialize_pkl_ast()?;
+    let pkld = pkl_mod.serialize_pkl_ast()?;
 
     _trace!("serialized pkl data {:?}", pkld);
 
-    T::deserialize(&mut Deserializer::from_pkl_map(&mut pkld))
-        .map_err(|e| Error::DeserializeError(format!("{}", e)))
+    T::deserialize(&mut Deserializer::from_pkl_map(&pkld))
+        .map_err(|e| Error::DeserializeError(format!("{e}")))
 }

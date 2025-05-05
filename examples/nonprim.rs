@@ -22,5 +22,5 @@ fn main() {
         .join("pkl")
         .join("nonprim.pkl");
     let value = rpkl::from_config::<Config>(path);
-    println!("{:?}", value);
+    println!("{value:?}");
 }

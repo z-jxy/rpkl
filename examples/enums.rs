@@ -20,5 +20,5 @@ fn main() {
         .join("pkl")
         .join("enums.pkl");
     let value = rpkl::from_config::<Config>(path);
-    println!("{:?}", value);
+    println!("{value:?}");
 }

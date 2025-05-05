@@ -38,6 +38,7 @@ pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
 pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 
 // options that can be provided to the evaluator, such as properties (-p flag from CLI)
+#[derive(Default)]
 pub struct EvaluatorOptions {
     /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files
     pub properties: Option<MapImpl<String, String>>,
@@ -53,18 +54,6 @@ pub struct EvaluatorOptions {
 
     /// External module readers
     pub external_module_readers: Option<HashMap<String, ExternalReader>>,
-}
-
-impl Default for EvaluatorOptions {
-    fn default() -> Self {
-        Self {
-            properties: None,
-            client_module_readers: None,
-            client_resource_readers: None,
-            external_resource_readers: None,
-            external_module_readers: None,
-        }
-    }
 }
 
 impl EvaluatorOptions {
@@ -108,7 +97,7 @@ impl EvaluatorOptions {
         if let Some(vec) = self.client_resource_readers.as_mut() {
             vec.extend(readers.into_readers());
         } else {
-            self.client_resource_readers = Some(Vec::from(readers.into_readers()));
+            self.client_resource_readers = Some(readers.into_readers());
         }
         self
     }
@@ -118,7 +107,7 @@ impl EvaluatorOptions {
         if let Some(vec) = self.client_module_readers.as_mut() {
             vec.extend(readers.into_readers());
         } else {
-            self.client_module_readers = Some(Vec::from(readers.into_readers()));
+            self.client_module_readers = Some(readers.into_readers());
         }
         self
     }
@@ -132,10 +121,7 @@ impl EvaluatorOptions {
     ) -> Self {
         let reader = ExternalReader {
             executable: executable.into(),
-            arguments: args
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect::<Vec<String>>(),
+            arguments: args.iter().map(|s| s.to_string()).collect::<Vec<String>>(),
         };
 
         if let Some(readers) = self.external_resource_readers.as_mut() {
@@ -155,7 +141,7 @@ impl EvaluatorOptions {
     ) -> Self {
         let reader = ExternalReader {
             executable: executable.into(),
-            arguments: args.into_iter().map(|s| s.to_string()).collect(),
+            arguments: args.iter().map(|s| s.to_string()).collect(),
         };
 
         if let Some(readers) = self.external_module_readers.as_mut() {
@@ -182,7 +168,7 @@ impl Evaluator {
     }
 
     pub fn new() -> Result<Self> {
-        return Self::new_from_options(EvaluatorOptions::default());
+        Self::new_from_options(EvaluatorOptions::default())
     }
 
     pub fn new_from_options(options: EvaluatorOptions) -> Result<Self> {
@@ -233,7 +219,7 @@ impl Evaluator {
 
         let msg = EvaluateRequest {
             request_id: OUTGOING_MESSAGE_REQUEST_ID,
-            evaluator_id: evaluator_id,
+            evaluator_id,
             module_uri: format!("file://{}", path.to_str().unwrap()),
         }
         .encode_msg()?;
@@ -299,7 +285,7 @@ impl Evaluator {
 
 impl Drop for Evaluator {
     fn drop(&mut self) {
-        let mut child_stdin = &mut self.stdin;
+        let child_stdin = &mut self.stdin;
 
         let msg = CloseEvaluator {
             evaluator_id: self.evaluator_id,
@@ -307,7 +293,7 @@ impl Drop for Evaluator {
         .encode_msg()
         .expect("failed to encode close evaluator message");
 
-        let _ = pkl_send_msg_one_way(&mut child_stdin, msg).expect("failed to close evaluator");
+        pkl_send_msg_one_way(child_stdin, msg).expect("failed to close evaluator");
     }
 }
 
@@ -369,14 +355,13 @@ pub fn pkl_send_msg_child(
                 "malformed server response, expected second element to be a u64 representing the message header",
             );
 
-            return Ok(PklServerMessage {
+            Ok(PklServerMessage {
                 header: message_header_hex,
                 response: second.to_owned(),
-            });
+            })
         }
         Err(e) => Err(Error::Message(format!(
-            "\nfailed to decode value from pkl process: {:?}",
-            e
+            "\nfailed to decode value from pkl process: {e:?}",
         ))),
     }
 }
@@ -404,14 +389,13 @@ pub fn pkl_send_msg_raw(
                 "malformed server response, expected second element to be a u64 representing the message header",
             );
 
-            return Ok(PklServerMessage {
+            Ok(PklServerMessage {
                 header: message_header_hex,
                 response: second.to_owned(),
-            });
+            })
         }
         Err(e) => Err(Error::Message(format!(
-            "\nfailed to decode value from pkl process: {:?}",
-            e
+            "\nfailed to decode value from pkl process: {e:?}"
         ))),
     }
 }

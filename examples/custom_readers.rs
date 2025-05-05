@@ -73,5 +73,5 @@ pub fn main() {
         .add_client_resource_readers((LdapReader, LdapsReader));
     let config: Config = rpkl::from_config_with_options(path, options).unwrap();
 
-    println!("{:?}", config);
+    println!("{config:?}");
 }

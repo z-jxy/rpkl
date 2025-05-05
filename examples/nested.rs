@@ -15,5 +15,5 @@ fn main() {
         .join("nested.pkl");
     let value = rpkl::from_config::<Config>(path);
 
-    println!("{:?}", value);
+    println!("{value:?}");
 }

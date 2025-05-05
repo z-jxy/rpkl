@@ -24,7 +24,7 @@ impl<'de> Deserializer<'de> {
     }
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de> de::Deserializer<'de> for &mut Deserializer<'de> {
     type Error = Error;
 
     forward_to_deserialize_any! {
@@ -207,7 +207,7 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
     {
         // unit variants are handled upfront
         if let Some(str_val) = self.0.as_str() {
-            return visitor.visit_enum(str_val.into_deserializer());
+            visitor.visit_enum(str_val.into_deserializer())
         } else {
             visitor.visit_enum(EnumDeserializer::new(self))
         }
@@ -255,12 +255,9 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
             }
             PklValue::Pair(a, b) => visitor.visit_seq(TupleSeqAccess {
                 index: 0,
-                pair: (&*a, &*b),
+                pair: (a, b),
             }),
-            PklValue::DataSize(d) => visitor.visit_map(DataSizeMapAccess {
-                input: &d,
-                state: 0,
-            }),
+            PklValue::DataSize(d) => visitor.visit_map(DataSizeMapAccess { input: d, state: 0 }),
             PklValue::Map(m) => {
                 visitor.visit_map(PklMapAccess::new(&mut Deserializer::from_pkl_map(m)))
             }
@@ -270,7 +267,7 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
 
 impl PklValue {
     pub fn into_deserializer(&self) -> PklValueDeserializer {
-        PklValueDeserializer(&self)
+        PklValueDeserializer(self)
     }
 }
 
@@ -357,11 +354,11 @@ mod tests {
 
         let pkl_mod =
             crate::api::decoder::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
-        let mut mapped = pkl_mod
+        let mapped = pkl_mod
             .serialize_pkl_ast()
             .expect("failed to serialize pkl module");
 
-        let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mut mapped))
+        let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");
 
         let expected = Config {
@@ -379,8 +376,8 @@ mod tests {
     #[test]
     #[cfg(feature = "indexmap")]
     fn test_map_ordering() {
-        use crate::pkl::internal::ObjectMember;
         use crate::pkl::internal::IPklValue;
+        use crate::pkl::internal::ObjectMember;
         use crate::pkl::internal::PklPrimitive;
 
         // Create a sequence of members in a specific order
@@ -410,10 +407,7 @@ mod tests {
         assert_eq!(keys, vec!["third", "first", "second"]);
 
         // Verify values are also in the correct order
-        let values: Vec<_> = map
-            .values()
-            .filter_map(|v| v.as_str())
-            .collect();
+        let values: Vec<_> = map.values().filter_map(|v| v.as_str()).collect();
         assert_eq!(values, vec!["3", "1", "2"]);
 
         // Test that order is preserved through deserialization
@@ -426,7 +420,7 @@ mod tests {
 
         let mut deserializer = Deserializer::from_pkl_map(&map);
         let deserialized = OrderTest::deserialize(&mut deserializer).unwrap();
-        
+
         assert_eq!(deserialized.third, "3");
         assert_eq!(deserialized.first, "1");
         assert_eq!(deserialized.second, "2");

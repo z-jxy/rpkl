@@ -155,7 +155,7 @@ pub(crate) fn handle_list_resources<W: Write>(
                 request_id,
                 evaluator_id,
                 path_elements: None,
-                error: Some(format!("No reader found for scheme: {:?}", uri)),
+                error: Some(format!("No reader found for scheme: {uri:?}")),
             }
             .encode_msg()?,
         )?;
@@ -206,7 +206,7 @@ pub(crate) fn handle_list_modules<W: Write>(
                 request_id,
                 evaluator_id,
                 path_elements: None,
-                error: Some(format!("No reader found for scheme: {:?}", uri)),
+                error: Some(format!("No reader found for scheme: {uri:?}")),
             }
             .encode_msg()?,
         )?;
@@ -257,7 +257,7 @@ pub(crate) fn handle_read_resource<W: Write>(
                 request_id,
                 evaluator_id,
                 contents: None,
-                error: Some(format!("No reader found for scheme: {:?}", uri)),
+                error: Some(format!("No reader found for scheme: {uri:?}")),
             }
             .encode_msg()?,
         )?;
@@ -310,7 +310,7 @@ pub(crate) fn handle_read_module<W: Write>(
                 request_id,
                 evaluator_id,
                 contents: None,
-                error: Some(format!("No reader found for scheme: {:?}", uri)),
+                error: Some(format!("No reader found for scheme: {uri:?}")),
             }
             .encode_msg()?,
         )?;
@@ -376,7 +376,7 @@ impl<'a> TryFrom<MapValue<'a>> for String {
         match value.0 {
             rmpv::Value::String(s) => Ok(s
                 .as_str()
-                .ok_or_else(|| "Failed to get str from string")?
+                .ok_or("Failed to get str from string")?
                 .to_owned()),
             _ => Err("Expected string value".into()),
         }
@@ -412,6 +412,6 @@ where
     map.iter()
         .find(|(k, _)| k.as_str() == Some(field))
         .map(|(_, v)| MapValue(v))
-        .ok_or_else(|| format!("Field not found in message: {}", field).into())
+        .ok_or_else(|| format!("Field not found in message: {field}").into())
         .and_then(|v| v.try_into())
 }

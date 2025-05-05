@@ -37,7 +37,7 @@ impl From<&str> for DataSizeUnit {
             "gib" => DataSizeUnit::Gibibytes,
             "tib" => DataSizeUnit::Tebibytes,
             "pib" => DataSizeUnit::Pebibytes,
-            _ => panic!("invalid data size unit: {}", unit),
+            _ => panic!("invalid data size unit: {unit}"),
         }
     }
 }
@@ -153,7 +153,7 @@ impl<'de> Deserialize<'de> for DataSizeUnit {
                     "gib" => Ok(DataSizeUnit::Gibibytes),
                     "tib" => Ok(DataSizeUnit::Tebibytes),
                     "pib" => Ok(DataSizeUnit::Pebibytes),
-                    _ => Err(E::custom(format!("invalid data size unit: {}", value))),
+                    _ => Err(E::custom(format!("invalid data size unit: {value}"))),
                 }
             }
         }

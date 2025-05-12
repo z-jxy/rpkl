@@ -15,6 +15,9 @@ pub use api::evaluator::EvaluatorOptions;
 use utils::macros::_trace;
 pub use value::PklValue as Value;
 
+#[cfg(feature = "codegen")]
+pub use pkl::pkl_mod::codegen;
+
 /// Evaluates a `.pkl` file and deserializes it as `T`. If you need to pass options to the evaluator, such as properties, use [`from_config_with_options`].
 ///
 /// `path`: The path to the `.pkl` file

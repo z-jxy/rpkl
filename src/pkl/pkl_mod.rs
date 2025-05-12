@@ -22,7 +22,7 @@ pub mod codegen {
     /// Config to modify the code generated from [`PklMod::codegen`].
     #[derive(Default)]
     pub struct CodegenOptions {
-        type_atrributes: Vec<(String, String)>,
+        type_attributes: Vec<(String, String)>,
         field_attributes: Vec<(String, String)>,
         enums: Vec<(String, String)>,
     }
@@ -40,12 +40,12 @@ pub mod codegen {
         /// This will add `#[derive(Default)]` to the generated struct `MyStruct`.
         ///
         /// ```rust
-        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// use rpkl::codegen::CodegenOptions;
         /// let options = CodegenOptions::new()
         ///    .type_attribute("MyStruct", "#[derive(Default)]");
         /// ``````
         pub fn type_attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
-            self.type_atrributes.push((name.into(), value.into()));
+            self.type_attributes.push((name.into(), value.into()));
             self
         }
 
@@ -56,7 +56,7 @@ pub mod codegen {
         /// This will add `#[serde(rename = "ip")]` to the generated field `ip` in the struct `Example`.
         ///
         /// ```rust
-        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// use rpkl::codegen::CodegenOptions;
         /// let options = CodegenOptions::new()
         ///    .field_attribute("Example.ip", "#[serde(rename = \"ip\")]");
         /// ```
@@ -78,7 +78,7 @@ pub mod codegen {
         /// mode: "Dev" | "Production"
         /// ```
         ///
-        /// When ammending to a module with a member defined like this, pkl will validate the value during evaluation,
+        /// When amending to a module with a member defined like this, pkl will validate the value during evaluation,
         /// however it's ultimately just a string. This results in the generated field being a string.
         ///
         /// This method will generate an enum for the field, and add the variants to the generated code.
@@ -86,7 +86,7 @@ pub mod codegen {
         /// # Examples
         ///
         /// ```rust
-        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// use rpkl::codegen::CodegenOptions;
         /// let options = CodegenOptions::new()
         ///    .as_enum("Example.mode", &["Dev", "Production"]);
         /// ```
@@ -95,7 +95,7 @@ pub mod codegen {
         /// [`CodegenOptions::type_attribute`] and [`CodegenOptions::field_attribute`] methods:
         ///
         /// ```rust
-        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// use rpkl::codegen::CodegenOptions;
         /// let options = CodegenOptions::new()
         ///    .as_enum("Example.mode", &["Dev", "Production"])
         ///   .type_attribute("Mode", "#[derive(Default)]")
@@ -104,6 +104,24 @@ pub mod codegen {
         pub fn as_enum(mut self, name: impl Into<String>, variants: &[&str]) -> Self {
             self.enums.push((name.into(), variants.join(",\n")));
             self
+        }
+
+        fn find_type_attribute(&self, name: &str) -> Option<&String> {
+            self.type_attributes
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, v)| v)
+        }
+
+        fn find_field_attribute(&self, name: &str) -> Option<&String> {
+            self.field_attributes
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, v)| v)
+        }
+
+        fn find_enum(&self, name: &str) -> Option<&String> {
+            self.enums.iter().find(|(n, _)| n == name).map(|(_, v)| v)
         }
     }
 
@@ -128,7 +146,7 @@ pub mod codegen {
 
             let (code, deps) = PklMod::generate_struct(
                 module_name,
-                self.members.clone(),
+                &self.members,
                 false,
                 module_name,
                 true,
@@ -184,7 +202,7 @@ pub mod codegen {
                 IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(_, _, _)) => {
                     "std::ops::Range<i64>".to_string()
                 }
-                t => todo!("implement codegen for other non-primitive types, {:?}", t),
+                t => unimplemented!("implement codegen for other non-primitive types, {:?}", t),
             }
         }
 
@@ -199,11 +217,16 @@ pub mod codegen {
         ) -> Result<String> {
             let mut field = String::new();
 
-            if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, d)) = member_value
+            if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(
+                _,
+                _,
+                _,
+                dynamic_members,
+            )) = member_value
             {
                 let (dep, child_deps) = PklMod::generate_struct(
                     member_ident,
-                    d.clone(),
+                    dynamic_members,
                     true,
                     top_level_module_name,
                     false,
@@ -214,7 +237,6 @@ pub mod codegen {
                 deps.extend(child_deps);
 
                 // add the field
-
                 let upper_camel = member_ident.to_case(Case::UpperCamel);
                 let rename = match member_ident == upper_camel {
                     true => Some(format!("#[serde(rename = \"{upper_camel}\")]\n",)),
@@ -235,23 +257,12 @@ pub mod codegen {
 
             let field_modifier = format!("{parent_struct_ident}.{snake_case_field_name}");
 
-            if let Some(attr) = options
-                .enums
-                .iter()
-                .find(|(name, _)| *name == field_modifier)
-            {
-                // field.push_str(&format!("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n"));
-                // field.push_str(&format!(
-                //     "\t#[serde(untagged)]\n\tpub enum {field_modifier} {{\n{}\t}}\n",
-                //     attr.1
-                // ));
+            if let Some(attr) = options.find_enum(&field_modifier) {
                 let __enum = Self::generate_enum(
                     member_ident,
-                    attr.1.split(",").map(|s| s.trim().to_string()).collect(),
+                    attr.split(",").map(|s| s.trim().to_string()).collect(),
                     true,
-                    // top_level_module_name,
                     generated_structs,
-                    // &field_modifier,
                     options,
                 )?;
                 deps.push(__enum);
@@ -263,12 +274,8 @@ pub mod codegen {
                 return Ok(field);
             }
 
-            if let Some(attr) = options
-                .field_attributes
-                .iter()
-                .find(|(name, _)| *name == field_modifier)
-            {
-                field.push_str(&format!("\t{}\n", attr.1));
+            if let Some(attr) = options.find_field_attribute(&field_modifier) {
+                field.push_str(&format!("\t{attr}\n"));
             }
 
             let rename = match snake_case_field_name == member_ident {
@@ -305,12 +312,8 @@ pub mod codegen {
 
             let mut code = String::new();
 
-            if let Some(attr) = options
-                .type_atrributes
-                .iter()
-                .find(|(name, _)| *name == upper_camel)
-            {
-                code.push_str(&format!("{}\n", attr.1));
+            if let Some(attr) = options.find_type_attribute(&upper_camel) {
+                code.push_str(&format!("{attr}\n"));
             }
 
             code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
@@ -342,7 +345,7 @@ pub mod codegen {
 
         fn generate_struct(
             struct_ident: &str,
-            members: Vec<ObjectMember>,
+            members: &[ObjectMember],
             is_dependency: bool,
             top_level_module_name: &str,
             pub_struct: bool,
@@ -357,12 +360,8 @@ pub mod codegen {
 
             let mut code = String::new();
 
-            if let Some(attr) = options
-                .type_atrributes
-                .iter()
-                .find(|(name, _)| *name == upper_camel)
-            {
-                code.push_str(&format!("{}\n", attr.1));
+            if let Some(attr) = options.find_type_attribute(&upper_camel) {
+                code.push_str(&format!("{attr}\n"));
             }
             code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
 

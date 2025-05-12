@@ -48,7 +48,7 @@ fn main() {
     {
         let mut evaluator = rpkl::api::evaluator::Evaluator::new().unwrap();
         let pkl_mod = evaluator.evaluate_module(path).unwrap();
-        let options = rpkl::pkl::pkl_mod::codegen::CodegenOptions::default()
+        let options = rpkl::codegen::CodegenOptions::default()
             .type_attribute("AnonMap", "#[derive(Default)]")
             .field_attribute("Example.ip", "#[serde(rename = \"ip\")]")
             .as_enum("Example.mode", &["Dev", "Production"])

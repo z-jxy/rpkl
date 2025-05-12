@@ -3,6 +3,7 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 
 use crate::context::Context;
+use crate::decoder::{decode_datasize, decode_duration, decode_intseq, decode_regex};
 use crate::error::{Error, Result};
 use crate::value::value::MapImpl;
 
@@ -14,12 +15,8 @@ use crate::pkl::{
     PklMod,
 };
 
-use crate::utils;
 use crate::utils::macros::_trace;
-use crate::value::{
-    datasize::{DataSize, DataSizeUnit},
-    PklValue,
-};
+use crate::value::PklValue;
 
 #[cfg(feature = "trace")]
 use tracing::trace;
@@ -165,56 +162,9 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
             Ok(PklNonPrimitive::List(type_id, list_values))
         }
 
-        type_constants::DURATION => {
-            // need u64 to convert to Duration
-            let float_time = slots[0].as_f64().expect("expected float for duration") as u64;
-            let duration_unit = slots[1].as_str().expect("expected time type");
-            let duration = match duration_unit {
-                "min" => {
-                    let Some(d) = utils::duration::from_mins(float_time) else {
-                        return Err(Error::ParseError(format!(
-                            "failed to parse duration from mins: {float_time}"
-                        )));
-                    };
-                    d
-                }
-                "h" => {
-                    let Some(d) = utils::duration::from_hours(float_time) else {
-                        return Err(Error::ParseError(format!(
-                            "failed to parse duration from hours: {float_time}"
-                        )));
-                    };
-                    d
-                }
-                "d" => {
-                    let Some(d) = utils::duration::from_days(float_time) else {
-                        return Err(Error::ParseError(format!(
-                            "failed to parse duration from days: {float_time}"
-                        )));
-                    };
-                    d
-                }
-                "ns" => std::time::Duration::from_nanos(float_time),
-                "us" => std::time::Duration::from_micros(float_time),
-                "ms" => std::time::Duration::from_millis(float_time),
-                "s" => std::time::Duration::from_secs(float_time),
-                _ => {
-                    return Err(Error::ParseError(format!(
-                        "unsupported duration_unit, got {duration_unit:?}"
-                    )));
-                }
-            };
-            Ok(PklNonPrimitive::Duration(type_id, duration))
-        }
+        type_constants::DURATION => decode_duration(type_id, slots),
 
-        type_constants::DATA_SIZE => {
-            let float = slots[0].as_f64().expect("expected float for data size");
-            let size_unit = slots[1].as_str().expect("expected size type");
-
-            let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
-
-            Ok(PklNonPrimitive::DataSize(type_id, ds))
-        }
+        type_constants::DATA_SIZE => Ok(decode_datasize(type_id, slots)),
         type_constants::PAIR => {
             // if its an array, parse the inner object, otherwise parse the primitive value
             let first_val: PklValue = if let Some(array) = slots[0].as_array() {
@@ -231,17 +181,9 @@ fn decode_non_prim_member(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonP
 
             Ok(PklNonPrimitive::Pair(type_id, first_val, second_val))
         }
-        type_constants::INT_SEQ => {
-            // nothing is done with 'step' slot of the int seq structure from pkl
-            let start = slots[0].as_i64().expect("expected start for int seq");
-            let end = slots[1].as_i64().expect("expected end for int seq");
-            Ok(PklNonPrimitive::IntSeq(type_id, start, end))
-        }
+        type_constants::INT_SEQ => Ok(decode_intseq(type_id, slots)),
 
-        type_constants::REGEX => {
-            let pattern = slots[0].as_str().expect("expected pattern for regex");
-            Ok(PklNonPrimitive::Regex(type_id, pattern.to_string()))
-        }
+        type_constants::REGEX => Ok(decode_regex(type_id, slots)),
 
         type_constants::TYPE_ALIAS => {
             unreachable!("found TYPE_ALIAS in pkl binary data {}", type_id);
@@ -271,7 +213,7 @@ fn decode_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
     match value {
         rmpv::Value::String(s) => {
             let Some(s) = s.as_str() else {
-                return Err(Error::ParseError(format!(
+                return Err(Error::DecodeError(format!(
                     "expected valid UTF-8 string, got {s:?}"
                 )));
             };
@@ -291,7 +233,7 @@ fn decode_primitive_member(value: &rmpv::Value) -> Result<PklPrimitive> {
             } else if n.as_f64().is_some() {
                 Ok(PklPrimitive::Float(n.as_f64().unwrap()))
             } else {
-                return Err(Error::ParseError(format!("expected integer, got {n:?}")));
+                return Err(Error::DecodeError(format!("expected integer, got {n:?}")));
             }
         }
         rmpv::Value::F32(f) => Ok(PklPrimitive::Float(*f as f64)),

@@ -16,7 +16,7 @@ pub enum Error {
     PklServerError { pkl_error: String },
 
     SerializeAst,
-    ParseError(String),
+    DecodeError(String),
     DeserializeError(String),
 
     MsgpackSerializeError(rmp_serde::encode::Error),
@@ -57,7 +57,7 @@ impl Display for Error {
         match self {
             Error::Message(msg)
             | Error::DeserializeError(msg)
-            | Error::ParseError(msg)
+            | Error::DecodeError(msg)
             | Error::PklServerError { pkl_error: msg }
             | Error::PklMalformedResponse { message: msg } => formatter.write_str(msg),
 

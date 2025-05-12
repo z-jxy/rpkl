@@ -3,6 +3,7 @@ use pkl::PklSerialize;
 
 pub mod api;
 mod context;
+mod decoder;
 pub mod error;
 mod internal;
 pub mod pkl;

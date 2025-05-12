@@ -8,7 +8,7 @@ pub struct PklMod {
 }
 
 #[cfg(feature = "codegen")]
-mod codegen {
+pub mod codegen {
     use convert_case::{Case, Casing};
     use std::{collections::HashSet, path::PathBuf};
 
@@ -19,8 +19,47 @@ mod codegen {
     use super::PklMod;
     use crate::Result;
 
+    #[derive(Default, Debug)]
+    pub struct CodegenOptions {
+        type_atrributes: Vec<(String, String)>,
+        field_attributes: Vec<(String, String)>,
+        enums: Vec<(String, String)>,
+    }
+
+    impl CodegenOptions {
+        #[inline]
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn type_attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
+            self.type_atrributes.push((name.into(), value.into()));
+            self
+        }
+
+        pub fn field_attribute(
+            mut self,
+            name: impl Into<String>,
+            value: impl Into<String>,
+        ) -> Self {
+            self.field_attributes.push((name.into(), value.into()));
+            self
+        }
+
+        pub fn as_enum(mut self, name: impl Into<String>, variants: &[&str]) -> Self {
+            self.enums.push((name.into(), variants.join(",\n")));
+            self
+        }
+    }
+
     impl PklMod {
-        pub fn codegen(&self) -> Result<()> {
+        ///
+        /// By default, all structs are generated with `Debug`, `serde::Deserialize` and `serde::Serialize` attributes.
+        ///
+        ///
+        ///
+        pub fn codegen(&self, options: Option<CodegenOptions>) -> Result<()> {
+            let options = options.unwrap_or_default();
             let path = PathBuf::from("./generated");
             std::fs::create_dir_all(&path)?;
             let file = std::fs::File::create(path.join("mod.rs"))?;
@@ -34,15 +73,16 @@ mod codegen {
             let mut generated_structs = HashSet::new();
 
             let (code, deps) = PklMod::generate_struct(
-                &module_name,
+                module_name,
                 self.members.clone(),
                 false,
-                &module_name,
+                module_name,
                 true,
                 &mut generated_structs,
+                &options,
             )?;
 
-            writeln!(writer, "{}", code,)?;
+            writeln!(writer, "{code}")?;
 
             if !deps.is_empty() {
                 writeln!(
@@ -54,7 +94,7 @@ mod codegen {
                 // writeln!(writer, "\tuse super::*;\n")?;
                 for dep in deps.iter() {
                     dep.lines().for_each(|line| {
-                        writeln!(writer, "\t{}", line).unwrap();
+                        writeln!(writer, "\t{line}").unwrap();
                     });
                 }
 
@@ -69,51 +109,52 @@ mod codegen {
             match value {
                 IPklValue::NonPrimitive(PklNonPrimitive::List(_, _)) => {
                     // todo!("print list types");
-                    format!("Vec<{}>", "rpkl::Value")
+                    "Vec<rpkl::Value>".to_string()
                 }
                 IPklValue::NonPrimitive(PklNonPrimitive::Set(_, _)) => {
                     // todo!("print set types");
                     // warn!
-                    format!("Vec<{}>", "rpkl::Value")
+                    "Vec<rpkl::Value>".to_string()
                 }
                 IPklValue::NonPrimitive(PklNonPrimitive::Mapping(_, _m)) => {
-                    format!("{}", "rpkl::Value")
+                    "rpkl::Value".to_string()
                 }
-                IPklValue::Primitive(x) => {
-                    format!(
-                        "{}",
-                        match x {
-                            PklPrimitive::Int(_) => "i64",
-                            PklPrimitive::Float(_) => "f64",
-                            PklPrimitive::String(_) => "String",
-                            PklPrimitive::Boolean(_) => "bool",
-                            PklPrimitive::Null => "Option<rpkl::Value>",
-                        }
-                    )
+                IPklValue::Primitive(x) => (match x {
+                    PklPrimitive::Int(_) => "i64",
+                    PklPrimitive::Float(_) => "f64",
+                    PklPrimitive::String(_) => "String",
+                    PklPrimitive::Boolean(_) => "bool",
+                    PklPrimitive::Null => "Option<rpkl::Value>",
+                })
+                .to_string(),
+                IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(_, _, _)) => {
+                    "std::ops::Range<i64>".to_string()
                 }
                 t => todo!("implement codegen for other non-primitive types, {:?}", t),
             }
         }
 
         fn generate_field(
-            member_ident: &str,
-            member_value: &IPklValue,
+            (member_ident, member_value): (&str, &IPklValue),
             snake_case_field_name: &str,
             top_level_module_name: &str,
             deps: &mut Vec<String>,
             generated_structs: &mut HashSet<String>,
+            options: &CodegenOptions,
+            parent_struct_ident: &str,
         ) -> Result<String> {
             let mut field = String::new();
 
             if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(_, _, _, d)) = member_value
             {
                 let (dep, child_deps) = PklMod::generate_struct(
-                    &member_ident,
+                    member_ident,
                     d.clone(),
                     true,
                     top_level_module_name,
                     false,
                     generated_structs,
+                    options,
                 )?;
                 deps.push(dep);
                 deps.extend(child_deps);
@@ -138,13 +179,51 @@ mod codegen {
                 return Ok(field);
             }
 
+            let field_modifier = format!("{parent_struct_ident}.{snake_case_field_name}");
+
+            if let Some(attr) = options
+                .enums
+                .iter()
+                .find(|(name, _)| *name == field_modifier)
+            {
+                // field.push_str(&format!("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n"));
+                // field.push_str(&format!(
+                //     "\t#[serde(untagged)]\n\tpub enum {field_modifier} {{\n{}\t}}\n",
+                //     attr.1
+                // ));
+                let __enum = Self::generate_enum(
+                    member_ident,
+                    attr.1.split(",").map(|s| s.trim().to_string()).collect(),
+                    true,
+                    // top_level_module_name,
+                    generated_structs,
+                    // &field_modifier,
+                    options,
+                )?;
+                deps.push(__enum);
+                field.push_str(&format!(
+                    "\tpub {snake_case_field_name}: {}::{},\n",
+                    top_level_module_name.to_case(Case::Snake),
+                    member_ident.to_case(Case::UpperCamel),
+                ));
+                return Ok(field);
+            }
+
+            if let Some(attr) = options
+                .field_attributes
+                .iter()
+                .find(|(name, _)| *name == field_modifier)
+            {
+                field.push_str(&format!("\t{}\n", attr.1));
+            }
+
             let rename = match snake_case_field_name == member_ident {
                 true => None,
                 false => Some(format!("#[serde(rename = \"{member_ident}\")]\n")),
             };
 
             if let Some(rename) = &rename {
-                field.push_str(&format!("\t{}", rename));
+                field.push_str(&format!("\t{rename}"));
             }
 
             field.push_str(&format!(
@@ -155,6 +234,58 @@ mod codegen {
             Ok(field)
         }
 
+        fn generate_enum(
+            enum_ident: &str,
+            variants: Vec<String>,
+            is_dependency: bool,
+            // top_level_module_name: &str,
+            generated_structs: &mut HashSet<String>,
+            // field_modifier: &str,
+            options: &CodegenOptions,
+        ) -> Result<String> {
+            let upper_camel = enum_ident.to_case(Case::UpperCamel);
+            if generated_structs.contains(&upper_camel) {
+                return Ok(String::new());
+            }
+            generated_structs.insert(upper_camel.clone());
+
+            let mut code = String::new();
+
+            if let Some(attr) = options
+                .type_atrributes
+                .iter()
+                .find(|(name, _)| *name == upper_camel)
+            {
+                code.push_str(&format!("{}\n", attr.1));
+            }
+
+            code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
+
+            if is_dependency {
+                // code.push_str(&format!("pub(crate) struct {upper_camel} {{\n")); // TODO: revisit this
+                code.push_str(&format!("pub enum {upper_camel} {{\n"));
+            } else {
+                code.push_str(&format!("pub enum {upper_camel} {{\n"));
+            }
+
+            for variant in variants.iter() {
+                let variant_ident = variant.to_case(Case::UpperCamel);
+                let varient_modifier_key = format!("{upper_camel}.{variant_ident}");
+                if let Some(attrs) = options
+                    .field_attributes
+                    .iter()
+                    .find(|(name, _)| *name == varient_modifier_key)
+                {
+                    code.push_str(&format!("\t{}\n", attrs.1));
+                }
+                code.push_str(&format!("\t{variant_ident},\n"));
+            }
+
+            code.push_str("}\n\n");
+
+            Ok(code)
+        }
+
         fn generate_struct(
             struct_ident: &str,
             members: Vec<ObjectMember>,
@@ -162,6 +293,7 @@ mod codegen {
             top_level_module_name: &str,
             pub_struct: bool,
             generated_structs: &mut HashSet<String>,
+            options: &CodegenOptions,
         ) -> Result<(String, Vec<String>)> {
             let upper_camel = struct_ident.to_case(Case::UpperCamel);
             if generated_structs.contains(&upper_camel) {
@@ -171,9 +303,14 @@ mod codegen {
 
             let mut code = String::new();
 
-            code.push_str(&format!(
-                "#[derive(serde::Deserialize, serde::Serialize)]\n"
-            ));
+            if let Some(attr) = options
+                .type_atrributes
+                .iter()
+                .find(|(name, _)| *name == upper_camel)
+            {
+                code.push_str(&format!("{}\n", attr.1));
+            }
+            code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
 
             if is_dependency {
                 // code.push_str(&format!("pub(crate) struct {upper_camel} {{\n")); // TODO: revisit this
@@ -192,12 +329,13 @@ mod codegen {
                 let member_value = member.get_value();
                 let snake_case_field_name = member_ident.to_case(Case::Snake);
                 let field = PklMod::generate_field(
-                    &member_ident,
-                    &member_value,
+                    (member_ident, member_value),
                     &snake_case_field_name,
                     top_level_module_name,
                     &mut deps,
                     generated_structs,
+                    options,
+                    &upper_camel,
                 )?;
                 code.push_str(&field);
             }

@@ -19,7 +19,8 @@ pub mod codegen {
     use super::PklMod;
     use crate::Result;
 
-    #[derive(Default, Debug)]
+    /// Config to modify the code generated from [`PklMod::codegen`].
+    #[derive(Default)]
     pub struct CodegenOptions {
         type_atrributes: Vec<(String, String)>,
         field_attributes: Vec<(String, String)>,
@@ -32,11 +33,33 @@ pub mod codegen {
             Self::default()
         }
 
+        /// Add addtional attributes to the matched struct
+        ///
+        /// # Examples
+        ///
+        /// This will add `#[derive(Default)]` to the generated struct `MyStruct`.
+        ///
+        /// ```rust
+        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// let options = CodegenOptions::new()
+        ///    .type_attribute("MyStruct", "#[derive(Default)]");
+        /// ``````
         pub fn type_attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
             self.type_atrributes.push((name.into(), value.into()));
             self
         }
 
+        /// Add addtional attributes to the matched field
+        ///
+        /// # Examples
+        ///
+        /// This will add `#[serde(rename = "ip")]` to the generated field `ip` in the struct `Example`.
+        ///
+        /// ```rust
+        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// let options = CodegenOptions::new()
+        ///    .field_attribute("Example.ip", "#[serde(rename = \"ip\")]");
+        /// ```
         pub fn field_attribute(
             mut self,
             name: impl Into<String>,
@@ -46,6 +69,38 @@ pub mod codegen {
             self
         }
 
+        /// Forces a field to be generated as an enum.
+        ///
+        /// Pkl doesn't directly support enums, but it's possible to have a string be validated aginst a set of values
+        /// like so:
+        ///
+        /// ```pkl
+        /// mode: "Dev" | "Production"
+        /// ```
+        ///
+        /// When ammending to a module with a member defined like this, pkl will validate the value during evaluation,
+        /// however it's ultimately just a string. This results in the generated field being a string.
+        ///
+        /// This method will generate an enum for the field, and add the variants to the generated code.
+        ///
+        /// # Examples
+        ///
+        /// ```rust
+        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// let options = CodegenOptions::new()
+        ///    .as_enum("Example.mode", &["Dev", "Production"]);
+        /// ```
+        ///
+        /// The enum and it's variants can also be targeted for modifications using
+        /// [`CodegenOptions::type_attribute`] and [`CodegenOptions::field_attribute`] methods:
+        ///
+        /// ```rust
+        /// use rpkl::pkl::pkl_mod::codegen::CodegenOptions;
+        /// let options = CodegenOptions::new()
+        ///    .as_enum("Example.mode", &["Dev", "Production"])
+        ///   .type_attribute("Mode", "#[derive(Default)]")
+        ///   .field_attribute("Mode.Dev", "#[default]");
+        /// ```
         pub fn as_enum(mut self, name: impl Into<String>, variants: &[&str]) -> Self {
             self.enums.push((name.into(), variants.join(",\n")));
             self
@@ -53,11 +108,10 @@ pub mod codegen {
     }
 
     impl PklMod {
-        ///
         /// By default, all structs are generated with `Debug`, `serde::Deserialize` and `serde::Serialize` attributes.
         ///
-        ///
-        ///
+        /// To modify the generated code,
+        /// use [`CodegenOptions`] to add additional attributes to the generated structs and fields.
         pub fn codegen(&self, options: Option<CodegenOptions>) -> Result<()> {
             let options = options.unwrap_or_default();
             let path = PathBuf::from("./generated");

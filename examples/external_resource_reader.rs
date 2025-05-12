@@ -1,3 +1,5 @@
+//! Example of creating an external reader that can be used with `pkl` directly.
+
 use rpkl::api::external_reader::*;
 
 pub struct LdapReader;
@@ -51,6 +53,14 @@ impl PklModuleReader for ModuleReader {
     }
 }
 
+/// To test this, compile the example `cargo build --example external_resource_reader`
+/// and run the following command:
+/// ```bash
+/// pkl eval tests/pkl/external-reader.pkl \
+/// --external-resource-reader ldap=target/debug/examples/external_resource_reader \
+/// --external-module-reader remote=target/debug/examples/external_resource_reader \
+/// --external-resource-reader ldaps=target/debug/examples/external_resource_reader
+/// ```
 pub fn main() {
     _ = ExternalReaderRuntime::new()
         .add_resource_readers((LdapReader, LdapsReader))

@@ -12,6 +12,7 @@ use crate::{
     api::reader::{
         handle_list_modules, handle_list_resources, handle_read_module, handle_read_resource,
     },
+    context::Context,
     error::{Error, Result},
     internal::msgapi::{
         incoming::PklServerMessage,
@@ -121,7 +122,10 @@ impl EvaluatorOptions {
     ) -> Self {
         let reader = ExternalReader {
             executable: executable.into(),
-            arguments: args.iter().map(|s| s.to_string()).collect::<Vec<String>>(),
+            arguments: args
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<String>>(),
         };
 
         if let Some(readers) = self.external_resource_readers.as_mut() {
@@ -141,7 +145,7 @@ impl EvaluatorOptions {
     ) -> Self {
         let reader = ExternalReader {
             executable: executable.into(),
-            arguments: args.iter().map(|s| s.to_string()).collect(),
+            arguments: args.iter().map(ToString::to_string).collect(),
         };
 
         if let Some(readers) = self.external_module_readers.as_mut() {
@@ -167,21 +171,31 @@ impl Evaluator {
         self.evaluator_id
     }
 
+    /// Create a new evaluator with default options
+    /// This will start a new pkl process and create an evaluator
+    /// The evaluator will be closed when it is dropped
+    /// # Errors
+    /// - Returns an error if the pkl process fails to start or if the evaluator fails to be created
     pub fn new() -> Result<Self> {
         Self::new_from_options(EvaluatorOptions::default())
     }
 
+    /// Create a new evaluator with the given options
+    /// This will start a new pkl process and create an evaluator
+    /// The evaluator will be closed when it is dropped
+    /// # Errors
+    /// - Returns an error if the pkl process fails to start or if the evaluator fails to be created
     pub fn new_from_options(options: EvaluatorOptions) -> Result<Self> {
         let mut child = start_pkl(false).map_err(|_e| Error::PklProcessStart)?;
-        let child_stdin = child.stdin.as_mut().unwrap();
-        let mut child_stdout = child.stdout.take().unwrap();
+        let child_stdin = child.stdin.as_mut().context("failed to get stdin")?;
+        let mut child_stdout = child.stdout.take().context("failed to get stdout")?;
 
         let evaluator_message = CreateEvaluator::from(&options);
 
         let serialized_request = evaluator_message.encode_msg()?;
 
         let create_eval_response =
-            pkl_send_msg_child(child_stdin, &mut child_stdout, serialized_request)
+            pkl_send_msg_child(child_stdin, &mut child_stdout, &serialized_request)
                 .map_err(|_e| Error::PklSend)?;
 
         let Some(map) = create_eval_response.response.as_map() else {
@@ -202,13 +216,18 @@ impl Evaluator {
 
         Ok(Evaluator {
             evaluator_id,
-            stdin: child.stdin.take().unwrap(),
+            stdin: child.stdin.take().context("failed to get stdin")?,
             stdout: child_stdout,
             client_module_readers: options.client_module_readers.unwrap_or_default(),
             client_resource_readers: options.client_resource_readers.unwrap_or_default(),
         })
     }
 
+    /// Evaluate a pkl module
+    /// This will send the module to the pkl process and return the result
+    /// # Errors
+    /// - Returns an error if the pkl process fails to evaluate the module or if the module is malformed
+    /// - If the provided path is not does not exist
     pub fn evaluate_module(&mut self, path: PathBuf) -> Result<PklMod> {
         let evaluator_id = self.id();
         let mut child_stdin = &mut self.stdin;
@@ -220,7 +239,10 @@ impl Evaluator {
         let msg = EvaluateRequest {
             request_id: OUTGOING_MESSAGE_REQUEST_ID,
             evaluator_id,
-            module_uri: format!("file://{}", path.to_str().unwrap()),
+            module_uri: format!(
+                "file://{}",
+                path.to_str().context("Path is not valid utf8")?
+            ),
         }
         .encode_msg()?;
 
@@ -250,7 +272,7 @@ impl Evaluator {
                     handle_list_resources(&self.client_resource_readers, &msg, &mut child_stdin)?;
                 }
                 _ => {
-                    todo!("unhandled request from pkl server: 0x{:x}", msg.header);
+                    unimplemented!("unimplemented request from pkl server: 0x{:x}", msg.header);
                 }
             }
         }
@@ -259,12 +281,19 @@ impl Evaluator {
             return Err(Error::Message("failed to evaluate pkl module".into()));
         };
 
-        let res = eval_res.response.as_map().unwrap();
+        let Some(res) = eval_res.response.as_map() else {
+            return Err(Error::PklMalformedResponse {
+                message: "expected map in evaluate response".into(),
+            });
+        };
         let Some((_, result)) = res.iter().find(|(k, _v)| k.as_str() == Some("result")) else {
             // pkl module evaluation failed, return the error message from pkl
             if let Some((_, error)) = res.iter().find(|(k, _v)| k.as_str() == Some("error")) {
                 return Err(Error::PklServerError {
-                    pkl_error: error.as_str().unwrap().to_owned(),
+                    pkl_error: error
+                        .as_str()
+                        .context("error message from pkl should be valid utf8")?
+                        .to_owned(),
                 });
             }
 
@@ -273,7 +302,9 @@ impl Evaluator {
             });
         };
 
-        let slice = result.as_slice().unwrap();
+        let slice = result
+            .as_slice()
+            .context("expected result to be a slice, got: {result:?}")?;
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
         _debug!("rmpv pkl module: {:#?}", rmpv_ast);
@@ -293,11 +324,11 @@ impl Drop for Evaluator {
         .encode_msg()
         .expect("failed to encode close evaluator message");
 
-        pkl_send_msg_one_way(child_stdin, msg).expect("failed to close evaluator");
+        pkl_send_msg_one_way(child_stdin, &msg).expect("failed to close evaluator");
     }
 }
 
-pub fn start_pkl(pkl_debug: bool) -> Result<Child> {
+fn start_pkl(pkl_debug: bool) -> Result<Child> {
     let mut command = Command::new("pkl");
 
     command
@@ -314,29 +345,29 @@ pub fn start_pkl(pkl_debug: bool) -> Result<Child> {
     Ok(child)
 }
 
-pub fn pkl_send_msg_one_way(
+fn pkl_send_msg_one_way(
     child_stdin: &mut std::process::ChildStdin,
 
-    serialized_request: Vec<u8>,
+    serialized_request: &[u8],
 ) -> Result<()> {
-    child_stdin.write_all(&serialized_request)?;
+    child_stdin.write_all(serialized_request)?;
     child_stdin.flush()?;
     Ok(())
 }
 
-pub fn decode_pkl_message(value: rmpv::Value) -> Option<PklServerMessage> {
+fn decode_pkl_message(value: &rmpv::Value) -> Option<PklServerMessage> {
     let decoded_array = value.as_array()?;
     let header = decoded_array.first()?.as_u64()?;
     let response = decoded_array.get(1)?.to_owned();
     Some(PklServerMessage { header, response })
 }
 
-pub fn pkl_send_msg_child(
+fn pkl_send_msg_child(
     child_stdin: &mut std::process::ChildStdin,
     child_stdout: &mut std::process::ChildStdout,
-    serialized_request: Vec<u8>,
+    serialized_request: &[u8],
 ) -> Result<PklServerMessage> {
-    child_stdin.write_all(&serialized_request)?;
+    child_stdin.write_all(serialized_request)?;
     child_stdin.flush()?;
 
     // TODO: refactor this to use decode_pkl_message
@@ -366,43 +397,9 @@ pub fn pkl_send_msg_child(
     }
 }
 
-pub fn pkl_send_msg_raw(
-    child_stdin: &mut impl Write,
-    child_stdout: &mut impl Read,
-    serialized_request: Vec<u8>,
-) -> Result<PklServerMessage> {
-    child_stdin.write_all(&serialized_request)?;
-    child_stdin.flush()?;
-
-    match rmpv::decode::read_value(child_stdout) {
-        Ok(response) => {
-            let decoded_array = response
-                .as_array()
-                .expect("expected server response to be formatted as an array");
-            let first_element = decoded_array.first().expect(
-                "malformed server response, received empty array, expected array of length 2",
-            );
-            let message_header_hex = first_element.as_u64().expect(
-                "malformed server response, expected first element to be a u64 representing the message header",
-            );
-            let second = decoded_array.get(1).expect(
-                "malformed server response, expected second element to be a u64 representing the message header",
-            );
-
-            Ok(PklServerMessage {
-                header: message_header_hex,
-                response: second.to_owned(),
-            })
-        }
-        Err(e) => Err(Error::Message(format!(
-            "\nfailed to decode value from pkl process: {e:?}"
-        ))),
-    }
-}
-
-pub fn recv_msg<R: Read>(reader: &mut R) -> std::result::Result<PklServerMessage, Error> {
+pub(crate) fn recv_msg<R: Read>(reader: &mut R) -> std::result::Result<PklServerMessage, Error> {
     let data = rmpv::decode::read_value(reader)?;
-    let pkl_msg = decode_pkl_message(data).ok_or(Error::PklMalformedResponse {
+    let pkl_msg = decode_pkl_message(&data).ok_or(Error::PklMalformedResponse {
         message: "Failed to decode pkl message format".to_string(),
     })?;
     Ok(pkl_msg)

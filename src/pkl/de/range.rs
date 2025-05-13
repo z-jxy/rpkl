@@ -10,7 +10,7 @@ pub struct RangeDeserializer<'a> {
     pub end: &'a i64,
 }
 
-impl<'a, 'de> Deserializer<'de> for RangeDeserializer<'a> {
+impl<'de> Deserializer<'de> for RangeDeserializer<'_> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -43,7 +43,7 @@ pub struct RangeMapAccess<'a> {
     pub end: &'a i64,
 }
 
-impl<'a, 'de> MapAccess<'de> for RangeMapAccess<'a> {
+impl<'de> MapAccess<'de> for RangeMapAccess<'_> {
     type Error = crate::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>

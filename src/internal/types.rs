@@ -1,12 +1,13 @@
+use crate::pkl::de::PklVisitor;
 use crate::value::{DataSize, PklValue};
 use crate::PklSerialize;
 use crate::Result;
 use serde::{Deserialize, Serialize};
 
-use super::visitor::PklVisitor;
+// use super::visitor::PklVisitor;
 
 /// Represents a member of a `.pkl` object
-/// Fields: type_id, identifier, value
+/// Fields: typeid, identifier, value
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ObjectMember(pub u64, pub String, pub IPklValue);
 
@@ -72,7 +73,7 @@ impl ObjectMember {
 mod test {
     #[test]
     fn deserialize_map() {
-        use crate::{pkl::internal::Integer, Value};
+        use crate::{internal::Integer, Value};
         let json_data = r#"{"value": 123}"#;
         let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");
@@ -85,7 +86,7 @@ mod test {
 
     #[test]
     fn deserialize_array() {
-        use crate::{pkl::internal::Integer, Value};
+        use crate::{internal::Integer, Value};
         let json_data = r#"{"value": [123, 456]}"#;
         let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");
@@ -167,7 +168,7 @@ impl From<IPklValue> for PklValue {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
-/// https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#primitives
+/// <https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#primitives>
 pub enum PklPrimitive {
     Int(Integer),
     Float(f64),
@@ -184,11 +185,11 @@ pub(crate) enum PklNonPrimitive {
     ///
     /// ## Fields:
     ///
-    /// 0 (slot 1): type_id - 0x1
+    /// 0 (slot 1): `type_id` - 0x1
     ///
-    /// 1 (slot 2): type_name - Fully qualified class name
+    /// 1 (slot 2): `type_name` - Fully qualified class name
     ///
-    /// 2 (slot 3): type_version - Enclosing module URI
+    /// 2 (slot 3): `type_version` - Enclosing module URI
     ///
     /// 3 (slot 4): members - array of [Object Members][https://pkl-lang.org/main/current/bindings-specification/binary-encoding.html#object-members]
     TypedDynamic(u64, String, String, Vec<ObjectMember>),
@@ -204,7 +205,7 @@ pub(crate) enum PklNonPrimitive {
     Regex(u64, String),
 }
 
-/// https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq
+/// <https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq>
 pub type IntSeq = std::ops::Range<i64>;
 
 impl From<PklNonPrimitive> for IPklValue {

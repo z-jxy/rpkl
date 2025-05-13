@@ -100,7 +100,7 @@ impl<'a> From<&'a EvaluatorOptions> for CreateEvaluator<'a> {
             }
 
             if let Some(readers) = opts.client_module_readers.as_ref() {
-                for reader in readers.iter() {
+                for reader in readers {
                     evaluator_message
                         .allowed_modules
                         .push(reader.scheme().to_string());
@@ -116,7 +116,7 @@ impl<'a> From<&'a EvaluatorOptions> for CreateEvaluator<'a> {
             }
 
             if let Some(readers) = opts.client_resource_readers.as_ref() {
-                for reader in readers.iter() {
+                for reader in readers {
                     evaluator_message
                         .allowed_resources
                         .push(reader.scheme().to_string());
@@ -243,7 +243,7 @@ pub(crate) struct InitializeResourceReaderResponse {
     /// Client-side resource reader spec.
     ///
     /// Null when the external process does not implement the requested scheme.
-    /// [ClientResourceReader] is defined at https://pkl-lang.org/main/current/bindings-specification/message-passing-api.html#create-evaluator-request
+    /// [`ClientResourceReader`] is defined at <https://pkl-lang.org/main/current/bindings-specification/message-passing-api.html#create-evaluator-request>
     ///
     ///
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -261,7 +261,7 @@ pub(crate) struct InitializeModuleReaderResponse {
     /// Client-side resource reader spec.
     ///
     /// Null when the external process does not implement the requested scheme.
-    /// [ClientResourceReader] is defined at https://pkl-lang.org/main/current/bindings-specification/message-passing-api.html#create-evaluator-request
+    /// [`ClientResourceReader`] is defined at <https://pkl-lang.org/main/current/bindings-specification/message-passing-api.html#create-evaluator-request>
     ///
     ///
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -314,8 +314,17 @@ pub struct PathElements {
     /// The name of the element at this path
     pub name: String,
 
-    /// Tells whether the element is a directory.
+    /// Is the element is a directory.
     pub is_directory: bool,
+}
+
+impl PathElements {
+    pub fn new(name: impl Into<String>, is_directory: bool) -> Self {
+        Self {
+            name: name.into(),
+            is_directory,
+        }
+    }
 }
 
 #[derive(Serialize)]

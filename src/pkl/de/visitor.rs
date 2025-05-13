@@ -25,14 +25,14 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        self.visit_i64(value as i64)
+        self.visit_i64(i64::from(value))
     }
 
     fn visit_i32<E>(self, value: i32) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        self.visit_i64(value as i64)
+        self.visit_i64(i64::from(value))
     }
 
     fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
@@ -42,11 +42,11 @@ impl<'de> Visitor<'de> for PklVisitor {
         #[cfg(feature = "trace")]
         debug!("visiting i64: {}", value);
 
-        if value >= i64::from(i32::MIN) && value <= i64::from(i32::MAX) {
+        if i32::try_from(value).is_ok() {
             if value >= 0 {
-                Ok(Value::Int(crate::pkl::internal::Integer::Pos(value as u64)))
+                Ok(Value::Int(crate::internal::Integer::Pos(value as u64)))
             } else {
-                Ok(Value::Int(crate::pkl::internal::Integer::Neg(value)))
+                Ok(Value::Int(crate::internal::Integer::Neg(value)))
             }
         } else {
             Err(E::custom(format!("i32 out of range: {value}")))
@@ -64,28 +64,28 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        self.visit_i64(v as i64)
+        self.visit_i64(i64::from(v))
     }
 
     fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        self.visit_u64(v as u64)
+        self.visit_u64(u64::from(v))
     }
 
     fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        self.visit_u64(v as u64)
+        self.visit_u64(u64::from(v))
     }
 
     fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        self.visit_u64(v as u64)
+        self.visit_u64(u64::from(v))
     }
 
     fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
@@ -94,8 +94,8 @@ impl<'de> Visitor<'de> for PklVisitor {
     {
         #[cfg(feature = "trace")]
         debug!("visit_u64: {}", v);
-        if v <= i64::MAX as u64 {
-            Ok(Value::Int(crate::pkl::internal::Integer::Pos(v)))
+        if i64::try_from(v).is_ok() {
+            Ok(Value::Int(crate::internal::Integer::Pos(v)))
         } else {
             Err(E::custom(format!("u64 out of range: {v}")))
         }
@@ -105,14 +105,14 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        self.visit_f64(v as f64)
+        self.visit_f64(f64::from(v))
     }
 
     fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
     where
         E: de::Error,
     {
-        Ok(Value::Int(super::Integer::Float(v)))
+        Ok(Value::Int(crate::internal::Integer::Float(v)))
     }
 
     fn visit_char<E>(self, v: char) -> Result<Self::Value, E>

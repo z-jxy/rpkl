@@ -21,9 +21,7 @@ tracing = { version = "0.1.40", optional = true }
 tracing-subscriber = { version = "0.3.18", optional = true }
 
 [lints.clippy]
-complexity = "warn"
-pedantic = "warn"
-
+all = "warn"
 
 [target.'cfg(windows)'.dependencies]
 dunce = "1.0.4"

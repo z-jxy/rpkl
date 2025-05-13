@@ -1,5 +1,5 @@
 use crate::{
-    pkl::internal::{Integer, PklPrimitive},
+    internal::{Integer, PklPrimitive},
     Error, Result,
 };
 

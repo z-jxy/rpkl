@@ -54,6 +54,11 @@ pub use pkl::pkl_mod::codegen;
 /// #    Ok(())
 /// # }
 /// ```
+///
+/// # Errors
+/// - `DeserializeError`: If the deserialization fails.
+/// - `PklError`: If the PKL module fails to serialize.
+/// - If the evaluator fails to evaluate the module.
 pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
@@ -97,6 +102,10 @@ where
 /// #    Ok(())
 /// # }
 /// ```
+/// # Errors
+/// - `DeserializeError`: If the deserialization fails.
+/// - `PklError`: If the PKL module fails to serialize.
+/// - If the evaluator fails to evaluate the module.
 pub fn from_config_with_options<T>(
     path: impl AsRef<std::path::Path>,
     options: EvaluatorOptions,

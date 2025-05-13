@@ -1,10 +1,10 @@
-use std::collections::HashMap;
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
+use std::collections::HashMap;
 
 use serde::Serialize;
 
-use crate::{pkl::internal::Integer, value::DataSize};
+use crate::{internal::Integer, value::DataSize};
 
 #[cfg(feature = "indexmap")]
 pub type MapImpl<K, V> = IndexMap<K, V>;

@@ -37,6 +37,7 @@ impl ExternalReaderRuntime {
 
     /// Add a single, or tuple of resource readers to the client.
     ///
+    /// # Panics
     /// Panics if any of the readers have the same scheme.
     pub fn add_resource_readers<T: IntoResourceReaders>(&mut self, readers: T) -> &mut Self {
         let readers = readers.into_readers();
@@ -44,30 +45,32 @@ impl ExternalReaderRuntime {
 
         for (i, reader) in self.resource_readers.iter().enumerate() {
             for other in &self.resource_readers[i + 1..] {
-                if reader.scheme() == other.scheme() {
-                    panic!(
-                        "Multiple resource readers sharing the same scheme: {}",
-                        reader.scheme()
-                    );
-                }
+                assert!(
+                    (reader.scheme() != other.scheme()),
+                    "Multiple resource readers sharing the same scheme: {}",
+                    reader.scheme()
+                );
             }
         }
 
         self
     }
 
+    /// Add a single, or tuple of module readers to the client.
+    ///
+    /// # Panics
+    /// Panics if any of the readers have the same scheme.
     pub fn add_module_readers<T: IntoModuleReaders>(&mut self, readers: T) -> &mut Self {
         let readers = readers.into_readers();
         self.module_readers.extend(readers);
 
         for (i, reader) in self.module_readers.iter().enumerate() {
             for other in &self.module_readers[i + 1..] {
-                if reader.scheme() == other.scheme() {
-                    panic!(
-                        "Multiple resource readers sharing the same scheme: {}",
-                        reader.scheme()
-                    );
-                }
+                assert!(
+                    (reader.scheme() != other.scheme()),
+                    "Multiple resource readers sharing the same scheme: {}",
+                    reader.scheme()
+                );
             }
         }
 
@@ -161,15 +164,22 @@ impl ExternalReaderRuntime {
         Ok(())
     }
 
+    /// Run the external reader runtime.
+    ///
+    /// This function will block until the external process is closed.
+    /// It will read messages from stdin and pass them along to the registered readers.
+    ///
+    /// # Errors
+    /// Errors if the message cannot be decoded or if the reader fails to handle the message.
     pub fn run(&self) -> Result<(), Box<dyn std::error::Error>> {
         let mut stdin = std::io::stdin().lock();
         let mut stdout = std::io::stdout().lock();
 
-        for _reader in self.resource_readers.iter() {
+        for _reader in &self.resource_readers {
             _info!("Registered resource reader: {:?}", _reader.scheme());
         }
 
-        for _reader in self.module_readers.iter() {
+        for _reader in &self.module_readers {
             _info!("Registered module reader: {:?}", _reader.scheme());
         }
 

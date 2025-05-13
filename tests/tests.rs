@@ -152,15 +152,15 @@ mod non_primitive_values {
 
     #[test]
     fn mappings() -> Result<(), rpkl::Error> {
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("pkl")
-            .join("mappings.pkl");
-
         #[derive(serde::Deserialize, Debug)]
         struct MappingConfig {
             paths: std::collections::HashMap<String, Vec<String>>,
         }
+
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join("mappings.pkl");
 
         let config = rpkl::from_config::<MappingConfig>(path)?;
 

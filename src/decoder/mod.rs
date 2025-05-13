@@ -1,11 +1,7 @@
 mod primitive;
 mod structs;
 
-use crate::{
-    context::Context,
-    pkl::{internal::ObjectMember, PklMod},
-    Error, Result,
-};
+use crate::{context::Context, internal::ObjectMember, pkl::PklMod, Error, Result};
 
 /// Decode a pkl module from a messagepack value
 pub(crate) fn decode_module(decoded: &rmpv::Value) -> Result<crate::pkl::PklMod> {
@@ -44,8 +40,8 @@ pub(crate) fn decode_module(decoded: &rmpv::Value) -> Result<crate::pkl::PklMod>
         .collect::<Result<Vec<ObjectMember>>>()?;
 
     Ok(PklMod {
-        _module_name: module_name.to_string(),
-        _module_uri: module_uri.to_string(),
+        module_name: module_name.to_string(),
+        module_uri: module_uri.to_string(),
         members,
     })
 }

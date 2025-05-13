@@ -1,5 +1,4 @@
 use crate::pkl::de::{DurationMapAccess, EnumDeserializer, RangeMapAccess, TupleSeqAccess};
-use crate::pkl::internal::{self};
 use crate::value::datasize::DataSizeMapAccess;
 use crate::value::value::MapImpl;
 use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
@@ -58,7 +57,7 @@ impl<'a, 'de> MapAccessImpl<'a, 'de> {
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
+impl<'de> MapAccess<'de> for MapAccessImpl<'_, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -111,7 +110,7 @@ impl<'a> PklSeqAccess<'a> {
     }
 }
 
-impl<'de, 'a> SeqAccess<'de> for PklSeqAccess<'a> {
+impl<'de> SeqAccess<'de> for PklSeqAccess<'_> {
     type Error = crate::Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -143,7 +142,7 @@ impl<'a> PklMapAccess<'a> {
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for PklMapAccess<'a> {
+impl<'de> MapAccess<'de> for PklMapAccess<'_> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -183,11 +182,11 @@ impl<'de, 'a> MapAccess<'de> for PklMapAccess<'a> {
     }
 }
 
-/// Internal deserializer used for deserializing Tuples from PklValue
+/// Internal deserializer used for deserializing Tuples from `PklValue`
 #[derive(Clone, Copy)]
 pub struct PklValueDeserializer<'v>(pub &'v PklValue);
 
-impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
+impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -233,9 +232,9 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
 
         match self.0 {
             PklValue::Int(i) => match i {
-                internal::Integer::Pos(u) => visitor.visit_u64(*u),
-                internal::Integer::Neg(n) => visitor.visit_i64(*n),
-                internal::Integer::Float(f) => visitor.visit_f64(*f),
+                crate::internal::Integer::Pos(u) => visitor.visit_u64(*u),
+                crate::internal::Integer::Neg(n) => visitor.visit_i64(*n),
+                crate::internal::Integer::Float(f) => visitor.visit_f64(*f),
             },
             PklValue::String(s) | PklValue::Regex(s) => visitor.visit_string(s.to_owned()),
 

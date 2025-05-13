@@ -1,10 +1,20 @@
-use super::internal::ObjectMember;
+use crate::internal::ObjectMember;
 
 #[derive(Debug)]
 pub struct PklMod {
-    pub(crate) _module_name: String,
-    pub(crate) _module_uri: String,
+    pub(crate) module_name: String,
+    pub(crate) module_uri: String,
     pub(crate) members: Vec<ObjectMember>,
+}
+
+impl PklMod {
+    pub fn module_name(&self) -> &str {
+        &self.module_name
+    }
+
+    pub fn module_uri(&self) -> &str {
+        &self.module_uri
+    }
 }
 
 #[cfg(feature = "codegen")]
@@ -14,7 +24,9 @@ pub mod codegen {
 
     use std::io::Write;
 
-    use crate::pkl::internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive};
+    use std::fmt::Write as _;
+
+    use crate::internal::{IPklValue, ObjectMember, PklNonPrimitive, PklPrimitive};
 
     use super::PklMod;
     use crate::Result;
@@ -130,13 +142,16 @@ pub mod codegen {
         ///
         /// To modify the generated code,
         /// use [`CodegenOptions`] to add additional attributes to the generated structs and fields.
+        ///
+        /// # Errors
+        /// Errors if the generated code cannot be written to the file system.
         pub fn codegen(&self, options: Option<CodegenOptions>) -> Result<()> {
             let options = options.unwrap_or_default();
             let path = PathBuf::from("./generated");
             std::fs::create_dir_all(&path)?;
             let file = std::fs::File::create(path.join("mod.rs"))?;
 
-            let module_name = &self._module_name;
+            let module_name = &self.module_name;
 
             let mut writer = std::io::BufWriter::new(file);
 
@@ -160,14 +175,14 @@ pub mod codegen {
                 writeln!(
                     writer,
                     "pub mod {} {{",
-                    self._module_name.to_case(Case::Snake)
+                    self.module_name.to_case(Case::Snake)
                 )?;
                 // TODO: reimplement
                 // writeln!(writer, "\tuse super::*;\n")?;
-                for dep in deps.iter() {
-                    dep.lines().for_each(|line| {
-                        writeln!(writer, "\t{line}").unwrap();
-                    });
+                for dep in &deps {
+                    for line in dep.lines() {
+                        writeln!(writer, "\t{line}")?;
+                    }
                 }
 
                 writeln!(writer, "}}")?;
@@ -202,7 +217,9 @@ pub mod codegen {
                 IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(_, _, _)) => {
                     "std::ops::Range<i64>".to_string()
                 }
-                t => unimplemented!("implement codegen for other non-primitive types, {:?}", t),
+                ty @ IPklValue::NonPrimitive(_) => {
+                    unimplemented!("implement codegen for other non-primitive types, {ty:?}")
+                }
             }
         }
 
@@ -238,19 +255,20 @@ pub mod codegen {
 
                 // add the field
                 let upper_camel = member_ident.to_case(Case::UpperCamel);
-                let rename = match member_ident == upper_camel {
-                    true => Some(format!("#[serde(rename = \"{upper_camel}\")]\n",)),
-                    false => None,
+                let rename = if member_ident == upper_camel {
+                    Some(format!("#[serde(rename = \"{upper_camel}\")]\n",))
+                } else {
+                    None
                 };
 
                 if let Some(rename) = &rename {
-                    field.push_str(&format!("\t{rename}"));
+                    write!(field, "\t{rename}")?;
                 }
-
-                field.push_str(&format!(
-                    "\tpub {snake_case_field_name}: {}::{upper_camel},\n",
+                writeln!(
+                    field,
+                    "\tpub {snake_case_field_name}: {}::{upper_camel},",
                     top_level_module_name.to_case(Case::Snake),
-                ));
+                )?;
 
                 return Ok(field);
             }
@@ -258,74 +276,73 @@ pub mod codegen {
             let field_modifier = format!("{parent_struct_ident}.{snake_case_field_name}");
 
             if let Some(attr) = options.find_enum(&field_modifier) {
-                let __enum = Self::generate_enum(
-                    member_ident,
-                    attr.split(",").map(|s| s.trim().to_string()).collect(),
-                    true,
-                    generated_structs,
-                    options,
-                )?;
+                let variants = attr.split(',').map(str::trim).collect::<Vec<_>>();
+                let __enum =
+                    Self::generate_enum(member_ident, &variants, true, generated_structs, options);
                 deps.push(__enum);
-                field.push_str(&format!(
-                    "\tpub {snake_case_field_name}: {}::{},\n",
+                writeln!(
+                    field,
+                    "\tpub {snake_case_field_name}: {}::{},",
                     top_level_module_name.to_case(Case::Snake),
                     member_ident.to_case(Case::UpperCamel),
-                ));
+                )?;
                 return Ok(field);
             }
 
             if let Some(attr) = options.find_field_attribute(&field_modifier) {
-                field.push_str(&format!("\t{attr}\n"));
+                writeln!(field, "\t{attr}")?;
             }
 
-            let rename = match snake_case_field_name == member_ident {
-                true => None,
-                false => Some(format!("#[serde(rename = \"{member_ident}\")]\n")),
+            let rename = if snake_case_field_name == member_ident {
+                None
+            } else {
+                Some(format!("#[serde(rename = \"{member_ident}\")]\n"))
             };
 
             if let Some(rename) = &rename {
-                field.push_str(&format!("\t{rename}"));
+                write!(field, "\t{rename}")?;
             }
 
-            field.push_str(&format!(
-                "\tpub {snake_case_field_name}: {},\n",
+            writeln!(
+                field,
+                "\tpub {snake_case_field_name}: {},",
                 &PklMod::field_type_from_pkl_value(member_value)
-            ));
+            )?;
 
             Ok(field)
         }
 
         fn generate_enum(
             enum_ident: &str,
-            variants: Vec<String>,
+            variants: &[&str],
             is_dependency: bool,
             // top_level_module_name: &str,
             generated_structs: &mut HashSet<String>,
             // field_modifier: &str,
             options: &CodegenOptions,
-        ) -> Result<String> {
+        ) -> String {
             let upper_camel = enum_ident.to_case(Case::UpperCamel);
             if generated_structs.contains(&upper_camel) {
-                return Ok(String::new());
+                return String::new();
             }
             generated_structs.insert(upper_camel.clone());
 
             let mut code = String::new();
 
             if let Some(attr) = options.find_type_attribute(&upper_camel) {
-                code.push_str(&format!("{attr}\n"));
+                _ = writeln!(code, "{attr}");
             }
 
             code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
 
             if is_dependency {
                 // code.push_str(&format!("pub(crate) struct {upper_camel} {{\n")); // TODO: revisit this
-                code.push_str(&format!("pub enum {upper_camel} {{\n"));
+                _ = writeln!(code, "pub enum {upper_camel} {{");
             } else {
-                code.push_str(&format!("pub enum {upper_camel} {{\n"));
+                _ = writeln!(code, "pub enum {upper_camel} {{");
             }
 
-            for variant in variants.iter() {
+            for variant in variants {
                 let variant_ident = variant.to_case(Case::UpperCamel);
                 let varient_modifier_key = format!("{upper_camel}.{variant_ident}");
                 if let Some(attrs) = options
@@ -333,14 +350,14 @@ pub mod codegen {
                     .iter()
                     .find(|(name, _)| *name == varient_modifier_key)
                 {
-                    code.push_str(&format!("\t{}\n", attrs.1));
+                    _ = writeln!(code, "\t{}", attrs.1);
                 }
-                code.push_str(&format!("\t{variant_ident},\n"));
+                _ = writeln!(code, "\t{variant_ident},");
             }
 
             code.push_str("}\n\n");
 
-            Ok(code)
+            code
         }
 
         fn generate_struct(
@@ -361,23 +378,23 @@ pub mod codegen {
             let mut code = String::new();
 
             if let Some(attr) = options.find_type_attribute(&upper_camel) {
-                code.push_str(&format!("{attr}\n"));
+                _ = writeln!(code, "{attr}");
             }
             code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
 
             if is_dependency {
                 // code.push_str(&format!("pub(crate) struct {upper_camel} {{\n")); // TODO: revisit this
-                code.push_str(&format!("pub struct {upper_camel} {{\n"));
+                _ = writeln!(code, "pub struct {upper_camel} {{");
             } else if pub_struct {
-                code.push_str(&format!("pub struct {upper_camel} {{\n"));
+                _ = writeln!(code, "pub struct {upper_camel} {{");
             } else {
-                code.push_str(&format!("struct {upper_camel} {{\n"));
+                _ = writeln!(code, "struct {upper_camel} {{");
             }
 
             // code.push_str(&format!("struct {} {{\n", struct_ident));
 
             let mut deps = vec![];
-            for member in members.iter() {
+            for member in members {
                 let member_ident = member.get_ident();
                 let member_value = member.get_value();
                 let snake_case_field_name = member_ident.to_case(Case::Snake);
@@ -396,6 +413,12 @@ pub mod codegen {
             code.push_str("}\n\n");
 
             Ok((code, deps))
+        }
+    }
+
+    impl From<std::fmt::Error> for crate::Error {
+        fn from(e: std::fmt::Error) -> Self {
+            crate::Error::Message(format!("failed to write generated code: {e:?}"))
         }
     }
 }

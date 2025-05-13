@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use crate::{
     context::Context,
     decoder::primitive::decode_primitive,
-    pkl::internal::{type_constants, IPklValue, ObjectMember, PklNonPrimitive},
+    internal::{type_constants, IPklValue, ObjectMember, PklNonPrimitive},
     utils,
     utils::macros::_trace,
     value::{datasize::DataSizeUnit, value::MapImpl, DataSize},
@@ -29,6 +29,7 @@ pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
 }
 
 /// Decode the preamble of an object to get its type ID
+#[inline]
 fn decode_object_type_id(data: &[rmpv::Value]) -> Result<(u64, &[rmpv::Value])> {
     if data.is_empty() {
         return Err(Error::DecodeError("empty data for object".into()));

@@ -2,13 +2,14 @@
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
+use crate::internal::ObjectMember;
 use crate::value::value::MapImpl;
 use crate::Result;
 
-use super::{internal::ObjectMember, PklMod};
+use super::PklMod;
 use crate::Value as PklValue;
 
-pub trait PklSerialize {
+pub(crate) trait PklSerialize {
     fn serialize_pkl_ast(self) -> Result<MapImpl<String, PklValue>>;
 }
 

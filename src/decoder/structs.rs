@@ -17,7 +17,7 @@ pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
 
     let type_id = slots
         .next()
-        .and_then(|v| v.as_u64())
+        .and_then(rmpv::Value::as_u64)
         .context("expected type id")?;
 
     match type_id {
@@ -66,30 +66,13 @@ fn decode_object_generic(
                 .unwrap_or_else(|| panic!("expected str for ident, got {v:?}"))
                 .to_owned()
         })
-        .unwrap();
+        .context("expected ident for object")?;
 
-    #[cfg(feature = "trace")]
-    trace!("decoding ident {:?}", ident);
+    _trace!("decoding ident {:?}", ident);
 
     let value = slots.next().expect("[parse_member_inner] expected value");
 
-    // nested object, map using the outer ident
-    if let rmpv::Value::Array(array) = value {
-        _trace!("got array, decode inner bin {:?}", ident);
-        let pkl_value = decode_bin_array(array)?;
-        _trace!(
-            "decoding for inner bin `{ident}` is complete: {:?}",
-            pkl_value
-        );
-        return Ok(ObjectMember(type_id, ident, pkl_value));
-    }
-
-    let primitive = decode_primitive(value)?;
-    Ok(ObjectMember(
-        type_id,
-        ident,
-        IPklValue::Primitive(primitive),
-    ))
+    Ok(ObjectMember(type_id, ident, decode_member(value)?))
 }
 
 /// this function is used to parse dynmically typed listings
@@ -109,35 +92,37 @@ fn decode_dynamic_list(
     type_id: u64,
     slots: &mut std::slice::Iter<rmpv::Value>,
 ) -> Result<ObjectMember> {
-    _trace!("parse_dynamic_list_inner: type_id: {}", type_id);
-    if type_id != type_constants::DYNAMIC_LISTING {
-        todo!(
-            "expected DYNAMIC_LISTING ( type_id: {}), got: {}",
-            type_constants::DYNAMIC_LISTING,
-            type_id
-        );
-    }
+    assert!(
+        type_id == type_constants::DYNAMIC_LISTING,
+        "expected DYNAMIC_LISTING ( type_id: {}), got: {}",
+        type_constants::DYNAMIC_LISTING,
+        type_id
+    );
 
     let index = slots
         .next()
-        .and_then(|v| v.as_u64())
+        .and_then(rmpv::Value::as_u64)
         .context("expected index for dynamic list")?;
 
     let value = slots.next().expect("[parse_member_inner] expected value");
 
     // nested object, map using the outer ident
-    if let rmpv::Value::Array(array) = value {
-        let pkl_value = decode_bin_array(array)?;
-        return Ok(ObjectMember(type_id, index.to_string(), pkl_value));
-    }
-
-    let primitive = decode_primitive(value)?;
-
     Ok(ObjectMember(
         type_id,
         index.to_string(),
-        IPklValue::Primitive(primitive),
+        decode_member(value)?,
     ))
+}
+
+/// helper function to decode a member into an `IPklValue`
+#[inline]
+fn decode_member(value: &rmpv::Value) -> Result<IPklValue> {
+    // if its an array, parse the inner object, otherwise parse the primitive value
+    if let Some(array) = value.as_array() {
+        Ok(decode_bin_array(array)?)
+    } else {
+        Ok(decode_primitive(value)?.into())
+    }
 }
 
 /// evaluates the inner binary array of a pkl object. used for decoding nested non-primitive types
@@ -195,21 +180,14 @@ fn decode_typed(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> 
 
 fn decode_set(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     let values = &slots[0];
-    let values = values.as_array().unwrap().to_vec();
+    let values = values
+        .as_array()
+        .context("expected array when decoding set")?;
 
-    let mut set_values = vec![];
+    let mut set_values: Vec<PklValue> = Vec::with_capacity(values.len());
 
-    for v in values.iter() {
-        if let Some(array) = v.as_array() {
-            _trace!("inserting values into set");
-            let decoded_value = decode_bin_array(array)?;
-            let pkl_value: PklValue = decoded_value.into();
-
-            set_values.push(pkl_value);
-        } else {
-            let prim = decode_primitive(v)?;
-            set_values.push(prim.into());
-        }
+    for v in values {
+        set_values.push(decode_member(v)?.into());
     }
 
     Ok(PklNonPrimitive::Set(type_id, set_values))
@@ -232,16 +210,13 @@ fn decode_mapping(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive
             m
         };
     let values = values.as_map().unwrap();
-    for (k, v) in values.iter() {
-        let key = k.as_str().expect("expected key for mapping");
-        if let Some(array) = v.as_array() {
-            // add the inner object
-            _trace!("inserting fields into mapping");
-            mapping.insert(key.to_string(), decode_bin_array(array)?.into());
-        } else {
-            mapping.insert(key.to_string(), decode_primitive(v)?.into());
-        }
+
+    for (k, v) in values {
+        let key = k.as_str().context("expected key for mapping")?;
+        let value = decode_member(v)?;
+        mapping.insert(key.to_string(), value.into());
     }
+
     Ok(PklNonPrimitive::Mapping(type_id, PklValue::Map(mapping)))
 }
 
@@ -252,38 +227,24 @@ fn decode_list(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     let values = &slots[0];
     let values = values
         .as_array()
-        .unwrap_or_else(|| panic!("Expected array, got {values:?}"))
-        .to_vec();
+        .unwrap_or_else(|| panic!("Expected array, got {values:?}"));
 
-    let mut list_values = Vec::with_capacity(values.len());
+    let mut list_values: Vec<PklValue> = Vec::with_capacity(values.len());
 
-    for v in values.iter() {
-        let value = match v {
-            // decode the inner object
-            rmpv::Value::Array(array) => decode_bin_array(array)?.into(),
-            _ => decode_primitive(v)?.into(),
-        };
-        list_values.push(value);
+    for v in values {
+        list_values.push(decode_member(v)?.into());
     }
 
     Ok(PklNonPrimitive::List(type_id, list_values))
 }
 
+#[inline]
 fn decode_pair(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    // if its an array, parse the inner object, otherwise parse the primitive value
-    let first_val: PklValue = if let Some(array) = slots[0].as_array() {
-        decode_bin_array(array)?.into()
-    } else {
-        decode_primitive(&slots[0])?.into()
-    };
-
-    let second_val: PklValue = if let Some(array) = slots[1].as_array() {
-        decode_bin_array(array)?.into()
-    } else {
-        decode_primitive(&slots[1])?.into()
-    };
-
-    Ok(PklNonPrimitive::Pair(type_id, first_val, second_val))
+    Ok(PklNonPrimitive::Pair(
+        type_id,
+        decode_member(&slots[0])?.into(),
+        decode_member(&slots[1])?.into(),
+    ))
 }
 
 #[inline]

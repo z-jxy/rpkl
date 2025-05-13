@@ -7,38 +7,12 @@ mod tests {
 
     use std::path::PathBuf;
 
-    use rmpv::Value;
-    use rpkl::api;
     use rpkl::api::evaluator::EvaluatorOptions;
-    use rpkl::pkl::Deserializer;
-    use rpkl::pkl::PklSerialize;
     use serde::Deserialize;
 
     #[cfg(feature = "dhat-heap")]
     #[global_allocator]
     static ALLOC: dhat::Alloc = dhat::Alloc;
-
-    macro_rules! print_time {
-        ($elapsed:expr) => {
-            if $elapsed.as_millis() > 0 {
-                println!("Time: {}ms", $elapsed.as_millis());
-            } else {
-                println!("Time: {}μs", $elapsed.as_micros());
-            }
-        };
-    }
-
-    /// Time a block of code
-    macro_rules! time {
-        ( $($s:stmt);* $(;)?) => {
-            let now = std::time::Instant::now();
-            {
-                $($s)*
-            };
-            let elapsed = now.elapsed();
-            print_time!(elapsed);
-        }
-    }
 
     #[test]
     fn optional_values() {

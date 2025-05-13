@@ -206,3 +206,14 @@ pub(crate) enum PklNonPrimitive {
 
 /// https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq
 pub type IntSeq = std::ops::Range<i64>;
+
+impl From<PklNonPrimitive> for IPklValue {
+    fn from(np: PklNonPrimitive) -> Self {
+        IPklValue::NonPrimitive(np)
+    }
+}
+impl From<PklPrimitive> for IPklValue {
+    fn from(p: PklPrimitive) -> Self {
+        IPklValue::Primitive(p)
+    }
+}

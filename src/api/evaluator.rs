@@ -26,7 +26,7 @@ use crate::internal::msgapi::codes::{
     LIST_MODULES_REQUEST, LIST_RESOURCES_REQUEST, READ_MODULE_REQUEST, READ_RESOURCE_REQUEST,
 };
 
-use crate::{api::decoder::pkl_eval_module, pkl::PklMod};
+use crate::{decoder::decode_module, pkl::PklMod};
 
 #[cfg(feature = "trace")]
 use tracing::debug;
@@ -277,7 +277,7 @@ impl Evaluator {
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
         _debug!("rmpv pkl module: {:#?}", rmpv_ast);
-        let pkl_mod = pkl_eval_module(&rmpv_ast)?;
+        let pkl_mod = decode_module(&rmpv_ast)?;
 
         Ok(pkl_mod)
     }

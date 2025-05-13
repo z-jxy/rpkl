@@ -13,7 +13,7 @@ pub mod value;
 pub use error::{Error, Result};
 
 pub use api::evaluator::EvaluatorOptions;
-use utils::macros::_trace;
+
 pub use value::PklValue as Value;
 
 #[cfg(feature = "codegen")]
@@ -121,7 +121,7 @@ where
 
     let pkld = pkl_mod.serialize_pkl_ast()?;
 
-    _trace!("serialized pkl data {:?}", pkld);
+    utils::macros::_trace!("serialized pkl data {:?}", pkld);
 
     T::deserialize(&mut Deserializer::from_pkl_map(&pkld))
         .map_err(|e| Error::DeserializeError(format!("{e}")))

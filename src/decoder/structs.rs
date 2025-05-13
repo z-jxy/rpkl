@@ -13,20 +13,88 @@ use crate::{
 };
 
 pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
-    let mut slots = data.iter();
-
-    let type_id = slots
-        .next()
-        .and_then(rmpv::Value::as_u64)
-        .context("expected type id")?;
+    let (type_id, slots) = decode_object_type_id(data)?;
 
     match type_id {
-        type_constants::OBJECT_MEMBER | type_constants::DYNAMIC_MAPPING => {
-            decode_object_generic(type_id, &mut slots)
-        }
-        type_constants::DYNAMIC_LISTING => decode_dynamic_list(type_id, &mut slots),
+        type_constants::OBJECT_MEMBER
+        | type_constants::DYNAMIC_MAPPING
+        | type_constants::DYNAMIC_LISTING => decode_object_generic(type_id, slots),
         _ => {
-            unimplemented!("type_id is not OBJECT_MEMBER, or DYNAMIC_LISTING. implement parse other non-primitive types. type_id: {}\n", type_id);
+            unimplemented!(
+                "implement parse other non-primitive types. type_id: {}\n",
+                type_id
+            );
+        }
+    }
+}
+
+/// Decode the preamble of an object to get its type ID
+fn decode_object_type_id(data: &[rmpv::Value]) -> Result<(u64, &[rmpv::Value])> {
+    if data.is_empty() {
+        return Err(Error::DecodeError("empty data for object".into()));
+    }
+
+    let type_id = data[0]
+        .as_u64()
+        .context("expected type id in object preamble")?;
+
+    Ok((type_id, &data[1..]))
+}
+
+/// Decodes the inner member of a pkl object
+fn decode_object_generic(type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectMember> {
+    let ident = slots
+        .first()
+        .and_then(rmpv::Value::as_str)
+        .context("expected ident for object")?;
+
+    _trace!("decoding ident {:?}", ident);
+
+    let value = slots
+        .get(1)
+        .context("[decode_object_generic] expected value")?;
+
+    Ok(ObjectMember(
+        type_id,
+        ident.to_owned(),
+        decode_member(value)?,
+    ))
+}
+
+/// helper function to decode a member into an `IPklValue`
+#[inline]
+fn decode_member(value: &rmpv::Value) -> Result<IPklValue> {
+    // if its an array, parse the inner object, otherwise parse the primitive value
+    if let Some(array) = value.as_array() {
+        decode_non_primitive(array)
+    } else {
+        Ok(decode_primitive(value)?.into())
+    }
+}
+
+/// evaluates the inner array of a pkl object. used for decoding nested non-primitive types
+fn decode_non_primitive(slots: &[rmpv::Value]) -> Result<IPklValue> {
+    let type_id = slots[0].as_u64().context("missing type id")?;
+
+    match type_id {
+        type_constants::OBJECT_MEMBER => {
+            // next slot is the ident,
+            // we don't need rn bc it's in the object from the outer scope that called this function
+            _trace!(
+                "decode_inner_bin_array :: found type const type_constants::OBJECT_MEMBER: {}",
+                type_id
+            );
+            unreachable!("found OBJECT_MEMBER in pkl binary data {}", type_id);
+            Ok(IPklValue::Primitive(decode_primitive(&slots[2])?))
+        }
+        non_prim => {
+            _trace!(
+                "decode_inner_bin_array :: non prim member found. recurse for type_id: {}",
+                crate::pkl::internal::type_constants::pkl_type_id_str(type_id)
+            );
+            let value = decode_struct(non_prim, &slots[1..])?;
+            _trace!("decode_inner_bin_array :: decoded value: {:?}", non_prim);
+            Ok(IPklValue::NonPrimitive(value))
         }
     }
 }
@@ -54,110 +122,9 @@ fn decode_struct(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive>
     }
 }
 
-/// Decodes the inner member of a pkl object
-fn decode_object_generic(
-    type_id: u64,
-    slots: &mut std::slice::Iter<rmpv::Value>,
-) -> Result<ObjectMember> {
-    let ident = slots
-        .next()
-        .map(|v| {
-            v.as_str()
-                .unwrap_or_else(|| panic!("expected str for ident, got {v:?}"))
-                .to_owned()
-        })
-        .context("expected ident for object")?;
-
-    _trace!("decoding ident {:?}", ident);
-
-    let value = slots.next().expect("[parse_member_inner] expected value");
-
-    Ok(ObjectMember(type_id, ident, decode_member(value)?))
-}
-
-/// this function is used to parse dynmically typed listings
-///
-/// i.e:
-///
-/// ```ignore
-/// birds = new {
-///  "Pigeon"
-///  "Hawk"
-///  "Penguin"
-///  }
-/// ```
-/// the dynamically typed listings have a different structure than the typed listings
-///
-fn decode_dynamic_list(
-    type_id: u64,
-    slots: &mut std::slice::Iter<rmpv::Value>,
-) -> Result<ObjectMember> {
-    assert!(
-        type_id == type_constants::DYNAMIC_LISTING,
-        "expected DYNAMIC_LISTING ( type_id: {}), got: {}",
-        type_constants::DYNAMIC_LISTING,
-        type_id
-    );
-
-    let index = slots
-        .next()
-        .and_then(rmpv::Value::as_u64)
-        .context("expected index for dynamic list")?;
-
-    let value = slots.next().expect("[parse_member_inner] expected value");
-
-    // nested object, map using the outer ident
-    Ok(ObjectMember(
-        type_id,
-        index.to_string(),
-        decode_member(value)?,
-    ))
-}
-
-/// helper function to decode a member into an `IPklValue`
-#[inline]
-fn decode_member(value: &rmpv::Value) -> Result<IPklValue> {
-    // if its an array, parse the inner object, otherwise parse the primitive value
-    if let Some(array) = value.as_array() {
-        Ok(decode_bin_array(array)?)
-    } else {
-        Ok(decode_primitive(value)?.into())
-    }
-}
-
-/// evaluates the inner binary array of a pkl object. used for decoding nested non-primitive types
-fn decode_bin_array(slots: &[rmpv::Value]) -> Result<IPklValue> {
-    let type_id = slots[0].as_u64().context("missing type id")?;
-
-    if type_id == type_constants::OBJECT_MEMBER {
-        // next slot is the ident,
-        // we don't need rn bc it's in the object from the outer scope that called this function
-        #[cfg(feature = "trace")]
-        trace!(
-            "decode_inner_bin_array :: found type const type_constants::OBJECT_MEMBER: {}",
-            type_id
-        );
-        let value = &slots[2];
-        let primitive = decode_primitive(value)?;
-        return Ok(IPklValue::Primitive(primitive));
-    }
-
-    // #[cfg(feature = "trace")]
-    _trace!(
-        "decode_inner_bin_array :: non prim member found. recurse for type_id: {}",
-        pkl_type_id_str(type_id)
-    );
-
-    let non_prim = decode_struct(type_id, &slots[1..])?;
-    #[cfg(feature = "trace")]
-    trace!("decode_inner_bin_array :: decoded value: {:?}", non_prim);
-
-    Ok(IPklValue::NonPrimitive(non_prim))
-}
-
 fn decode_typed(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    let dyn_ident = slots[0].as_str().expect("expected fully qualified name");
-    let module_uri = slots[1].as_str().expect("expected module uri");
+    let dyn_ident = slots[0].as_str().context("expected fully qualified name")?;
+    let module_uri = slots[1].as_str().context("expected module uri")?;
     let members = slots[2].as_array().unwrap_or_else(|| {
         panic!(
             "expected array of abstract member objects, got: {:?}",

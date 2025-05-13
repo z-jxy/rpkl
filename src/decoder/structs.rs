@@ -66,51 +66,26 @@ fn decode_object_generic(type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectMe
 fn decode_member(value: &rmpv::Value) -> Result<IPklValue> {
     // if its an array, parse the inner object, otherwise parse the primitive value
     if let Some(array) = value.as_array() {
-        decode_non_primitive(array)
+        Ok(decode_non_primitive(array)?.into())
     } else {
         Ok(decode_primitive(value)?.into())
     }
 }
 
-/// evaluates the inner array of a pkl object. used for decoding nested non-primitive types
-fn decode_non_primitive(slots: &[rmpv::Value]) -> Result<IPklValue> {
-    let type_id = slots[0].as_u64().context("missing type id")?;
-
-    match type_id {
-        type_constants::OBJECT_MEMBER => {
-            // next slot is the ident,
-            // we don't need rn bc it's in the object from the outer scope that called this function
-            _trace!(
-                "decode_inner_bin_array :: found type const type_constants::OBJECT_MEMBER: {}",
-                type_id
-            );
-            unreachable!("found OBJECT_MEMBER in pkl binary data {}", type_id);
-            Ok(IPklValue::Primitive(decode_primitive(&slots[2])?))
-        }
-        non_prim => {
-            _trace!(
-                "decode_inner_bin_array :: non prim member found. recurse for type_id: {}",
-                crate::pkl::internal::type_constants::pkl_type_id_str(type_id)
-            );
-            let value = decode_struct(non_prim, &slots[1..])?;
-            _trace!("decode_inner_bin_array :: decoded value: {:?}", non_prim);
-            Ok(IPklValue::NonPrimitive(value))
-        }
-    }
-}
-
 /// decodes non-primitive members of a pkl object
-fn decode_struct(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+fn decode_non_primitive(slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+    let (type_id, slots) = decode_object_type_id(slots)?;
+
     match type_id {
         type_constants::TYPED_DYNAMIC => decode_typed(type_id, slots),
         type_constants::SET => decode_set(type_id, slots),
         type_constants::MAPPING | type_constants::MAP => decode_mapping(type_id, slots),
         type_constants::LIST | type_constants::LISTING => decode_list(type_id, slots),
         type_constants::DURATION => decode_duration(type_id, slots),
-        type_constants::DATA_SIZE => Ok(decode_datasize(type_id, slots)),
+        type_constants::DATA_SIZE => decode_datasize(type_id, slots),
         type_constants::PAIR => decode_pair(type_id, slots),
-        type_constants::INT_SEQ => Ok(decode_intseq(type_id, slots)),
-        type_constants::REGEX => Ok(decode_regex(type_id, slots)),
+        type_constants::INT_SEQ => decode_intseq(type_id, slots),
+        type_constants::REGEX => decode_regex(type_id, slots),
 
         // afaik, pkl doesn't send this information over in the evaluated data
         type_constants::TYPE_ALIAS => {
@@ -123,25 +98,35 @@ fn decode_struct(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive>
 }
 
 fn decode_typed(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    let dyn_ident = slots[0].as_str().context("expected fully qualified name")?;
-    let module_uri = slots[1].as_str().context("expected module uri")?;
-    let members = slots[2].as_array().unwrap_or_else(|| {
-        panic!(
-            "expected array of abstract member objects, got: {:?}",
+    let dyn_ident = slots[0]
+        .as_str()
+        .context("[typed] expected fully qualified name")?;
+    let module_uri = slots[1].as_str().context("[typed] expected module uri")?;
+    let Some(members) = slots[2].as_array() else {
+        return Err(Error::DecodeError(format!(
+            "expected array of object members, got: {:?}",
             slots[2]
-        )
-    });
+        )));
+    };
 
-    let members = members
+    let decoded_members = members
         .iter()
-        .map(|m| decode_object_member(m.as_array().unwrap()))
+        .map(|m| {
+            let Some(m) = m.as_array() else {
+                return Err(Error::DecodeError(format!(
+                    "expected array for object member, got {m:?}"
+                )));
+            };
+            decode_object_member(m)
+                .map_err(|e| Error::Message(format!("failed to parse pkl object member: {e}")))
+        })
         .collect::<Result<Vec<ObjectMember>>>()?;
 
     Ok(PklNonPrimitive::TypedDynamic(
         type_id,
         dyn_ident.to_owned(),
         module_uri.to_owned(),
-        members,
+        decoded_members,
     ))
 }
 
@@ -162,21 +147,17 @@ fn decode_set(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
 
 fn decode_mapping(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     let values = &slots[0];
-    let mut mapping: MapImpl<String, PklValue> =
-        if let Some(size) = values.as_map().map(std::vec::Vec::len) {
-            #[cfg(feature = "indexmap")]
-            let m = IndexMap::with_capacity(size);
-            #[cfg(not(feature = "indexmap"))]
-            let m = HashMap::with_capacity(size);
-            m
-        } else {
-            #[cfg(feature = "indexmap")]
-            let m = IndexMap::new();
-            #[cfg(not(feature = "indexmap"))]
-            let m = HashMap::new();
-            m
-        };
-    let values = values.as_map().unwrap();
+
+    let Some(values) = values.as_map() else {
+        return Err(Error::DecodeError(format!(
+            "expected map when decoding mapping, got: {values:?}"
+        )));
+    };
+
+    #[cfg(feature = "indexmap")]
+    let mut mapping: MapImpl<String, PklValue> = IndexMap::with_capacity(values.len());
+    #[cfg(not(feature = "indexmap"))]
+    let mut mapping: MapImpl<String, PklValue> = HashMap::with_capacity(values.len());
 
     for (k, v) in values {
         let key = k.as_str().context("expected key for mapping")?;
@@ -191,10 +172,9 @@ fn decode_list(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     _trace!("LIST | LISTING: type_id: {}", type_id);
     _trace!("slots: {:#?}", slots);
 
-    let values = &slots[0];
-    let values = values
+    let values = slots[0]
         .as_array()
-        .unwrap_or_else(|| panic!("Expected array, got {values:?}"));
+        .context(format!("expected array when decoding list, got: {slots:?}"))?;
 
     let mut list_values: Vec<PklValue> = Vec::with_capacity(values.len());
 
@@ -215,25 +195,26 @@ fn decode_pair(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
 }
 
 #[inline]
-fn decode_datasize(type_id: u64, slots: &[rmpv::Value]) -> PklNonPrimitive {
-    let float = slots[0].as_f64().expect("expected float for data size");
-    let size_unit = slots[1].as_str().expect("expected size type");
+fn decode_datasize(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+    let float = slots[0].as_f64().context("expected float for data size")?;
+    let size_unit = slots[1].as_str().context("expected size type")?;
     let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
-    PklNonPrimitive::DataSize(type_id, ds)
+    Ok(PklNonPrimitive::DataSize(type_id, ds))
 }
 
 #[inline]
-fn decode_intseq(type_id: u64, slots: &[rmpv::Value]) -> PklNonPrimitive {
+fn decode_intseq(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     // nothing is done with 'step' slot of the int seq structure from pkl
-    let start = slots[0].as_i64().expect("expected start for int seq");
-    let end = slots[1].as_i64().expect("expected end for int seq");
-    PklNonPrimitive::IntSeq(type_id, start, end)
+    let start = slots[0].as_i64().context("expected start for int seq")?;
+    let end = slots[1].as_i64().context("expected end for int seq")?;
+    Ok(PklNonPrimitive::IntSeq(type_id, start, end))
 }
 
 fn decode_duration(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     // need u64 to convert to Duration
-    let float_time = slots[0].as_f64().expect("expected float for duration") as u64;
-    let duration_unit = slots[1].as_str().expect("expected time type");
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let float_time = slots[0].as_f64().context("expected float for duration")? as u64;
+    let duration_unit = slots[1].as_str().context("expected time type")?;
     let duration = match duration_unit {
         "min" => {
             let Some(d) = utils::duration::from_mins(float_time) else {
@@ -273,7 +254,7 @@ fn decode_duration(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitiv
 }
 
 #[inline]
-fn decode_regex(type_id: u64, slots: &[rmpv::Value]) -> PklNonPrimitive {
-    let pattern = slots[0].as_str().expect("expected pattern for regex");
-    PklNonPrimitive::Regex(type_id, pattern.to_string())
+fn decode_regex(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+    let pattern = slots[0].as_str().context("expected pattern for regex")?;
+    Ok(PklNonPrimitive::Regex(type_id, pattern.to_string()))
 }

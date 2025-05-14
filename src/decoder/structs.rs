@@ -58,7 +58,7 @@ fn decode_object_generic(type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectMe
     Ok(ObjectMember(
         type_id,
         ident.to_owned(),
-        decode_member(value)?,
+        decode_member(value)?.into(),
     ))
 }
 

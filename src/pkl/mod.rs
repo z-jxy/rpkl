@@ -1,6 +1,5 @@
 pub(crate) mod de;
 mod deserializer;
-pub(crate) mod internal;
 pub mod pkl_mod;
 mod serializer;
 

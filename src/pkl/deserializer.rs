@@ -467,27 +467,33 @@ mod tests {
     #[test]
     #[cfg(feature = "indexmap")]
     fn test_map_ordering() {
-        use crate::pkl::internal::IPklValue;
-        use crate::pkl::internal::ObjectMember;
-        use crate::pkl::internal::PklPrimitive;
+        use crate::internal::IPklValue;
+        use crate::internal::ObjectMember;
+        use crate::internal::PklPrimitive;
 
         // Create a sequence of members in a specific order
+        // let members = vec![
+        //     ObjectMember(
+        //         16,
+        //         "third".to_string(),
+        //         IPklValue::Primitive(PklPrimitive::String("3".to_string())),
+        //     ),
+        //     ObjectMember(
+        //         16,
+        //         "first".to_string(),
+        //         IPklValue::Primitive(PklPrimitive::String("1".to_string())),
+        //     ),
+        //     ObjectMember(
+        //         16,
+        //         "second".to_string(),
+        //         IPklValue::Primitive(PklPrimitive::String("2".to_string())),
+        //     ),
+        // ];
+
         let members = vec![
-            ObjectMember(
-                16,
-                "third".to_string(),
-                IPklValue::Primitive(PklPrimitive::String("3".to_string())),
-            ),
-            ObjectMember(
-                16,
-                "first".to_string(),
-                IPklValue::Primitive(PklPrimitive::String("1".to_string())),
-            ),
-            ObjectMember(
-                16,
-                "second".to_string(),
-                IPklValue::Primitive(PklPrimitive::String("2".to_string())),
-            ),
+            ObjectMember(16, "third".to_string(), PklValue::String("3".to_string())),
+            ObjectMember(16, "first".to_string(), PklValue::String("1".to_string())),
+            ObjectMember(16, "second".to_string(), PklValue::String("2".to_string())),
         ];
 
         // Serialize to a map

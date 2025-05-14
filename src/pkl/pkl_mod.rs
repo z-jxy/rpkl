@@ -20,6 +20,7 @@ impl PklMod {
 #[cfg(feature = "codegen")]
 pub mod codegen {
     use convert_case::{Case, Casing};
+    use std::collections::HashMap;
     use std::{collections::HashSet, path::PathBuf};
 
     use std::io::Write;
@@ -38,6 +39,7 @@ pub mod codegen {
         field_attributes: Vec<(String, String)>,
         enums: Vec<(String, String)>,
         infer_vec_types: bool,
+        opaque_fields: Vec<String>,
     }
 
     impl CodegenOptions {
@@ -129,6 +131,11 @@ pub mod codegen {
             self
         }
 
+        pub fn opaque(mut self, name: impl Into<String>) -> Self {
+            self.opaque_fields.push(name.into());
+            self
+        }
+
         fn find_type_attribute(&self, name: &str) -> Option<&String> {
             self.type_attributes
                 .iter()
@@ -145,6 +152,10 @@ pub mod codegen {
 
         fn find_enum(&self, name: &str) -> Option<&String> {
             self.enums.iter().find(|(n, _)| n == name).map(|(_, v)| v)
+        }
+
+        fn find_opaque(&self, name: &str) -> Option<&String> {
+            self.opaque_fields.iter().find(|&n| n == name)
         }
     }
 
@@ -306,7 +317,7 @@ pub mod codegen {
 
         fn generate_field(
             &self,
-            (member_ident, member_value): (&str, &IPklValue),
+            member: &ObjectMember,
             (snake_case_field_name, top_level_module_name): (&str, &str),
             deps: &mut Vec<String>,
             generated_structs: &mut HashSet<String>,
@@ -314,47 +325,63 @@ pub mod codegen {
             parent_struct_ident: &str,
         ) -> Result<String> {
             let mut field = String::new();
+            let ObjectMember(type_id, member_ident, member_value) = member;
+            println!("typeId: {type_id}, member: {member_ident} = {member_value:?}");
 
-            if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(
-                _,
-                _,
-                _,
-                dynamic_members,
-            )) = member_value
-            {
-                let (dep, child_deps) = self.generate_struct(
-                    member_ident,
-                    dynamic_members,
-                    true,
-                    top_level_module_name,
-                    false,
-                    generated_structs,
-                    options,
-                )?;
-                deps.push(dep);
-                deps.extend(child_deps);
-
-                // add the field
-                let upper_camel = member_ident.to_case(Case::UpperCamel);
-                let rename = if member_ident == upper_camel {
-                    Some(format!("#[serde(rename = \"{upper_camel}\")]\n",))
-                } else {
-                    None
-                };
-
-                if let Some(rename) = &rename {
-                    write!(field, "\t{rename}")?;
-                }
-                writeln!(
-                    field,
-                    "\tpub {snake_case_field_name}: {}::{upper_camel},",
-                    top_level_module_name.to_case(Case::Snake),
-                )?;
-
-                return Ok(field);
-            }
+            // generate as an opaque value or generate the full struct?
+            // downside of generating the full struct is that if a user wanted to be able to reload a configuration
+            // if the value of a typed dynamic struct changes, it wont be able to pick up the new values
+            // best approach is probably to let the user specify in a field should just be an opaque value
 
             let field_modifier = format!("{parent_struct_ident}.{snake_case_field_name}");
+
+            // if let IPklValue::NonPrimitive(PklNonPrimitive::TypedDynamic(
+            //     _,
+            //     _,
+            //     _,
+            //     dynamic_members,
+            // )) = member_value
+
+            if let PklValue::Map(dynamic_members) = member_value {
+                // generate the struct if they didn't specify for it to be opaque
+                if options.find_opaque(&field_modifier).is_none() {
+                    let (dep, child_deps) = self.generate_struct(
+                        member_ident,
+                        dynamic_members
+                            .iter()
+                            .map(|(k, v)| ObjectMember(9999, k.clone(), v.clone()))
+                            .collect::<Vec<_>>()
+                            .as_slice(),
+                        // dynamic_members,
+                        true,
+                        top_level_module_name,
+                        false,
+                        generated_structs,
+                        options,
+                    )?;
+                    deps.push(dep);
+                    deps.extend(child_deps);
+
+                    // add the field
+                    let upper_camel = member_ident.to_case(Case::UpperCamel);
+                    let rename = if *member_ident == upper_camel {
+                        Some(format!("#[serde(rename = \"{upper_camel}\")]\n",))
+                    } else {
+                        None
+                    };
+
+                    if let Some(rename) = &rename {
+                        write!(field, "\t{rename}")?;
+                    }
+                    writeln!(
+                        field,
+                        "\tpub {snake_case_field_name}: {}::{upper_camel},",
+                        top_level_module_name.to_case(Case::Snake),
+                    )?;
+
+                    return Ok(field);
+                }
+            }
 
             if let Some(attr) = options.find_enum(&field_modifier) {
                 let variants = attr.split(',').map(str::trim).collect::<Vec<_>>();
@@ -387,7 +414,8 @@ pub mod codegen {
             writeln!(
                 field,
                 "\tpub {snake_case_field_name}: {},",
-                &self.field_type_from_ipkl_value(member_value)
+                // &self.field_type_from_ipkl_value(&member_value)
+                &self.field_type_from_pkl_value(member_value)
             )?;
 
             Ok(field)
@@ -479,11 +507,13 @@ pub mod codegen {
 
             let mut deps = vec![];
             for member in members {
+                println!("member: {member:?}");
                 let member_ident = member.get_ident();
-                let member_value = member.get_value();
+                // let member_value = member.get_value();
                 let snake_case_field_name = member_ident.to_case(Case::Snake);
                 let field = self.generate_field(
-                    (member_ident, member_value),
+                    // (member_ident, member_value),
+                    member,
                     (&snake_case_field_name, top_level_module_name),
                     &mut deps,
                     generated_structs,
@@ -629,7 +659,8 @@ pub mod example {
                 .field_attribute("Example.ip", "#[serde(rename = \"ip\")]")
                 .as_enum("Example.mode", &["Dev", "Production"])
                 .type_attribute("Mode", "#[derive(Default)]")
-                .field_attribute("Mode.Dev", "#[default]");
+                .field_attribute("Mode.Dev", "#[default]")
+                .opaque("Example.mapping");
             let _ = pkl_mod.codegen(Some(options));
 
             let contents = std::fs::read_to_string("./generated/mod.rs").unwrap();

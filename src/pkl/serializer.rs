@@ -48,8 +48,8 @@ fn serialize_members<T: IntoIterator<Item = ObjectMember>>(
     };
 
     for member in members {
-        let (k, v) = member.into_pkl_value()?;
-        pkl_object.insert(k, v);
+        let ObjectMember(_, k, v) = member;
+        pkl_object.insert(k, v.into());
     }
 
     Ok(pkl_object)

@@ -1,6 +1,7 @@
 #![feature(test)]
 
 extern crate test;
+mod utils;
 
 #[cfg(test)]
 mod tests {
@@ -107,6 +108,7 @@ mod tests {
 
 #[cfg(test)]
 mod non_primitive_values {
+    use crate::utils::pkl_tests_file;
     use std::path::PathBuf;
 
     #[derive(serde::Deserialize, Debug)]
@@ -157,10 +159,7 @@ mod non_primitive_values {
             paths: std::collections::HashMap<String, Vec<String>>,
         }
 
-        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("tests")
-            .join("pkl")
-            .join("mappings.pkl");
+        let path = pkl_tests_file("mappings.pkl");
 
         let config = rpkl::from_config::<MappingConfig>(path)?;
 

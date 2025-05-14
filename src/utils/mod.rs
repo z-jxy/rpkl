@@ -50,3 +50,15 @@ pub fn canonicalize(path: impl AsRef<std::path::Path>) -> std::io::Result<std::p
         std::fs::canonicalize(path)
     }
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use std::path::PathBuf;
+
+    pub fn pkl_tests_file<P: AsRef<std::path::Path>>(path: P) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("pkl")
+            .join(path)
+    }
+}

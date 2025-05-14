@@ -20,7 +20,6 @@ impl PklMod {
 #[cfg(feature = "codegen")]
 pub mod codegen {
     use convert_case::{Case, Casing};
-    use std::collections::HashMap;
     use std::{collections::HashSet, path::PathBuf};
 
     use std::io::Write;
@@ -30,7 +29,7 @@ pub mod codegen {
     use crate::internal::{IPklValue, Integer, ObjectMember, PklNonPrimitive, PklPrimitive};
 
     use super::PklMod;
-    use crate::{context, Result, Value as PklValue};
+    use crate::{Result, Value as PklValue};
 
     /// Config to modify the code generated from [`PklMod::codegen`].
     #[derive(Default)]
@@ -154,8 +153,8 @@ pub mod codegen {
             self.enums.iter().find(|(n, _)| n == name).map(|(_, v)| v)
         }
 
-        fn find_opaque(&self, name: &str) -> Option<&String> {
-            self.opaque_fields.iter().find(|&n| n == name)
+        fn is_forced_opaque(&self, name: &str) -> bool {
+            self.opaque_fields.iter().any(|n| n == name)
         }
     }
 
@@ -190,7 +189,6 @@ pub mod codegen {
                 module_name,
                 true,
                 &mut generated_structs,
-                &context.options,
             )?;
 
             writeln!(writer, "{code}")?;
@@ -220,44 +218,43 @@ pub mod codegen {
         options: CodegenOptions,
     }
     impl Context {
-        // TODO: refactor
-        fn field_type_from_ipkl_value(&self, value: &IPklValue) -> String {
-            match value {
-                IPklValue::NonPrimitive(PklNonPrimitive::List(_, values)) => {
-                    if self.options.infer_vec_types {
-                        return format!(
-                            "Vec<{}>",
-                            self.try_infer_list_type(values)
-                                .unwrap_or("rpkl::Value".into())
-                        );
-                    }
-                    "Vec<rpkl::Value>".to_string()
-                }
-                IPklValue::NonPrimitive(PklNonPrimitive::Set(_, _)) => {
-                    // todo!("print set types");
-                    // warn!
+        // fn field_type_from_ipkl_value(&self, value: &IPklValue) -> String {
+        //     match value {
+        //         IPklValue::NonPrimitive(PklNonPrimitive::List(_, values)) => {
+        //             if self.options.infer_vec_types {
+        //                 return format!(
+        //                     "Vec<{}>",
+        //                     self.try_infer_list_type(values)
+        //                         .unwrap_or("rpkl::Value".into())
+        //                 );
+        //             }
+        //             "Vec<rpkl::Value>".to_string()
+        //         }
+        //         IPklValue::NonPrimitive(PklNonPrimitive::Set(_, _)) => {
+        //             // todo!("print set types");
+        //             // warn!
 
-                    "Vec<rpkl::Value>".to_string()
-                }
-                IPklValue::NonPrimitive(PklNonPrimitive::Mapping(_, _m)) => {
-                    "rpkl::Value".to_string()
-                }
-                IPklValue::Primitive(x) => (match x {
-                    PklPrimitive::Int(_) => "i64",
-                    PklPrimitive::Float(_) => "f64",
-                    PklPrimitive::String(_) => "String",
-                    PklPrimitive::Boolean(_) => "bool",
-                    PklPrimitive::Null => "Option<rpkl::Value>",
-                })
-                .to_string(),
-                IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(_, _, _)) => {
-                    "std::ops::Range<i64>".to_string()
-                }
-                ty @ IPklValue::NonPrimitive(_) => {
-                    unimplemented!("implement codegen for other non-primitive types, {ty:?}")
-                }
-            }
-        }
+        //             "Vec<rpkl::Value>".to_string()
+        //         }
+        //         IPklValue::NonPrimitive(PklNonPrimitive::Mapping(_, _m)) => {
+        //             "rpkl::Value".to_string()
+        //         }
+        //         IPklValue::Primitive(x) => (match x {
+        //             PklPrimitive::Int(_) => "i64",
+        //             PklPrimitive::Float(_) => "f64",
+        //             PklPrimitive::String(_) => "String",
+        //             PklPrimitive::Boolean(_) => "bool",
+        //             PklPrimitive::Null => "Option<rpkl::Value>",
+        //         })
+        //         .to_string(),
+        //         IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(_, _, _)) => {
+        //             "std::ops::Range<i64>".to_string()
+        //         }
+        //         ty @ IPklValue::NonPrimitive(_) => {
+        //             unimplemented!("implement codegen for other non-primitive types, {ty:?}")
+        //         }
+        //     }
+        // }
 
         fn field_type_from_pkl_value(&self, value: &PklValue) -> String {
             match value {
@@ -325,8 +322,7 @@ pub mod codegen {
             parent_struct_ident: &str,
         ) -> Result<String> {
             let mut field = String::new();
-            let ObjectMember(type_id, member_ident, member_value) = member;
-            println!("typeId: {type_id}, member: {member_ident} = {member_value:?}");
+            let ObjectMember(_, member_ident, member_value) = member;
 
             // generate as an opaque value or generate the full struct?
             // downside of generating the full struct is that if a user wanted to be able to reload a configuration
@@ -341,15 +337,15 @@ pub mod codegen {
             //     _,
             //     dynamic_members,
             // )) = member_value
-
+            let is_forced_opaque = options.is_forced_opaque(&field_modifier);
             if let PklValue::Map(dynamic_members) = member_value {
                 // generate the struct if they didn't specify for it to be opaque
-                if options.find_opaque(&field_modifier).is_none() {
+                if !is_forced_opaque {
                     let (dep, child_deps) = self.generate_struct(
                         member_ident,
                         dynamic_members
                             .iter()
-                            .map(|(k, v)| ObjectMember(9999, k.clone(), v.clone()))
+                            .map(|(k, v)| ObjectMember(0xFF, k.clone(), v.clone()))
                             .collect::<Vec<_>>()
                             .as_slice(),
                         // dynamic_members,
@@ -357,7 +353,6 @@ pub mod codegen {
                         top_level_module_name,
                         false,
                         generated_structs,
-                        options,
                     )?;
                     deps.push(dep);
                     deps.extend(child_deps);
@@ -411,11 +406,17 @@ pub mod codegen {
                 write!(field, "\t{rename}")?;
             }
 
+            let field_type = if self.options.is_forced_opaque(&field_modifier) {
+                "rpkl::Value"
+            } else {
+                &self.field_type_from_pkl_value(member_value)
+            };
+
             writeln!(
                 field,
-                "\tpub {snake_case_field_name}: {},",
+                "\tpub {snake_case_field_name}: {field_type},",
                 // &self.field_type_from_ipkl_value(&member_value)
-                &self.field_type_from_pkl_value(member_value)
+                // &self.field_type_from_pkl_value(member_value)
             )?;
 
             Ok(field)
@@ -469,8 +470,6 @@ pub mod codegen {
             code
         }
 
-        // TODO: refactor
-        #[allow(clippy::too_many_arguments)]
         fn generate_struct(
             &self,
             struct_ident: &str,
@@ -479,7 +478,6 @@ pub mod codegen {
             top_level_module_name: &str,
             pub_struct: bool,
             generated_structs: &mut HashSet<String>,
-            options: &CodegenOptions,
         ) -> Result<(String, Vec<String>)> {
             let upper_camel = struct_ident.to_case(Case::UpperCamel);
             if generated_structs.contains(&upper_camel) {
@@ -489,7 +487,7 @@ pub mod codegen {
 
             let mut code = String::new();
 
-            if let Some(attr) = options.find_type_attribute(&upper_camel) {
+            if let Some(attr) = self.options.find_type_attribute(&upper_camel) {
                 _ = writeln!(code, "{attr}");
             }
             code.push_str("#[derive(Debug, serde::Deserialize, serde::Serialize)]\n");
@@ -517,7 +515,7 @@ pub mod codegen {
                     (&snake_case_field_name, top_level_module_name),
                     &mut deps,
                     generated_structs,
-                    options,
+                    &self.options,
                     &upper_camel,
                 )?;
                 code.push_str(&field);
@@ -532,63 +530,30 @@ pub mod codegen {
     // TODO: temporary solution to convert PklValue to IPklValue for use during codegen
     // should refactor the code that needs this so that this isn't needed
     // `try_infer_type` / `field_type_from_ipkl_value`
-    impl From<PklValue> for IPklValue {
-        fn from(value: PklValue) -> Self {
-            match value {
-                PklValue::Int(i) => IPklValue::Primitive(PklPrimitive::Int(i)),
-                PklValue::String(s) => IPklValue::Primitive(PklPrimitive::String(s)),
-                PklValue::Boolean(b) => IPklValue::Primitive(PklPrimitive::Boolean(b)),
-                PklValue::Null => IPklValue::Primitive(PklPrimitive::Null),
-                PklValue::DataSize(s) => {
-                    IPklValue::NonPrimitive(PklNonPrimitive::DataSize(0xFF, s))
-                }
-                PklValue::Duration(d) => {
-                    IPklValue::NonPrimitive(PklNonPrimitive::Duration(0xFF, d))
-                }
-                PklValue::Pair(a, b) => {
-                    IPklValue::NonPrimitive(PklNonPrimitive::Pair(0xFF, *a, *b))
-                }
-                PklValue::Range(r) => {
-                    IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(0xFF, r.start, r.end))
-                }
-                PklValue::Regex(r) => IPklValue::NonPrimitive(PklNonPrimitive::Regex(0xFF, r)),
-                PklValue::List(l) => IPklValue::NonPrimitive(PklNonPrimitive::List(0xFF, l)),
-                PklValue::Map(m) => {
-                    IPklValue::NonPrimitive(PklNonPrimitive::Mapping(0xFF, PklValue::Map(m)))
-                }
-            }
-        }
-    }
-
-    // impl From<&PklValue> for IPklValue {
-    //     fn from(value: &PklValue) -> Self {
+    // impl From<PklValue> for IPklValue {
+    //     fn from(value: PklValue) -> Self {
     //         match value {
-    //             PklValue::Int(i) => IPklValue::Primitive(PklPrimitive::Int(*i)),
-    //             PklValue::String(s) => IPklValue::Primitive(PklPrimitive::String(s.to_string())),
-    //             PklValue::Boolean(b) => IPklValue::Primitive(PklPrimitive::Boolean(*b)),
+    //             PklValue::Int(i) => IPklValue::Primitive(PklPrimitive::Int(i)),
+    //             PklValue::String(s) => IPklValue::Primitive(PklPrimitive::String(s)),
+    //             PklValue::Boolean(b) => IPklValue::Primitive(PklPrimitive::Boolean(b)),
     //             PklValue::Null => IPklValue::Primitive(PklPrimitive::Null),
     //             PklValue::DataSize(s) => {
-    //                 IPklValue::NonPrimitive(PklNonPrimitive::DataSize(0xFF, *s))
+    //                 IPklValue::NonPrimitive(PklNonPrimitive::DataSize(0xFF, s))
     //             }
     //             PklValue::Duration(d) => {
-    //                 IPklValue::NonPrimitive(PklNonPrimitive::Duration(0xFF, *d))
+    //                 IPklValue::NonPrimitive(PklNonPrimitive::Duration(0xFF, d))
     //             }
     //             PklValue::Pair(a, b) => {
-    //                 IPklValue::NonPrimitive(PklNonPrimitive::Pair(0xFF, *a.clone(), *b.clone()))
+    //                 IPklValue::NonPrimitive(PklNonPrimitive::Pair(0xFF, *a, *b))
     //             }
     //             PklValue::Range(r) => {
     //                 IPklValue::NonPrimitive(PklNonPrimitive::IntSeq(0xFF, r.start, r.end))
     //             }
-    //             PklValue::Regex(r) => {
-    //                 IPklValue::NonPrimitive(PklNonPrimitive::Regex(0xFF, r.to_string()))
+    //             PklValue::Regex(r) => IPklValue::NonPrimitive(PklNonPrimitive::Regex(0xFF, r)),
+    //             PklValue::List(l) => IPklValue::NonPrimitive(PklNonPrimitive::List(0xFF, l)),
+    //             PklValue::Map(m) => {
+    //                 IPklValue::NonPrimitive(PklNonPrimitive::Mapping(0xFF, PklValue::Map(m)))
     //             }
-    //             PklValue::List(l) => {
-    //                 IPklValue::NonPrimitive(PklNonPrimitive::List(0xFF, l.clone()))
-    //             }
-    //             PklValue::Map(m) => IPklValue::NonPrimitive(PklNonPrimitive::Mapping(
-    //                 0xFF,
-    //                 PklValue::Map(m.clone()),
-    //             )),
     //         }
     //     }
     // }
@@ -601,10 +566,14 @@ pub mod codegen {
 
     #[cfg(test)]
     mod tests {
+        use crate::utils::tests::pkl_tests_file;
+
         use super::*;
 
+        /// this test relies on iterating over members in the same order as the pkl file
+        #[cfg(feature = "indexmap")]
         #[test]
-        fn test_codegen() {
+        fn test_codegen_indexmap() {
             let expected = r#"/* Generated by rpkl */
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -665,6 +634,125 @@ pub mod example {
 
             let contents = std::fs::read_to_string("./generated/mod.rs").unwrap();
             assert_eq!(expected, contents);
+        }
+
+        #[test]
+        fn test_codegen() {
+            let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("tests")
+                .join("pkl")
+                .join("example.pkl");
+
+            let mut evaluator = crate::api::evaluator::Evaluator::new().unwrap();
+            let pkl_mod = evaluator.evaluate_module(path).unwrap();
+            let options = crate::codegen::CodegenOptions::default()
+                .type_attribute("AnonMap", "#[derive(Default)]")
+                .field_attribute("Example.ip", "#[serde(rename = \"ip\")]")
+                .as_enum("Example.mode", &["Dev", "Production"])
+                .type_attribute("Mode", "#[derive(Default)]")
+                .field_attribute("Mode.Dev", "#[default]")
+                .opaque("Example.mapping");
+            let _ = pkl_mod.codegen(Some(options));
+
+            let contents = std::fs::read_to_string("./generated/mod.rs").unwrap();
+
+            // validate with order-independent checks
+
+            // check that the file contains all required struct and enum declarations
+            assert!(contents.contains("pub struct Example"));
+            assert!(contents.contains("pub struct AnonMap"));
+            assert!(contents.contains("pub struct Database"));
+            assert!(contents.contains("pub enum Mode"));
+
+            // check for proper module structure
+            assert!(contents.contains("pub mod example {"));
+
+            // check for proper type attributes
+            assert!(contents.contains("#[derive(Default)]"));
+            assert!(contents.contains("#[default]"));
+
+            // check for specific field presence using regex
+            let re = regex::Regex::new(r"pub\s+ip:\s+String").unwrap();
+            assert!(re.is_match(&contents));
+
+            let re = regex::Regex::new(r"pub\s+port:\s+i64").unwrap();
+            assert!(re.is_match(&contents));
+
+            // check for renamed fields
+            assert!(contents.contains("#[serde(rename = \"ip\")]"));
+            assert!(contents.contains("#[serde(rename = \"anon_key2\")]"));
+
+            // check for enum variants
+            assert!(contents.contains("Dev,"));
+            assert!(contents.contains("Production,"));
+
+            // collecting all fields in Example struct to verify all are present
+            let expected_example_fields = HashSet::from([
+                "ip", "port", "ints", "birds", "mapping", "anon_map", "database", "mode",
+            ]);
+
+            let example_struct_re =
+                regex::Regex::new(r"pub struct Example \{([\s\S]*?)\}").unwrap();
+
+            let field_re = regex::Regex::new(r"pub\s+(\w+):").unwrap();
+
+            if let Some(captures) = example_struct_re.captures(&contents) {
+                let struct_body = captures.get(1).unwrap().as_str();
+                let found_fields: HashSet<&str> = field_re
+                    .captures_iter(struct_body)
+                    .map(|cap| cap.get(1).unwrap().as_str())
+                    .collect();
+
+                assert_eq!(found_fields, expected_example_fields);
+            } else {
+                panic!("Could not find Example struct in generated code");
+            }
+        }
+
+        #[test]
+        fn test_deserialize_generated_code() {
+            mod expected {
+                use crate as rpkl;
+
+                /* Generated by rpkl */
+
+                #[derive(Debug, serde::Deserialize, serde::Serialize)]
+                pub struct Example {
+                    #[serde(rename = "ip")]
+                    pub ip: String,
+                    pub port: i64,
+                    pub ints: std::ops::Range<i64>,
+                    pub birds: Vec<rpkl::Value>,
+                    pub mapping: rpkl::Value,
+                    pub anon_map: example::AnonMap,
+                    pub database: example::Database,
+                    pub mode: example::Mode,
+                }
+
+                pub mod example {
+                    #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+                    pub struct AnonMap {
+                        pub anon_key: String,
+                        #[serde(rename = "anon_key2")]
+                        pub anon_key_2: String,
+                    }
+
+                    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+                    pub struct Database {
+                        pub username: String,
+                        pub password: String,
+                    }
+
+                    #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
+                    pub enum Mode {
+                        #[default]
+                        Dev,
+                        Production,
+                    }
+                }
+            }
+
+            let _ = crate::from_config::<expected::Example>(pkl_tests_file("example.pkl")).unwrap();
         }
     }
 }

@@ -53,7 +53,8 @@ fn main() {
             .field_attribute("Example.ip", "#[serde(rename = \"ip\")]")
             .as_enum("Example.mode", &["Dev", "Production"])
             .type_attribute("Mode", "#[derive(Default)]")
-            .field_attribute("Mode.Dev", "#[default]");
-        let _ = pkl_mod.codegen(Some(options));
+            .field_attribute("Mode.Dev", "#[default]")
+            .opaque("Example.mapping");
+        println!("{}", pkl_mod.codegen(Some(options)).unwrap());
     }
 }

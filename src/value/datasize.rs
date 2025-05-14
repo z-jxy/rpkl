@@ -114,7 +114,7 @@ impl DataSizeUnit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DataSize {
     value: f64,
     unit: DataSizeUnit,

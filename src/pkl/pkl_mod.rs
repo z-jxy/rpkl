@@ -113,8 +113,15 @@ pub mod codegen {
         ///   .type_attribute("Mode", "#[derive(Default)]")
         ///   .field_attribute("Mode.Dev", "#[default]");
         /// ```
-        pub fn as_enum(mut self, name: impl Into<String>, variants: &[&str]) -> Self {
-            self.enums.push((name.into(), variants.join(",\n")));
+        pub fn as_enum(mut self, name: impl Into<String>, variants: &[impl AsRef<str>]) -> Self {
+            self.enums.push((
+                name.into(),
+                variants
+                    .iter()
+                    .map(|s| s.as_ref().to_owned())
+                    .collect::<Vec<_>>()
+                    .join(",\n"),
+            ));
             self
         }
 

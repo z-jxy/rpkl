@@ -8,6 +8,11 @@ description = "Bindings and codegen for Apple's Pkl configuration language"
 keywords = ["pkl", "apple", "codegen"]
 readme = "README.md"
 
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+
 [dependencies]
 rmp-serde = "1.1.2"
 rmpv = { version = "1.0.1" } # features = ["with-serde"]

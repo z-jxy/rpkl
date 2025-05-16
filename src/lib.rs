@@ -126,7 +126,7 @@ where
     }
 
     let mut evaluator = api::Evaluator::new_from_options(options)?;
-    let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
+    let pkl_mod = evaluator.evaluate_module(path.as_ref())?;
 
     let pkld = pkl_mod.serialize_pkl_ast()?;
 

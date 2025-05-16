@@ -2,9 +2,9 @@
 use indexmap::IndexMap;
 use std::collections::HashMap;
 
+use crate::Result;
 use crate::internal::ObjectMember;
 use crate::value::value::MapImpl;
-use crate::Result;
 
 use super::PklMod;
 use crate::Value as PklValue;
@@ -49,7 +49,7 @@ fn serialize_members<T: IntoIterator<Item = ObjectMember>>(
 
     for member in members {
         let ObjectMember(_, k, v) = member;
-        pkl_object.insert(k, v.into());
+        pkl_object.insert(k, v);
     }
 
     Ok(pkl_object)

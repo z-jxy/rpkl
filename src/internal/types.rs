@@ -1,7 +1,6 @@
+use crate::PklSerialize;
 use crate::pkl::de::PklVisitor;
 use crate::value::{DataSize, PklValue};
-use crate::PklSerialize;
-use crate::Result;
 use serde::{Deserialize, Serialize};
 
 // use super::visitor::PklVisitor;
@@ -72,7 +71,7 @@ impl ObjectMember {
 mod test {
     #[test]
     fn deserialize_map() {
-        use crate::{internal::Integer, Value};
+        use crate::{Value, internal::Integer};
         let json_data = r#"{"value": 123}"#;
         let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");
@@ -85,7 +84,7 @@ mod test {
 
     #[test]
     fn deserialize_array() {
-        use crate::{internal::Integer, Value};
+        use crate::{Value, internal::Integer};
         let json_data = r#"{"value": [123, 456]}"#;
         let value: Value = serde_json::from_str(json_data).expect("Failed to deserialize");
         let map = value.as_map().expect("Expected a map");

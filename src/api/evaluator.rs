@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     io::{Read, Write},
-    path::PathBuf,
     process::{Child, Command, Stdio},
 };
 
@@ -15,9 +14,9 @@ use crate::{
     context::Context,
     error::{Error, Result},
     internal::msgapi::{
+        PklMessage,
         incoming::PklServerMessage,
         outgoing::{CloseEvaluator, CreateEvaluator, EvaluateRequest, ExternalReader},
-        PklMessage,
     },
     utils::{self, macros::_debug},
     value::value::MapImpl,
@@ -228,7 +227,7 @@ impl Evaluator {
     /// # Errors
     /// - Returns an error if the pkl process fails to evaluate the module or if the module is malformed
     /// - If the provided path is not does not exist
-    pub fn evaluate_module(&mut self, path: PathBuf) -> Result<PklMod> {
+    pub fn evaluate_module(&mut self, path: impl AsRef<std::path::Path>) -> Result<PklMod> {
         let evaluator_id = self.id();
         let mut child_stdin = &mut self.stdin;
         let mut child_stdout = &mut self.stdout;

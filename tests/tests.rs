@@ -11,15 +11,8 @@ mod tests {
     use rpkl::api::evaluator::EvaluatorOptions;
     use serde::Deserialize;
 
-    #[cfg(feature = "dhat-heap")]
-    #[global_allocator]
-    static ALLOC: dhat::Alloc = dhat::Alloc;
-
     #[test]
     fn optional_values() {
-        #[cfg(feature = "dhat-heap")]
-        let _profiler = dhat::Profiler::new_heap();
-
         #[allow(dead_code)]
         #[derive(Debug, Deserialize)]
         struct Config {
@@ -47,15 +40,11 @@ mod tests {
 
     #[test]
     fn resources() {
-        #[cfg(feature = "dhat-heap")]
-        let _profiler = dhat::Profiler::new_heap();
-
         #[allow(dead_code)]
         #[derive(Debug, Deserialize)]
         struct Config {
             path: String,
             name: String,
-            // package: rpkl::Value,
         }
 
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))

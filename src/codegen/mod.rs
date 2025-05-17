@@ -422,52 +422,51 @@ impl Context<'_> {
         struct_ident: &str,
         members: &[ObjectMember],
         is_dependency: bool,
-        top_level_module_name: &str,
+        parent_module_name: &str,
         pub_struct: bool,
         generated_structs: &mut HashSet<String>,
     ) -> Result<(String, Vec<String>)> {
         let upper_camel = struct_ident.to_case(Case::UpperCamel);
-
         let fully_qualified_name = if is_dependency {
             format!(
-                "{}::{}",
-                top_level_module_name.to_case(Case::Snake),
-                upper_camel
+                "{module_name}::{upper_camel}",
+                module_name = parent_module_name.to_case(Case::Snake),
             )
         } else {
-            upper_camel.clone()
+            upper_camel.to_owned()
         };
         if generated_structs.contains(&fully_qualified_name) {
-            _trace!(
-                "rpkl::codegen",
-                "skipping duplicate struct generation for {struct_ident}"
-            );
+            _trace!("skipping duplicate struct generation for {struct_ident}");
             return Ok((String::new(), vec![]));
         }
         generated_structs.insert(fully_qualified_name);
 
         let mut code = String::new();
 
-        if let Some(attr) = self.options.find_type_attribute(&upper_camel) {
+        if let Some(attr) = if !is_dependency {
+            self.options.find_type_attribute(&upper_camel)
+        } else {
+            self.options.find_type_attribute(
+                format!(
+                    "{module_name}.{upper_camel}",
+                    module_name = parent_module_name.to_case(Case::Snake),
+                )
+                .as_str(),
+            )
+        } {
             _ = writeln!(code, "{attr}");
         }
         code.push_str("#[derive(Debug, ::serde::Deserialize)]\n");
 
-        if is_dependency {
-            // code.push_str(&format!("pub(crate) struct {upper_camel} {{\n")); // TODO: revisit this
-            _ = writeln!(code, "pub struct {upper_camel} {{");
-        } else if pub_struct {
+        if is_dependency || pub_struct {
             _ = writeln!(code, "pub struct {upper_camel} {{");
         } else {
             _ = writeln!(code, "struct {upper_camel} {{");
         }
 
-        // code.push_str(&format!("struct {} {{\n", struct_ident));
-
         let mut deps = vec![];
         for member in members {
             let member_ident = member.get_ident();
-            // let member_value = member.get_value();
 
             // check if the field name will translate to a valid rust field name
             // if not, we need to rename it
@@ -478,8 +477,6 @@ impl Context<'_> {
             let member_field_name = if is_valid_ident {
                 member_ident.to_case(Case::Snake)
             } else {
-                // TODO: make a better effort to ensure the generated field name
-                // doesn't conflict with another generated field name
                 let snake = member_ident.to_case(Case::Snake);
                 let member_field_name = format!(
                     "__rpkl_{}_{}",
@@ -501,7 +498,7 @@ impl Context<'_> {
 
             let field = self.generate_field(
                 member,
-                (&member_field_name, top_level_module_name),
+                (&member_field_name, parent_module_name),
                 &mut deps,
                 generated_structs,
                 &upper_camel,

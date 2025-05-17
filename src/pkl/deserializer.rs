@@ -5,7 +5,7 @@ use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, V
 use serde::forward_to_deserialize_any;
 
 #[cfg(feature = "trace")]
-use tracing::{debug, error, span, trace, Level};
+use tracing::{Level, debug, error, span, trace};
 #[cfg(feature = "trace")]
 use tracing_subscriber::FmtSubscriber;
 
@@ -277,15 +277,8 @@ mod tests {
     use rmpv::Value;
     use serde::Deserialize;
 
-    #[cfg(feature = "dhat-heap")]
-    #[global_allocator]
-    static ALLOC: dhat::Alloc = dhat::Alloc;
-
     #[test]
     fn deserialize() {
-        #[cfg(feature = "dhat-heap")]
-        let _profiler = dhat::Profiler::new_heap();
-
         #[derive(Debug, PartialEq, Deserialize)]
         struct Config {
             ip: String,
@@ -374,9 +367,6 @@ mod tests {
 
     #[test]
     fn deserialize_time() {
-        #[cfg(feature = "dhat-heap")]
-        let _profiler = dhat::Profiler::new_heap();
-
         #[derive(Debug, PartialEq, Deserialize)]
         struct Config {
             ip: String,

@@ -2,6 +2,8 @@ use pkl::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;
+#[cfg(feature = "codegen")]
+pub mod codegen;
 mod context;
 mod decoder;
 pub mod error;
@@ -16,8 +18,8 @@ pub use api::evaluator::EvaluatorOptions;
 
 pub use value::PklValue as Value;
 
-#[cfg(feature = "codegen")]
-pub use pkl::pkl_mod::codegen;
+#[cfg(feature = "build-script")]
+pub use codegen::build_script;
 
 /// Evaluates a `.pkl` file and deserializes it as `T`. If you need to pass options to the evaluator, such as properties, use [`from_config_with_options`].
 ///
@@ -113,18 +115,6 @@ pub fn from_config_with_options<T>(
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
 {
-    #[cfg(feature = "trace")]
-    {
-        use tracing::Level;
-        use tracing_subscriber::FmtSubscriber;
-
-        let subscriber = tracing_subscriber::FmtSubscriber::builder()
-            .with_max_level(Level::TRACE)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("setting default subscriber failed");
-    }
-
     let mut evaluator = api::Evaluator::new_from_options(options)?;
     let pkl_mod = evaluator.evaluate_module(path.as_ref())?;
 

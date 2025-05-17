@@ -1,4 +1,6 @@
 use convert_case::{Case, Casing};
+use petgraph::Graph;
+use std::borrow::Cow;
 use std::collections::HashSet;
 
 use std::fmt::Write as _;
@@ -211,38 +213,39 @@ struct Context<'a> {
     invalid_fields_ct: usize,
 }
 
+// TODO: lots of room for improvement here (handling more edge cases, reducing allocations, ...)
 impl Context<'_> {
-    fn field_type_from_pkl_value(&self, value: &PklValue) -> String {
+    fn field_type_from_pkl_value(&self, value: &PklValue) -> Cow<'static, str> {
         match value {
-            PklValue::Boolean(_) => "bool".to_string(),
-            PklValue::Int(integer) => match integer {
-                Integer::Pos(_) => "u64".to_string(),
-                Integer::Neg(_) => "i64".to_string(),
-                Integer::Float(_) => "f64".to_string(),
-            },
-            PklValue::String(_) => "String".to_string(),
-            PklValue::Null => "Option<rpkl::Value>".to_string(),
-            PklValue::Map(_) => "rpkl::Value".to_string(),
+            PklValue::Boolean(_) => Cow::Borrowed("bool"),
+            PklValue::Int(integer) => Cow::Borrowed(match integer {
+                Integer::Pos(_) => "u64",
+                Integer::Neg(_) => "i64",
+                Integer::Float(_) => "f64",
+            }),
+            PklValue::String(_) => Cow::Borrowed("String"),
+            PklValue::Null => Cow::Borrowed("Option<rpkl::Value>"),
+            PklValue::Map(_) => Cow::Borrowed("rpkl::Value"),
             PklValue::List(values) => {
                 if self.options.infer_vec_types {
-                    format!(
+                    Cow::Owned(format!(
                         "Vec<{}>",
                         self.try_infer_list_type(values)
                             .unwrap_or("rpkl::Value".into())
-                    )
+                    ))
                 } else {
-                    "Vec<rpkl::Value>".to_string()
+                    Cow::Borrowed("Vec<rpkl::Value>")
                 }
             }
-            PklValue::Range(_) => "std::ops::Range<i64>".to_string(),
+            PklValue::Range(_) => Cow::Borrowed("std::ops::Range<i64>"),
             PklValue::DataSize(_)
             | PklValue::Duration(_)
             | PklValue::Pair(_, _)
-            | PklValue::Regex(_) => "rpkl::Value".to_string(),
+            | PklValue::Regex(_) => Cow::Borrowed("rpkl::Value"),
         }
     }
 
-    fn try_infer_list_type(&self, values: &[PklValue]) -> Option<String> {
+    fn try_infer_list_type(&self, values: &[PklValue]) -> Option<Cow<'static, str>> {
         if values.is_empty() {
             return None;
         }
@@ -251,8 +254,7 @@ impl Context<'_> {
             return Some(self.field_type_from_pkl_value(&values[0]));
         }
 
-        let mut types: HashSet<String> =
-            HashSet::from([self.field_type_from_pkl_value(&values[0])]);
+        let mut types: HashSet<_> = HashSet::from([self.field_type_from_pkl_value(&values[0])]);
 
         // if we're able to insert any new type into the set,
         // we have multiple different types and cannot infer the the value of the vec
@@ -299,6 +301,7 @@ impl Context<'_> {
                     member_ident,
                     dynamic_members
                         .iter()
+                        // dummy member
                         .map(|(k, v)| ObjectMember(0xFF, k.clone(), v.clone()))
                         .collect::<Vec<_>>()
                         .as_slice(),
@@ -400,13 +403,8 @@ impl Context<'_> {
         for variant in variants {
             let variant_ident = variant.to_case(Case::UpperCamel);
             let varient_modifier_key = format!("{upper_camel}.{variant_ident}");
-            if let Some(attrs) = self
-                .options
-                .field_attributes
-                .iter()
-                .find(|(name, _)| *name == varient_modifier_key)
-            {
-                _ = writeln!(code, "\t{}", attrs.1);
+            if let Some(attrs) = self.options.find_field_attribute(&varient_modifier_key) {
+                _ = writeln!(code, "\t{attrs}");
             }
             _ = writeln!(code, "\t{variant_ident},");
         }
@@ -416,7 +414,7 @@ impl Context<'_> {
         code
     }
 
-    /// needs mutable ref to self to keep track of the invalid fields
+    /// needs a mutable ref to self to increment `invalid_fields_ct`
     fn generate_struct(
         &mut self,
         struct_ident: &str,
@@ -477,23 +475,7 @@ impl Context<'_> {
             let member_field_name = if is_valid_ident {
                 member_ident.to_case(Case::Snake)
             } else {
-                let snake = member_ident.to_case(Case::Snake);
-                let member_field_name = format!(
-                    "__rpkl_{}_{}",
-                    self.invalid_fields_ct,
-                    snake
-                        .chars()
-                        .filter(|c| c.is_alphanumeric() || *c == '_')
-                        .collect::<String>()
-                );
-                #[cfg(feature = "build-script")]
-                {
-                    println!(
-                        "cargo:warning=[rpkl::codegen] Field name `{member_ident}` is not a valid identifier. It will be generated as `{member_field_name}`",
-                    );
-                }
-                self.invalid_fields_ct += 1;
-                member_field_name
+                self.generate_valid_ident(member_ident)
             };
 
             let field = self.generate_field(
@@ -509,6 +491,26 @@ impl Context<'_> {
         code.push_str("}\n\n");
 
         Ok((code, deps))
+    }
+
+    fn generate_valid_ident(&mut self, ident: &str) -> String {
+        let snake = ident.to_case(Case::Snake);
+        let member_field_name = format!(
+            "__rpkl_{}_{}",
+            self.invalid_fields_ct,
+            snake
+                .chars()
+                .filter(|c| c.is_alphanumeric() || *c == '_')
+                .collect::<String>()
+        );
+        #[cfg(feature = "build-script")]
+        {
+            println!(
+                "cargo:warning=[rpkl::codegen] Field name `{ident}` is not a valid identifier. It will be generated as `{member_field_name}`",
+            );
+        }
+        self.invalid_fields_ct += 1;
+        member_field_name
     }
 }
 

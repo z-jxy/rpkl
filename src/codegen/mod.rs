@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use petgraph::Graph;
+use node::{Node, NodeType, StructNode};
 use std::borrow::Cow;
 use std::collections::HashSet;
 
@@ -10,6 +10,7 @@ use crate::internal::{Integer, ObjectMember};
 use crate::pkl::PklMod;
 use crate::utils::macros::_trace;
 use crate::{Result, Value as PklValue};
+mod node;
 
 #[cfg(feature = "build-script")]
 pub mod build_script;
@@ -176,14 +177,26 @@ impl PklMod {
             invalid_fields_ct: 0,
         };
 
-        let (code, deps) = context.generate_struct(
-            module_name,
-            &self.members,
-            false,
-            module_name,
-            true,
-            &mut generated_structs,
-        )?;
+        // let root = Node {
+        //     name: module_name.to_case(Case::Snake),
+        //     node_type: NodeType::Struct(StructNode {
+        //         _pkl_ident: module_name,
+        //         members: &self.members,
+        //         is_dependency: false,
+        //         parent_module_name: module_name,
+        //         pub_struct: true,
+        //     }),
+        // };
+
+        let root = StructNode {
+            _pkl_ident: module_name,
+            members: &self.members,
+            is_dependency: false,
+            parent_module_name: module_name,
+            pub_struct: true,
+        };
+
+        let (code, deps) = context.generate_struct(root, &mut generated_structs)?;
 
         writeln!(writer, "{code}")?;
 
@@ -213,7 +226,13 @@ struct Context<'a> {
     invalid_fields_ct: usize,
 }
 
-// TODO: lots of room for improvement here (handling more edge cases, reducing allocations, ...)
+/**
+ *
+ * // TODO: lots of room for improvement here (handling more edge cases, reducing allocations, ...)
+ *
+ * - make sure type attributes are added after default derive attirbutes
+ *
+*/
 impl Context<'_> {
     fn field_type_from_pkl_value(&self, value: &PklValue) -> Cow<'static, str> {
         match value {
@@ -297,20 +316,33 @@ impl Context<'_> {
         if let PklValue::Map(dynamic_members) = member_value {
             // generate the struct if they didn't specify for it to be opaque
             if !is_forced_opaque {
-                let (dep, child_deps) = self.generate_struct(
-                    member_ident,
-                    dynamic_members
-                        .iter()
-                        // dummy member
-                        .map(|(k, v)| ObjectMember(0xFF, k.clone(), v.clone()))
-                        .collect::<Vec<_>>()
-                        .as_slice(),
-                    // dynamic_members,
-                    true,
-                    top_level_module_name,
-                    false,
-                    generated_structs,
-                )?;
+                // TODO: improve this
+                let members = dynamic_members
+                    .iter()
+                    // dummy member
+                    .map(|(k, v)| ObjectMember(0xFF, k.clone(), v.clone()))
+                    .collect::<Vec<_>>();
+
+                // let node = Node {
+                //     name: member_ident.to_case(Case::Snake),
+                //     node_type: NodeType::Struct(StructNode {
+                //         _pkl_ident: member_ident,
+                //         members: &members,
+                //         is_dependency: true,
+                //         parent_module_name: top_level_module_name,
+                //         pub_struct: false,
+                //     }),
+                // };
+
+                let node = StructNode {
+                    _pkl_ident: member_ident,
+                    members: &members,
+                    is_dependency: true,
+                    parent_module_name: top_level_module_name,
+                    pub_struct: false,
+                };
+
+                let (dep, child_deps) = self.generate_struct(node, generated_structs)?;
                 deps.push(dep);
                 deps.extend(child_deps);
 
@@ -417,15 +449,19 @@ impl Context<'_> {
     /// needs a mutable ref to self to increment `invalid_fields_ct`
     fn generate_struct(
         &mut self,
-        struct_ident: &str,
-        members: &[ObjectMember],
-        is_dependency: bool,
-        parent_module_name: &str,
-        pub_struct: bool,
+        StructNode {
+            _pkl_ident,
+            members,
+            is_dependency,
+            parent_module_name,
+            pub_struct,
+            ..
+        }: StructNode,
         generated_structs: &mut HashSet<String>,
     ) -> Result<(String, Vec<String>)> {
-        let upper_camel = struct_ident.to_case(Case::UpperCamel);
+        let upper_camel = _pkl_ident.to_case(Case::UpperCamel);
         let fully_qualified_name = if is_dependency {
+            // if its a dependency, it should always have a parent module name
             format!(
                 "{module_name}::{upper_camel}",
                 module_name = parent_module_name.to_case(Case::Snake),
@@ -433,6 +469,7 @@ impl Context<'_> {
         } else {
             upper_camel.to_owned()
         };
+
         if generated_structs.contains(&fully_qualified_name) {
             _trace!("skipping duplicate struct generation for {struct_ident}");
             return Ok((String::new(), vec![]));
@@ -441,6 +478,7 @@ impl Context<'_> {
 
         let mut code = String::new();
 
+        code.push_str("#[derive(Debug, ::serde::Deserialize)]\n");
         if let Some(attr) = if !is_dependency {
             self.options.find_type_attribute(&upper_camel)
         } else {
@@ -454,7 +492,6 @@ impl Context<'_> {
         } {
             _ = writeln!(code, "{attr}");
         }
-        code.push_str("#[derive(Debug, ::serde::Deserialize)]\n");
 
         if is_dependency || pub_struct {
             _ = writeln!(code, "pub struct {upper_camel} {{");
@@ -464,26 +501,12 @@ impl Context<'_> {
 
         let mut deps = vec![];
         for member in members {
-            let member_ident = member.get_ident();
-
-            // check if the field name will translate to a valid rust field name
-            // if not, we need to rename it
-            let is_valid_ident = member_ident
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '_');
-
-            let member_field_name = if is_valid_ident {
-                member_ident.to_case(Case::Snake)
-            } else {
-                self.generate_valid_ident(member_ident)
-            };
-
-            let field = self.generate_field(
-                member,
-                (&member_field_name, parent_module_name),
-                &mut deps,
+            let field = self.generate_dependency(
                 generated_structs,
+                parent_module_name,
                 &upper_camel,
+                &mut deps,
+                member,
             )?;
             code.push_str(&field);
         }
@@ -491,6 +514,37 @@ impl Context<'_> {
         code.push_str("}\n\n");
 
         Ok((code, deps))
+    }
+
+    fn generate_dependency(
+        &mut self,
+        generated_structs: &mut HashSet<String>,
+        parent_module_name: &str,
+        upper_camel: &str,
+        deps: &mut Vec<String>,
+        member: &ObjectMember,
+    ) -> Result<String> {
+        let member_ident = member.get_ident();
+
+        let is_valid_ident = member_ident
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_');
+
+        let member_field_name = if is_valid_ident {
+            member_ident.to_case(Case::Snake)
+        } else {
+            self.generate_valid_ident(member_ident)
+        };
+
+        let field = self.generate_field(
+            member,
+            (&member_field_name, parent_module_name),
+            deps,
+            generated_structs,
+            upper_camel,
+        )?;
+
+        Ok(field)
     }
 
     fn generate_valid_ident(&mut self, ident: &str) -> String {

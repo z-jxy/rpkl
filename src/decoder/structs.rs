@@ -43,7 +43,7 @@ fn decode_object_type_id(data: &[rmpv::Value]) -> Result<(u64, &[rmpv::Value])> 
 }
 
 /// Decodes the inner member of a pkl object
-fn decode_object_generic(type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectMember> {
+fn decode_object_generic(_type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectMember> {
     let ident = slots
         .first()
         .and_then(rmpv::Value::as_str)

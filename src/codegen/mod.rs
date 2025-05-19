@@ -1,5 +1,5 @@
 use convert_case::{Case, Casing};
-use node::{Node, NodeType, StructNode};
+use node::StructNodeRef;
 use std::borrow::Cow;
 use std::collections::HashSet;
 
@@ -188,7 +188,7 @@ impl PklMod {
         //     }),
         // };
 
-        let root = StructNode {
+        let root = StructNodeRef {
             _pkl_ident: module_name,
             members: &self.members,
             is_dependency: false,
@@ -230,7 +230,7 @@ struct Context<'a> {
  *
  * // TODO: lots of room for improvement here (handling more edge cases, reducing allocations, ...)
  *
- * - make sure type attributes are added after default derive attirbutes
+ *
  *
 */
 impl Context<'_> {
@@ -334,7 +334,7 @@ impl Context<'_> {
                 //     }),
                 // };
 
-                let node = StructNode {
+                let node = StructNodeRef {
                     _pkl_ident: member_ident,
                     members: &members,
                     is_dependency: true,
@@ -449,14 +449,14 @@ impl Context<'_> {
     /// needs a mutable ref to self to increment `invalid_fields_ct`
     fn generate_struct(
         &mut self,
-        StructNode {
+        StructNodeRef {
             _pkl_ident,
             members,
             is_dependency,
             parent_module_name,
             pub_struct,
             ..
-        }: StructNode,
+        }: StructNodeRef,
         generated_structs: &mut HashSet<String>,
     ) -> Result<(String, Vec<String>)> {
         let upper_camel = _pkl_ident.to_case(Case::UpperCamel);

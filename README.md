@@ -52,10 +52,35 @@ let config: Config = rpkl::from_config_with_options("./config.pkl", Some(options
 
 ## Codegen
 
-Mostly works, but still a WIP. If you want to try it out, you can enable the `codegen` feature.
+Codegen is still being improved, but should work for most general cases. If you want to try it out, you can enable the `codegen` feature.
 
 ```rust
-let mut evaluator = rpkl::evaluator::Evaluator::new()?;
-let pkl_mod = evaluator.evaluate_module(PathBuf::from("./config.pkl"))?;
-pkl_mod.codegen()?;
+use rpkl::{api::Evaluator, codegen::CodegenOptions};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut evaluator = Evaluator::new()?;
+    let pkl_mod = evaluator.evaluate_module("example.pkl")?;
+    let options = CodegenOptions::default();
+    let code: String = pkl_mod.codegen(Some(options))?;
+    std::fs::write("src/example.rs", code)?;
+    Ok(())
+}
+```
+
+If you want to run codegen as part of a build script, consider using the `build-script` feature
+
+```rust
+use rpkl::EvaluatorOptions;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rpkl::build_script::configure()
+        .as_enum("Example.mode", &["Dev", "Production"])
+        .opaque("Example.mapping")
+        .evaluator_options(EvaluatorOptions::default())
+        .output("generated/mod.rs") // save to custom output file
+        .codegen(&[
+            "../../tests/pkl/example.pkl",
+            "../../tests/pkl/database.pkl",
+        ])
+}
 ```

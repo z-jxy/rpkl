@@ -1,0 +1,11 @@
+[package]
+name = "build_step"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rpkl = { path = "../..", features = ["codegen"] }
+serde = { version = "1.0.219", features = ["derive"] }
+
+[build-dependencies]
+rpkl = { path = "../..", features = ["build-script"] }

@@ -16,8 +16,8 @@ pub struct Example {
 
 
 pub mod example {
-	#[derive(Default)]
 	#[derive(Debug, ::serde::Deserialize)]
+	#[derive(Default)]
 	pub struct AnonMap {
 		pub anon_key: String,
 		#[serde(rename = "anon_key2")]
@@ -30,8 +30,8 @@ pub mod example {
 		pub password: String,
 	}
 	
-	#[derive(Default)]
 	#[derive(Debug, ::serde::Deserialize)]
+	#[derive(Default)]
 	pub enum Mode {
 		#[default]
 		Dev,

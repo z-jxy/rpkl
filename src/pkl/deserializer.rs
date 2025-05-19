@@ -481,9 +481,9 @@ mod tests {
         // ];
 
         let members = vec![
-            ObjectMember(16, "third".to_string(), PklValue::String("3".to_string())),
-            ObjectMember(16, "first".to_string(), PklValue::String("1".to_string())),
-            ObjectMember(16, "second".to_string(), PklValue::String("2".to_string())),
+            ObjectMember("third".to_string(), PklValue::String("3".to_string())),
+            ObjectMember("first".to_string(), PklValue::String("1".to_string())),
+            ObjectMember("second".to_string(), PklValue::String("2".to_string())),
         ];
 
         // Serialize to a map

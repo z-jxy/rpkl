@@ -3,13 +3,13 @@ use indexmap::IndexMap;
 use std::collections::HashMap;
 
 use crate::{
+    Error, Result, Value as PklValue,
     context::Context,
     decoder::primitive::decode_primitive,
-    internal::{type_constants, IPklValue, ObjectMember, PklNonPrimitive},
+    internal::{IPklValue, ObjectMember, PklNonPrimitive, type_constants},
     utils,
     utils::macros::_trace,
-    value::{datasize::DataSizeUnit, value::MapImpl, DataSize},
-    Error, Result, Value as PklValue,
+    value::{DataSize, datasize::DataSizeUnit, value::MapImpl},
 };
 
 pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
@@ -56,7 +56,7 @@ fn decode_object_generic(type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectMe
         .context("[decode_object_generic] expected value")?;
 
     Ok(ObjectMember(
-        type_id,
+        // type_id,
         ident.to_owned(),
         decode_member(value)?.into(),
     ))

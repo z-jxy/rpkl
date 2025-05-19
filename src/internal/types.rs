@@ -11,12 +11,13 @@ use serde::{Deserialize, Serialize};
 // pub(crate) struct ObjectMember(pub u64, pub String, pub PklValue);
 // TODO: can remove a layer of indirection here,
 // but for codegen, we need
-pub(crate) struct ObjectMember(pub u64, pub String, pub PklValue);
+pub(crate) struct ObjectMember(pub String, pub PklValue);
 
 impl ObjectMember {
     #[cfg(feature = "codegen")]
+    #[inline]
     pub fn get_ident(&self) -> &str {
-        self.1.as_str()
+        self.0.as_str()
     }
 
     // #[cfg(feature = "codegen")]

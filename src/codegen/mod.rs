@@ -298,7 +298,7 @@ impl Context<'_> {
         parent_struct_ident: &str,
     ) -> Result<String> {
         let mut field = String::new();
-        let ObjectMember(_, member_ident, member_value) = member;
+        let ObjectMember(member_ident, member_value) = member;
         let field_modifier = format!("{parent_struct_ident}.{snake_case_field_name}");
 
         // generate as an opaque value or generate the full struct?
@@ -320,7 +320,7 @@ impl Context<'_> {
                 let members = dynamic_members
                     .iter()
                     // dummy member
-                    .map(|(k, v)| ObjectMember(0xFF, k.clone(), v.clone()))
+                    .map(|(k, v)| ObjectMember(k.clone(), v.clone()))
                     .collect::<Vec<_>>();
 
                 // let node = Node {
@@ -419,11 +419,10 @@ impl Context<'_> {
 
         let mut code = String::new();
 
+        code.push_str("#[derive(Debug, ::serde::Deserialize)]\n");
         if let Some(attr) = self.options.find_type_attribute(&upper_camel) {
             _ = writeln!(code, "{attr}");
         }
-
-        code.push_str("#[derive(Debug, ::serde::Deserialize)]\n");
 
         if is_dependency {
             // code.push_str(&format!("pub(crate) struct {upper_camel} {{\n")); // TODO: revisit this
@@ -471,7 +470,7 @@ impl Context<'_> {
         };
 
         if generated_structs.contains(&fully_qualified_name) {
-            _trace!("skipping duplicate struct generation for {struct_ident}");
+            _trace!("skipping duplicate struct generation for {upper_camel}");
             return Ok((String::new(), vec![]));
         }
         generated_structs.insert(fully_qualified_name);
@@ -603,7 +602,7 @@ mod tests {
         let mut evaluator = crate::api::evaluator::Evaluator::new().unwrap();
         let pkl_mod = evaluator.evaluate_module(path).unwrap();
         let options = crate::codegen::CodegenOptions::default()
-            .type_attribute("AnonMap", "#[derive(Default)]")
+            .type_attribute("example.AnonMap", "#[derive(Default)]")
             .field_attribute("Example.ip", "#[serde(rename = \"ip\")]")
             .as_enum("Example.mode", &["Dev", "Production"])
             .type_attribute("Mode", "#[derive(Default)]")

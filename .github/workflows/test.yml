@@ -17,6 +17,21 @@ jobs:
             name: Windows
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install pkl CLI
+        run: |
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            curl -L -o pkl 'https://github.com/apple/pkl/releases/download/0.28.2/pkl-linux-amd64'
+            chmod +x pkl
+            sudo mv pkl /usr/local/bin/
+          elif [ "${{ runner.os }}" == "Windows" ]; then
+            curl -L -o pkl.exe 'https://github.com/apple/pkl/releases/download/0.28.2/pkl-windows-amd64.exe'
+            mkdir -p $HOME/bin
+            mv pkl.exe $HOME/bin/
+            echo "$HOME/bin" >> $GITHUB_PATH
+          fi
+        shell: bash
+
       - name: Install Stable ${{ matrix.os }}
         uses: dtolnay/rust-toolchain@stable
       - name: cargo generate-lockfile

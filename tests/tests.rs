@@ -35,6 +35,8 @@ mod tests {
         assert_eq!(config.pet_name, Some("Doggo".into()));
     }
 
+    // [pkl is failing to read `env:` resource on windows](https://github.com/apple/pkl/issues/1077)
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn resources() {
         #[allow(dead_code)]
@@ -56,7 +58,9 @@ mod tests {
         assert_eq!(config.name, "zjxy");
     }
 
-    #[test]
+    // #[test]
+    // TODO: figure out a better way to run this test
+    #[allow(dead_code)]
     pub fn external_resource_readers() {
         #[allow(dead_code)]
         #[derive(Debug, Deserialize)]

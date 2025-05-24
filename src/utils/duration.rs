@@ -1,8 +1,5 @@
 use std::time::Duration;
 
-#[cfg(feature = "trace")]
-use tracing::debug;
-
 // use crate::utils::macros::_trace;
 
 // work around to avoid requiring unstable feature `duration_constructors` https://github.com/rust-lang/rust/issues/120301

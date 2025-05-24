@@ -1,7 +1,9 @@
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
 use serde::de::{self, Visitor};
-use std::{collections::HashMap, fmt};
+#[cfg(not(feature = "indexmap"))]
+use std::collections::HashMap;
+use std::fmt;
 
 use crate::Value;
 

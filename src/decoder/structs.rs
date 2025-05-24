@@ -1,5 +1,6 @@
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
+#[cfg(not(feature = "indexmap"))]
 use std::collections::HashMap;
 
 use crate::{
@@ -55,11 +56,7 @@ fn decode_object_generic(_type_id: u64, slots: &[rmpv::Value]) -> Result<ObjectM
         .get(1)
         .context("[decode_object_generic] expected value")?;
 
-    Ok(ObjectMember(
-        // type_id,
-        ident.to_owned(),
-        decode_member(value)?.into(),
-    ))
+    Ok(ObjectMember(ident.to_owned(), decode_member(value)?.into()))
 }
 
 /// helper function to decode a member into an `IPklValue`
@@ -170,7 +167,6 @@ fn decode_mapping(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive
 }
 
 fn decode_list(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    _trace!("LIST | LISTING: type_id: {}", type_id);
     _trace!("slots: {:#?}", slots);
 
     let values = slots[0]
@@ -256,6 +252,9 @@ fn decode_duration(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitiv
 
 #[inline]
 fn decode_regex(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    let pattern = slots[0].as_str().context("expected pattern for regex")?;
-    Ok(PklNonPrimitive::Regex(type_id, pattern.to_string()))
+    slots
+        .first()
+        .and_then(|v| v.as_str())
+        .context("expected pattern for regex")
+        .map(|pattern| PklNonPrimitive::Regex(type_id, pattern.to_string()))
 }

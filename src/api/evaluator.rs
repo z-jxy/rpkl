@@ -28,9 +28,6 @@ use crate::internal::msgapi::codes::{
 
 use crate::{decoder::decode_module, pkl::PklMod};
 
-#[cfg(feature = "trace")]
-use tracing::debug;
-
 use super::reader::{IntoModuleReaders, IntoResourceReaders, PklModuleReader, PklResourceReader};
 
 pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;

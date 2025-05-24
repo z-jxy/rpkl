@@ -5,9 +5,7 @@ use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, V
 use serde::forward_to_deserialize_any;
 
 #[cfg(feature = "trace")]
-use tracing::{Level, debug, error, span, trace};
-#[cfg(feature = "trace")]
-use tracing_subscriber::FmtSubscriber;
+use tracing::{debug, trace};
 
 use crate::Value as PklValue;
 
@@ -449,36 +447,13 @@ mod tests {
         let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");
 
-        // let elapsed = now.elapsed();
-        // print_time!(elapsed);
         assert_eq!(expected, deserialized);
     }
 
     #[test]
     #[cfg(feature = "indexmap")]
     fn test_map_ordering() {
-        use crate::internal::IPklValue;
         use crate::internal::ObjectMember;
-        use crate::internal::PklPrimitive;
-
-        // Create a sequence of members in a specific order
-        // let members = vec![
-        //     ObjectMember(
-        //         16,
-        //         "third".to_string(),
-        //         IPklValue::Primitive(PklPrimitive::String("3".to_string())),
-        //     ),
-        //     ObjectMember(
-        //         16,
-        //         "first".to_string(),
-        //         IPklValue::Primitive(PklPrimitive::String("1".to_string())),
-        //     ),
-        //     ObjectMember(
-        //         16,
-        //         "second".to_string(),
-        //         IPklValue::Primitive(PklPrimitive::String("2".to_string())),
-        //     ),
-        // ];
 
         let members = vec![
             ObjectMember("third".to_string(), PklValue::String("3".to_string())),

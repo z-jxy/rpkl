@@ -33,7 +33,7 @@ impl CodegenOptions {
         Self::default()
     }
 
-    /// Add addtional attributes to the matched struct
+    /// Add addtional attributes to the matched struct. (__Experimental__)
     ///
     /// # Examples
     ///
@@ -49,7 +49,7 @@ impl CodegenOptions {
         self
     }
 
-    /// Add addtional attributes to the matched field
+    /// Add addtional attributes to the matched field. (__Experimental__)
     ///
     /// # Examples
     ///
@@ -119,7 +119,7 @@ impl CodegenOptions {
         self
     }
 
-    /// Forces a field type to be generated as an opaque value (rpkl::Value).
+    /// Forces a field type to be generated as an opaque value (rpkl::Value). (__Experimental__)
     pub fn opaque(mut self, name: impl Into<String>) -> Self {
         self.opaque_fields.insert(name.into());
         self

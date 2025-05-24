@@ -1,3 +1,11 @@
+//!
+//! Limitations:
+//!
+//! - When generating code from multiple pkl files, the module names must be unique.
+//! Currently, rpkl generates a single `mod.rs` file with all the generated code.
+//!
+//!
+
 use std::{
     io::Write,
     path::{Path, PathBuf},

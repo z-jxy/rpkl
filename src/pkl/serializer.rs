@@ -1,5 +1,6 @@
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
+#[cfg(not(feature = "indexmap"))]
 use std::collections::HashMap;
 
 use crate::Result;

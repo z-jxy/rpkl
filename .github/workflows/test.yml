@@ -45,9 +45,10 @@ jobs:
           cargo test --package rpkl --test tests
       - name: Test examples
         run: |
-          for example in examples/*.rs
-          do
-              cargo run -p rpkl --example "$(basename "${example%.rs}")" -- $args
-          done
+          if [ "${{ runner.os }}" == "Windows" ]; then
+              cargo run -p rpkl --example "$(basename "${example%.rs}")" > NUL 2>&1
+          else
+              cargo run -p rpkl --example "$(basename "${example%.rs}")" > /dev/null 2>&1
+          fi
         shell: bash
 

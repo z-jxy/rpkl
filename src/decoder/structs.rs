@@ -29,15 +29,16 @@ pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
     }
 }
 
-/// Decode the preamble of an object to get its type ID
+/// Decode the first slot of the to get its type ID
 #[inline]
 fn decode_object_type_id(data: &[rmpv::Value]) -> Result<(u64, &[rmpv::Value])> {
     if data.is_empty() {
         return Err(Error::DecodeError("empty data for object".into()));
     }
 
-    let type_id = data[0]
-        .as_u64()
+    let type_id = data
+        .first()
+        .and_then(rmpv::Value::as_u64)
         .context("expected type id in object preamble")?;
 
     Ok((type_id, &data[1..]))

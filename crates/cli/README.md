@@ -8,7 +8,7 @@ CLI tool for generating Rust code from Pkl configuration files.
 
 ## Requirements
 
-Requires Pkl to be installed on your system. See [Pkl's](https://pkl-lang.org/main/current/pkl-cli/index.html#installation) instructions on how to get it setup if it's not already
+Requires Pkl to be installed on your system. See [Pkl's](https://pkl-lang.org/main/current/pkl-cli/index.html#installation) installation guide.
 
 ## Command Line Options
 
@@ -69,13 +69,13 @@ rpkl --as-enum "Config.mode=Dev,Production" input.pkl
 This will generate:
 
 ```rust
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub struct Config {
     pub mode: Mode,
     // other fields...
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize)]
 pub enum Mode {
     Dev,
     Production,
@@ -94,7 +94,7 @@ rpkl \
 
 ### Opaque Type Fields
 
-By default, maps/mappings will be generated as a struct with all fields found during evaluation. If you instead want to treat the field as an opaque value ([PklValue](https://docs.rs/rpkl/latest/rpkl/value/value/enum.PklValue.html)) you can use the `--opaque` option:
+By default, maps/mappings will be generated as a struct with all fields found during the first evaluation. If you instead want to treat the field as a generic ([PklValue](https://docs.rs/rpkl/latest/rpkl/value/value/enum.PklValue.html)) you can use the `--opaque` option:
 
 ```bash
 rpkl --opaque "Config.dynamicSettings" input.pkl

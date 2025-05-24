@@ -49,4 +49,5 @@ jobs:
           do
               cargo run -p rpkl --example "$(basename "${example%.rs}")" -- $args
           done
+        shell: bash
 

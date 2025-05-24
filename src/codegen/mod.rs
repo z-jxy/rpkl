@@ -613,7 +613,11 @@ mod tests {
             .unwrap()
             .replace("\t", "")
             .replace("\n", "");
-        let expected = EXPECTED.replace("\t", "").replace("\n", "");
+        let expected = EXPECTED
+            .replace("\t", "")
+            .replace("\n", "")
+            // windows
+            .replace("\r", "");
 
         assert_eq!(expected, format!("#![rustfmt::skip]{output}"));
     }

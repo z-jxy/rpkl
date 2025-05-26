@@ -52,7 +52,7 @@ let config: Config = rpkl::from_config_with_options("./config.pkl", Some(options
 
 ## Codegen
 
-Codegen functionality can be accessed by adding the `codegen` feature.
+Codegen can be enabled by adding the `codegen` feature.
 
 ```rust
 use rpkl::{api::Evaluator, codegen::CodegenOptions};
@@ -65,5 +65,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+
+You can also generate code using the experimental [CLI](crates/cli/README.md).
 
 For more info, see the [codegen docs](docs/codegen.md).

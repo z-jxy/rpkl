@@ -12,6 +12,7 @@ readme = "README.md"
 resolver = "3"
 members = ["crates/*"]
 default-members = ["crates/cli"]
+exclude = ["examples/build_step"]
 
 [dependencies]
 rmp-serde = "1.1.2"

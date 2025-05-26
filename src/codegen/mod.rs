@@ -323,17 +323,6 @@ impl Context<'_> {
                     .map(|(k, v)| ObjectMember(k.clone(), v.clone()))
                     .collect::<Vec<_>>();
 
-                // let node = Node {
-                //     name: member_ident.to_case(Case::Snake),
-                //     node_type: NodeType::Struct(StructNode {
-                //         _pkl_ident: member_ident,
-                //         members: &members,
-                //         is_dependency: true,
-                //         parent_module_name: top_level_module_name,
-                //         pub_struct: false,
-                //     }),
-                // };
-
                 let node = StructNodeRef {
                     _pkl_ident: member_ident,
                     members: &members,

@@ -1,6 +1,6 @@
 # Codegen
 
-Rpkl codegen works by generating a struct for the module you pass it, along with a module containing all the generated structs the module depends on. For instance, generating code for the following module:
+Rpkl codegen works by generating a struct for the pkl module you pass it, along with a rust module containing any structs the main struct depends on. For instance, generating code for the following module:
 
 ```pkl
 ip = "127.0.0.1"

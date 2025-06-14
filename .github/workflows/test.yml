@@ -43,8 +43,8 @@ jobs:
         run: cargo generate-lockfile
       - name: Test rpkl
         run: |
-          cargo test --all-features --package rpkl
-          cargo test --package rpkl --test tests
+          cargo test --package rpkl --all-features
+          cargo test --package rpkl --all-features --test tests
       - name: Test examples
         run: |
           for example in examples/*.rs

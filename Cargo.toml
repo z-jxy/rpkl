@@ -56,5 +56,5 @@ path = "examples/external_resource_reader/reader.rs"
 
 [[example]]
 name = "codegen"
-path = "examples/codegen.rs"
+path = "examples/codegen/codegen.rs"
 required-features = ["codegen-experimental"]

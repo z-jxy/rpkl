@@ -11,4 +11,4 @@ doc = false
 
 [dependencies]
 clap = { version = "4.5.38", features = ["derive"] }
-rpkl = { path = "../..", features = ["codegen"] }
+rpkl = { path = "../..", features = ["codegen-experimental"] }

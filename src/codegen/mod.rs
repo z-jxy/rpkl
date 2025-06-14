@@ -1,3 +1,7 @@
+//! Code generation module for rpkl.
+//!
+//! The behavior of codegen options marked with `__Experimental__` are subject to change in future releases.
+
 use convert_case::{Case, Casing};
 use node::StructNodeRef;
 use std::borrow::Cow;
@@ -44,6 +48,7 @@ impl CodegenOptions {
     /// let options = CodegenOptions::new()
     ///    .type_attribute("MyStruct", "#[derive(Default)]");
     /// ``````
+    #[cfg(feature = "codegen-experimental")]
     pub fn type_attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.type_attributes.push((name.into(), value.into()));
         self
@@ -60,6 +65,7 @@ impl CodegenOptions {
     /// let options = CodegenOptions::new()
     ///    .field_attribute("Example.ip", "#[serde(rename = \"ip\")]");
     /// ```
+    #[cfg(feature = "codegen-experimental")]
     pub fn field_attribute(mut self, name: impl Into<String>, value: impl Into<String>) -> Self {
         self.field_attributes.push((name.into(), value.into()));
         self
@@ -97,6 +103,7 @@ impl CodegenOptions {
     ///   .type_attribute("Mode", "#[derive(Default)]")
     ///   .field_attribute("Mode.Dev", "#[default]");
     /// ```
+    #[cfg(feature = "codegen-experimental")]
     pub fn as_enum(mut self, name: impl Into<String>, variants: &[impl AsRef<str>]) -> Self {
         self.enums.push((
             name.into(),
@@ -120,6 +127,7 @@ impl CodegenOptions {
     }
 
     /// Forces a field type to be generated as an opaque value (rpkl::Value). (__Experimental__)
+    #[cfg(feature = "codegen-experimental")]
     pub fn opaque(mut self, name: impl Into<String>) -> Self {
         self.opaque_fields.insert(name.into());
         self
@@ -149,6 +157,11 @@ impl CodegenOptions {
 }
 
 impl PklMod {
+    pub fn codegen(&self) -> Result<String> {
+        // use default options
+        self.codegen_with_options(CodegenOptions::default())
+    }
+
     /// By default, all structs are generated with `Debug`, `serde::Deserialize` and attributes.
     ///
     /// To modify the generated code,
@@ -156,14 +169,9 @@ impl PklMod {
     ///
     /// # Errors
     /// Errors if the generated code cannot be written to the file system.
-    // TODO: return result as a string
-    pub fn codegen(&self, options: Option<impl AsRef<CodegenOptions>>) -> Result<String> {
+    pub fn codegen_with_options(&self, options: impl AsRef<CodegenOptions>) -> Result<String> {
         // TODO: this is weird, this could be simpler if we didn't have to deal with the Option
-        let _default = CodegenOptions::default();
-        let options = match options.as_ref() {
-            Some(o) => o.as_ref(),
-            None => _default.as_ref(),
-        };
+        let options = options.as_ref();
         let module_name = &self.module_name;
 
         let mut writer = String::new();
@@ -598,7 +606,7 @@ mod tests {
             .field_attribute("Mode.Dev", "#[default]")
             .opaque("Example.mapping");
         let output = pkl_mod
-            .codegen(Some(options))
+            .codegen_with_options(options)
             .unwrap()
             .replace("\t", "")
             .replace("\n", "");
@@ -611,6 +619,7 @@ mod tests {
         assert_eq!(expected, format!("#![rustfmt::skip]{output}"));
     }
 
+    #[cfg(feature = "codegen-experimental")]
     #[test]
     fn test_codegen() {
         let path = pkl_tests_file("example.pkl");
@@ -624,7 +633,7 @@ mod tests {
             .type_attribute("Mode", "#[derive(Default)]")
             .field_attribute("Mode.Dev", "#[default]")
             .opaque("Example.mapping");
-        let contents = pkl_mod.codegen(Some(&options)).unwrap();
+        let contents = pkl_mod.codegen_with_options(&options).unwrap();
 
         // check that the file contains all required struct and enum declarations
         assert!(contents.contains("pub struct Example"));

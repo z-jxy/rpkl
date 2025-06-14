@@ -35,7 +35,7 @@ fn main() {
         options = options.opaque(mapping);
     }
 
-    let code = match pkl_mod.codegen(Some(options)) {
+    let code = match pkl_mod.codegen_with_options(options) {
         Ok(code) => code,
         Err(e) => {
             eprintln!("Failed to generate code: {e}");

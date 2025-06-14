@@ -60,7 +60,7 @@ use rpkl::{api::Evaluator, codegen::CodegenOptions};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut evaluator = Evaluator::new()?;
     let pkl_mod = evaluator.evaluate_module("example.pkl")?;
-    let code: String = pkl_mod.codegen(Some(CodegenOptions::default()))?;
+    let code: String = pkl_mod.codegen()?;
     std::fs::write("src/example.rs", code)?;
     Ok(())
 }
@@ -68,4 +68,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 You can also generate code using the experimental [CLI](crates/cli/README.md).
 
-For more info, see the [codegen docs](docs/codegen.md).
+For more info on codegen, see the [docs](docs/codegen.md).

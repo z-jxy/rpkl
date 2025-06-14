@@ -55,6 +55,6 @@ fn main() {
             .type_attribute("Mode", "#[derive(Default)]")
             .field_attribute("Mode.Dev", "#[default]")
             .opaque("Example.mapping");
-        println!("{}", pkl_mod.codegen(Some(options)).unwrap());
+        println!("{}", pkl_mod.codegen_with_options(options).unwrap());
     }
 }

@@ -8,4 +8,4 @@ rpkl = { path = "../..", features = ["codegen"] }
 serde = { version = "1.0.219", features = ["derive"] }
 
 [build-dependencies]
-rpkl = { path = "../..", features = ["build-script"] }
+rpkl = { path = "../..", features = ["build-script", "codegen-experimental"] }

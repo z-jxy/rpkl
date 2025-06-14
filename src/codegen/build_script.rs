@@ -46,7 +46,7 @@ impl Builder {
             }
 
             let pkl_mod = evaluator.evaluate_module(module_path)?;
-            let code = pkl_mod.codegen(Some(&self.codegen_options))?;
+            let code = pkl_mod.codegen_with_options(&self.codegen_options)?;
 
             output_file.write_all(&code.as_bytes()[CODEGEN_HEADER.len()..])?;
         }

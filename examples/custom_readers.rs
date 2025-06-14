@@ -1,3 +1,5 @@
+//! Example of how to use external readers to read custom resources/modules.
+
 use std::path::PathBuf;
 
 use rpkl::{api::reader::*, EvaluatorOptions};

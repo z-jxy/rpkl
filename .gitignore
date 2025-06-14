@@ -1,6 +1,8 @@
 /target
+**/target
 .idea
 .vscode
 *.json
 /generated
 *.log
+**/generated

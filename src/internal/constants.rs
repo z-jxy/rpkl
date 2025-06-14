@@ -13,7 +13,7 @@ pub mod type_constants {
     pub const _CLASS: u64 = 12;
     pub const TYPE_ALIAS: u64 = 13;
     pub const OBJECT_MEMBER: u64 = 16;
-    /// collections example at https://pkl-lang.org/main/current/language-tutorial/01_basic_config.html#collections returns 18 for the listing
+    /// collections example at <https://pkl-lang.org/main/current/language-tutorial/01_basic_config.html#collections> returns 18 for the listing
     pub const DYNAMIC_MAPPING: u64 = 17;
     pub const DYNAMIC_LISTING: u64 = 18;
 

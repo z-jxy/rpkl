@@ -1,0 +1,9 @@
+paths = new Mapping {
+	["*"] = List("@admins")
+}
+
+
+extensions = Set(
+	List("Birds"),
+	List("Cats")
+)

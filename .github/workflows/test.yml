@@ -1,0 +1,59 @@
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        toolchain: [stable]
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: windows-latest
+            name: Windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pkl CLI (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -L -o pkl 'https://github.com/apple/pkl/releases/download/0.28.2/pkl-linux-amd64'
+          chmod +x pkl
+          sudo mv pkl /usr/local/bin/
+
+      - name: Install pkl CLI (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Invoke-WebRequest 'https://github.com/apple/pkl/releases/download/0.28.2/pkl-windows-amd64.exe' -OutFile pkl.exe
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\bin"
+          Move-Item pkl.exe "$env:USERPROFILE\bin\"
+          echo "$env:USERPROFILE\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: powershell
+
+      - name: Install Stable ${{ matrix.os }}
+        uses: dtolnay/rust-toolchain@stable
+      - name: cargo generate-lockfile
+        if: hashFiles('Cargo.lock') == ''
+        run: cargo generate-lockfile
+      - name: Test rpkl
+        run: |
+          cargo test --package rpkl --all-features
+          cargo test --package rpkl --all-features --test tests
+      - name: Test examples
+        run: |
+          for example in examples/*.rs
+          do
+            if [ "${{ runner.os }}" == "Windows" ]; then
+                cargo run -p rpkl --example "$(basename "${example%.rs}")" > NUL 2>&1
+            else
+                cargo run -p rpkl --example "$(basename "${example%.rs}")" > /dev/null 2>&1
+            fi
+          done
+        shell: bash
+

@@ -9,7 +9,7 @@ pub struct DurationDeserializer<'a> {
     pub duration: &'a std::time::Duration,
 }
 
-impl<'a, 'de> Deserializer<'de> for DurationDeserializer<'a> {
+impl<'de> Deserializer<'de> for DurationDeserializer<'_> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -38,7 +38,7 @@ pub struct DurationMapAccess<'a> {
     pub state: u8,
 }
 
-impl<'a, 'de> MapAccess<'de> for DurationMapAccess<'a> {
+impl<'de> MapAccess<'de> for DurationMapAccess<'_> {
     type Error = crate::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>

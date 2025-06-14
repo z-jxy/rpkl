@@ -1,12 +1,18 @@
 [package]
 name = "rpkl"
 version = "0.4.2"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 repository = "https://github.com/z-jxy/rpkl"
 description = "Bindings and codegen for Apple's Pkl configuration language"
 keywords = ["pkl", "apple", "codegen"]
 readme = "README.md"
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/cli"]
+exclude = ["examples/build_step"]
 
 [dependencies]
 rmp-serde = "1.1.2"
@@ -15,24 +21,40 @@ serde = { version = "1.0", features = ["derive"] }
 
 # Gated dependencies
 convert_case = { version = "0.6.0", optional = true }
-dhat = { version = "0.3.3", optional = true }
 indexmap = { version = "2.2.3", features = ["serde"], optional = true }
 tracing = { version = "0.1.40", optional = true }
 tracing-subscriber = { version = "0.3.18", optional = true }
 
 [lints.clippy]
-complexity = "warn"
+all = "warn"
 
 [target.'cfg(windows)'.dependencies]
 dunce = "1.0.4"
 
 [dev-dependencies]
+regex = "1.11.1"
 serde_json = "1.0.117"
+
 
 [features]
 default = []
-trace = ["tracing", "tracing-subscriber"]
-dhat-heap = ["dhat"]
-dhat-ad-hoc = ["dhat"]
 codegen = ["convert_case"]
 indexmap = ["dep:indexmap"]
+trace = ["tracing"]
+
+# used to signal to codegen that its running in the context of a build 
+# this is done to emit cargo directives
+build-script = ["codegen"]
+
+# enables features for modifying structs and fields during codegen
+# the behavior of how structs/fields are targeted is subject to change
+codegen-experimental = ["codegen"]
+
+[[example]]
+name = "external_resource_reader"
+path = "examples/external_resource_reader/reader.rs"
+
+[[example]]
+name = "codegen"
+path = "examples/codegen/codegen.rs"
+required-features = ["codegen-experimental"]

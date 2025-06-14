@@ -1,14 +1,16 @@
 #[cfg(feature = "indexmap")]
 use indexmap::IndexMap;
+#[cfg(not(feature = "indexmap"))]
 use std::collections::HashMap;
 
-use crate::value::value::MapImpl;
 use crate::Result;
+use crate::internal::ObjectMember;
+use crate::value::value::MapImpl;
 
-use super::{internal::ObjectMember, PklMod};
+use super::PklMod;
 use crate::Value as PklValue;
 
-pub trait PklSerialize {
+pub(crate) trait PklSerialize {
     fn serialize_pkl_ast(self) -> Result<MapImpl<String, PklValue>>;
 }
 
@@ -47,7 +49,7 @@ fn serialize_members<T: IntoIterator<Item = ObjectMember>>(
     };
 
     for member in members {
-        let (k, v) = member.into_pkl_value()?;
+        let ObjectMember(k, v) = member;
         pkl_object.insert(k, v);
     }
 

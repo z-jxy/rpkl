@@ -10,7 +10,7 @@ pub struct TupleDeserializer<'a> {
     pub pair: (&'a Value, &'a Value),
 }
 
-impl<'a, 'de> Deserializer<'de> for TupleDeserializer<'a> {
+impl<'de> Deserializer<'de> for TupleDeserializer<'_> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -44,7 +44,7 @@ pub struct TupleSeqAccess<'a> {
     pub index: usize,
 }
 
-impl<'a, 'de> SeqAccess<'de> for TupleSeqAccess<'a> {
+impl<'de> SeqAccess<'de> for TupleSeqAccess<'_> {
     type Error = crate::Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>

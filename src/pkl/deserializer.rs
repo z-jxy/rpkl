@@ -1,14 +1,11 @@
 use crate::pkl::de::{DurationMapAccess, EnumDeserializer, RangeMapAccess, TupleSeqAccess};
-use crate::pkl::internal::{self};
 use crate::value::datasize::DataSizeMapAccess;
 use crate::value::value::MapImpl;
 use serde::de::{self, DeserializeSeed, IntoDeserializer, MapAccess, SeqAccess, Visitor};
 use serde::forward_to_deserialize_any;
 
 #[cfg(feature = "trace")]
-use tracing::{debug, error, span, trace, Level};
-#[cfg(feature = "trace")]
-use tracing_subscriber::FmtSubscriber;
+use tracing::{debug, trace};
 
 use crate::Value as PklValue;
 
@@ -58,7 +55,7 @@ impl<'a, 'de> MapAccessImpl<'a, 'de> {
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for MapAccessImpl<'a, 'de> {
+impl<'de> MapAccess<'de> for MapAccessImpl<'_, 'de> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -111,7 +108,7 @@ impl<'a> PklSeqAccess<'a> {
     }
 }
 
-impl<'de, 'a> SeqAccess<'de> for PklSeqAccess<'a> {
+impl<'de> SeqAccess<'de> for PklSeqAccess<'_> {
     type Error = crate::Error;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
@@ -143,7 +140,7 @@ impl<'a> PklMapAccess<'a> {
     }
 }
 
-impl<'de, 'a> MapAccess<'de> for PklMapAccess<'a> {
+impl<'de> MapAccess<'de> for PklMapAccess<'_> {
     type Error = Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>>
@@ -183,11 +180,11 @@ impl<'de, 'a> MapAccess<'de> for PklMapAccess<'a> {
     }
 }
 
-/// Internal deserializer used for deserializing Tuples from PklValue
+/// Internal deserializer used for deserializing Tuples from `PklValue`
 #[derive(Clone, Copy)]
 pub struct PklValueDeserializer<'v>(pub &'v PklValue);
 
-impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
+impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -233,9 +230,9 @@ impl<'v, 'de> serde::Deserializer<'de> for PklValueDeserializer<'v> {
 
         match self.0 {
             PklValue::Int(i) => match i {
-                internal::Integer::Pos(u) => visitor.visit_u64(*u),
-                internal::Integer::Neg(n) => visitor.visit_i64(*n),
-                internal::Integer::Float(f) => visitor.visit_f64(*f),
+                crate::internal::Integer::Pos(u) => visitor.visit_u64(*u),
+                crate::internal::Integer::Neg(n) => visitor.visit_i64(*n),
+                crate::internal::Integer::Float(f) => visitor.visit_f64(*f),
             },
             PklValue::String(s) | PklValue::Regex(s) => visitor.visit_string(s.to_owned()),
 
@@ -278,15 +275,8 @@ mod tests {
     use rmpv::Value;
     use serde::Deserialize;
 
-    #[cfg(feature = "dhat-heap")]
-    #[global_allocator]
-    static ALLOC: dhat::Alloc = dhat::Alloc;
-
     #[test]
     fn deserialize() {
-        #[cfg(feature = "dhat-heap")]
-        let _profiler = dhat::Profiler::new_heap();
-
         #[derive(Debug, PartialEq, Deserialize)]
         struct Config {
             ip: String,
@@ -301,7 +291,7 @@ mod tests {
             password: String,
         }
 
-        let ast = Value::Array(vec![
+        let eval_module_response = Value::Array(vec![
             Value::Integer(1.into()),
             Value::String("example".into()),
             Value::String("file:///Users/testing/rpkl/examples/example.pkl".into()),
@@ -352,8 +342,8 @@ mod tests {
             ]),
         ]);
 
-        let pkl_mod =
-            crate::api::decoder::pkl_eval_module(&ast).expect("failed to evaluate pkl ast");
+        let pkl_mod = crate::decoder::decode_module(&eval_module_response)
+            .expect("failed to evaluate pkl ast");
         let mapped = pkl_mod
             .serialize_pkl_ast()
             .expect("failed to serialize pkl module");
@@ -370,33 +360,105 @@ mod tests {
                 password: "secret".to_owned(),
             },
         };
-        assert_eq!(expected, deserialized)
+        assert_eq!(expected, deserialized);
+    }
+
+    #[test]
+    fn deserialize_time() {
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct Config {
+            ip: String,
+            port: u16,
+            birds: Vec<String>,
+            database: Database,
+        }
+
+        #[derive(Debug, PartialEq, Deserialize)]
+        struct Database {
+            username: String,
+            password: String,
+        }
+
+        let ast = Value::Array(vec![
+            Value::Integer(1.into()),
+            Value::String("example".into()),
+            Value::String("file:///Users/testing/code/rust/rpkl/examples/example.pkl".into()),
+            Value::Array(vec![
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("ip".into()),
+                    Value::String("127.0.0.1".into()),
+                ]),
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("port".into()),
+                    Value::Integer(8080.into()),
+                ]),
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("birds".into()),
+                    Value::Array(vec![
+                        Value::Integer(5.into()),
+                        Value::Array(vec![
+                            Value::String("Pigeon".into()),
+                            Value::String("Hawk".into()),
+                            Value::String("Penguin".into()),
+                        ]),
+                    ]),
+                ]),
+                Value::Array(vec![
+                    Value::Integer(16.into()),
+                    Value::String("database".into()),
+                    Value::Array(vec![
+                        Value::Integer(1.into()),
+                        Value::String("Dynamic".into()),
+                        Value::String("pkl:base".into()),
+                        Value::Array(vec![
+                            Value::Array(vec![
+                                Value::Integer(16.into()),
+                                Value::String("username".into()),
+                                Value::String("admin".into()),
+                            ]),
+                            Value::Array(vec![
+                                Value::Integer(16.into()),
+                                Value::String("password".into()),
+                                Value::String("secret".into()),
+                            ]),
+                        ]),
+                    ]),
+                ]),
+            ]),
+        ]);
+        let expected = Config {
+            ip: "127.0.0.1".into(),
+            port: 8080,
+            birds: vec!["Pigeon".into(), "Hawk".into(), "Penguin".into()],
+            database: Database {
+                username: "admin".to_owned(),
+                password: "secret".to_owned(),
+            },
+        };
+        // let now = std::time::Instant::now();
+        let pkl_mod = crate::decoder::decode_module(&ast).expect("failed to evaluate pkl ast");
+        let mapped = pkl_mod
+            .serialize_pkl_ast()
+            .expect("failed to serialize pkl module");
+
+        let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
+            .expect("failed to deserialize");
+
+        assert_eq!(expected, deserialized);
     }
 
     #[test]
     #[cfg(feature = "indexmap")]
     fn test_map_ordering() {
-        use crate::pkl::internal::IPklValue;
-        use crate::pkl::internal::ObjectMember;
-        use crate::pkl::internal::PklPrimitive;
+        use crate::internal::ObjectMember;
 
-        // Create a sequence of members in a specific order
         let members = vec![
-            ObjectMember(
-                16,
-                "third".to_string(),
-                IPklValue::Primitive(PklPrimitive::String("3".to_string())),
-            ),
-            ObjectMember(
-                16,
-                "first".to_string(),
-                IPklValue::Primitive(PklPrimitive::String("1".to_string())),
-            ),
-            ObjectMember(
-                16,
-                "second".to_string(),
-                IPklValue::Primitive(PklPrimitive::String("2".to_string())),
-            ),
+            ObjectMember("third".to_string(), PklValue::String("3".to_string())),
+            ObjectMember("first".to_string(), PklValue::String("1".to_string())),
+            ObjectMember("second".to_string(), PklValue::String("2".to_string())),
         ];
 
         // Serialize to a map

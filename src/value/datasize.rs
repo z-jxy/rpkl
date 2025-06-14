@@ -62,7 +62,7 @@ impl Display for DataSizeUnit {
 
 impl DataSizeUnit {
     /// Returns true if the unit is a binary unit (e.g. KiB, MiB, GiB, TiB, PiB) or `DataSizeUnit::Bytes`.
-    fn is_binary(&self) -> bool {
+    fn is_binary(self) -> bool {
         match self {
             DataSizeUnit::Bytes
             | DataSizeUnit::Kibibytes
@@ -80,7 +80,7 @@ impl DataSizeUnit {
     }
 
     /// Returns true if the unit is a decimal unit (e.g. KB, MB, GB, TB, PB) or `DataSizeUnit::Bytes`.
-    fn is_decimal(&self) -> bool {
+    fn is_decimal(self) -> bool {
         match self {
             DataSizeUnit::Bytes
             | DataSizeUnit::Kilobytes
@@ -114,7 +114,7 @@ impl DataSizeUnit {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Deserialize, Serialize)]
 pub struct DataSize {
     value: f64,
     unit: DataSizeUnit,
@@ -130,7 +130,7 @@ impl<'de> Deserialize<'de> for DataSizeUnit {
     {
         struct DataSizeUnitVisitor;
 
-        impl<'de> Visitor<'de> for DataSizeUnitVisitor {
+        impl Visitor<'_> for DataSizeUnitVisitor {
             type Value = DataSizeUnit;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -195,7 +195,7 @@ pub struct DataSizeDeserializer<'a> {
     pub input: &'a DataSize,
 }
 
-impl<'a, 'de> Deserializer<'de> for DataSizeDeserializer<'a> {
+impl<'de> Deserializer<'de> for DataSizeDeserializer<'_> {
     type Error = crate::Error;
 
     forward_to_deserialize_any! {
@@ -224,7 +224,7 @@ pub(crate) struct DataSizeMapAccess<'a> {
     pub(crate) state: u8,
 }
 
-impl<'a, 'de> MapAccess<'de> for DataSizeMapAccess<'a> {
+impl<'de> MapAccess<'de> for DataSizeMapAccess<'_> {
     type Error = crate::Error;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>

@@ -2,7 +2,10 @@ use pkl::Deserializer;
 use pkl::PklSerialize;
 
 pub mod api;
+#[cfg(feature = "codegen")]
+pub mod codegen;
 mod context;
+mod decoder;
 pub mod error;
 mod internal;
 pub mod pkl;
@@ -12,8 +15,11 @@ pub mod value;
 pub use error::{Error, Result};
 
 pub use api::evaluator::EvaluatorOptions;
-use utils::macros::_trace;
+
 pub use value::PklValue as Value;
+
+#[cfg(feature = "build-script")]
+pub use codegen::build_script;
 
 /// Evaluates a `.pkl` file and deserializes it as `T`. If you need to pass options to the evaluator, such as properties, use [`from_config_with_options`].
 ///
@@ -50,6 +56,11 @@ pub use value::PklValue as Value;
 /// #    Ok(())
 /// # }
 /// ```
+///
+/// # Errors
+/// - `DeserializeError`: If the deserialization fails.
+/// - `PklError`: If the PKL module fails to serialize.
+/// - If the evaluator fails to evaluate the module.
 pub fn from_config<T>(path: impl AsRef<std::path::Path>) -> Result<T>
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
@@ -93,6 +104,10 @@ where
 /// #    Ok(())
 /// # }
 /// ```
+/// # Errors
+/// - `DeserializeError`: If the deserialization fails.
+/// - `PklError`: If the PKL module fails to serialize.
+/// - If the evaluator fails to evaluate the module.
 pub fn from_config_with_options<T>(
     path: impl AsRef<std::path::Path>,
     options: EvaluatorOptions,
@@ -100,24 +115,12 @@ pub fn from_config_with_options<T>(
 where
     T: Sized + for<'de> serde::Deserialize<'de>,
 {
-    #[cfg(feature = "trace")]
-    {
-        use tracing::Level;
-        use tracing_subscriber::FmtSubscriber;
-
-        let subscriber = tracing_subscriber::FmtSubscriber::builder()
-            .with_max_level(Level::TRACE)
-            .finish();
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("setting default subscriber failed");
-    }
-
     let mut evaluator = api::Evaluator::new_from_options(options)?;
-    let pkl_mod = evaluator.evaluate_module(path.as_ref().to_path_buf())?;
+    let pkl_mod = evaluator.evaluate_module(path.as_ref())?;
 
     let pkld = pkl_mod.serialize_pkl_ast()?;
 
-    _trace!("serialized pkl data {:?}", pkld);
+    utils::macros::_trace!("serialized pkl data {:?}", pkld);
 
     T::deserialize(&mut Deserializer::from_pkl_map(&pkld))
         .map_err(|e| Error::DeserializeError(format!("{e}")))

@@ -52,10 +52,20 @@ let config: Config = rpkl::from_config_with_options("./config.pkl", Some(options
 
 ## Codegen
 
-Mostly works, but still a WIP. If you want to try it out, you can enable the `codegen` feature.
+Codegen can be enabled by adding the `codegen` feature.
 
 ```rust
-let mut evaluator = rpkl::evaluator::Evaluator::new()?;
-let pkl_mod = evaluator.evaluate_module(PathBuf::from("./config.pkl"))?;
-pkl_mod.codegen()?;
+use rpkl::{api::Evaluator, codegen::CodegenOptions};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut evaluator = Evaluator::new()?;
+    let pkl_mod = evaluator.evaluate_module("example.pkl")?;
+    let code: String = pkl_mod.codegen()?;
+    std::fs::write("src/example.rs", code)?;
+    Ok(())
+}
 ```
+
+You can also generate code using the experimental [CLI](crates/cli/README.md).
+
+For more info on codegen, see the [docs](docs/codegen.md).

@@ -104,7 +104,7 @@ dependencies = [
 
 [[package]]
 name = "rpkl"
-version = "0.4.2"
+version = "0.5.0"
 dependencies = [
  "convert_case",
  "dunce",

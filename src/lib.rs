@@ -15,7 +15,7 @@ pub use api::evaluator::EvaluatorOptions;
 
 pub use value::PklValue as Value;
 
-pub use pkl::Deserializer;
+use pkl::Deserializer;
 use pkl::PklSerialize;
 
 #[cfg(feature = "build-script")]

@@ -10,7 +10,7 @@ use crate::value::value::MapImpl;
 use super::PklMod;
 use crate::Value as PklValue;
 
-pub(crate) trait PklSerialize {
+pub trait PklSerialize {
     fn serialize_pkl_ast(self) -> Result<MapImpl<String, PklValue>>;
 }
 

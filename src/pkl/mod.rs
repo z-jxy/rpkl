@@ -7,4 +7,4 @@ pub use crate::internal::IntSeq;
 pub use deserializer::Deserializer;
 
 pub(crate) use pkl_mod::PklMod;
-pub(crate) use serializer::PklSerialize;
+pub use serializer::PklSerialize;

@@ -1,0 +1,9 @@
+[package]
+name = "pkl-sys"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+readme = "README.md"
+description = "Sys bindings to libpkl"
+
+[dependencies]

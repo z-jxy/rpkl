@@ -12,6 +12,7 @@ pub mod type_constants {
     pub const REGEX: u64 = 11;
     pub const _CLASS: u64 = 12;
     pub const TYPE_ALIAS: u64 = 13;
+    pub const BYTES: u64 = 15; // 0xF (pkl 0.29)
     pub const OBJECT_MEMBER: u64 = 16;
     /// collections example at <https://pkl-lang.org/main/current/language-tutorial/01_basic_config.html#collections> returns 18 for the listing
     pub const DYNAMIC_MAPPING: u64 = 17;

@@ -24,10 +24,11 @@ pub enum PklValue {
     Boolean(bool),
     Duration(std::time::Duration),
 
-    Pair(Box<PklValue>, Box<PklValue>), // requires box to avoid infinite size compiler error
-    //
+    Pair(Box<PklValue>, Box<PklValue>), // needs indirection
+
     Range(std::ops::Range<i64>),
     DataSize(DataSize),
+    Bytes(Vec<u8>),
     Null,
 }
 
@@ -67,6 +68,13 @@ impl PklValue {
         }
     }
 
+    pub fn as_bytes(&self) -> Option<&[u8]> {
+        match self {
+            PklValue::Bytes(b) => Some(b),
+            _ => None,
+        }
+    }
+
     pub fn is_number(&self) -> bool {
         matches!(self, PklValue::Int(_))
     }
@@ -97,5 +105,9 @@ impl PklValue {
 
     pub fn is_array(&self) -> bool {
         matches!(self, PklValue::List(_))
+    }
+
+    pub fn is_bytes(&self) -> bool {
+        matches!(self, PklValue::Bytes(_))
     }
 }

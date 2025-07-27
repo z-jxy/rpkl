@@ -85,6 +85,8 @@ fn decode_non_primitive(slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
         type_constants::PAIR => decode_pair(type_id, slots),
         type_constants::INT_SEQ => decode_intseq(type_id, slots),
         type_constants::REGEX => decode_regex(type_id, slots),
+        // decoding is the same as a List<UInt8> type
+        type_constants::BYTES => decode_bytes(type_id, slots),
 
         // afaik, pkl doesn't send this information over in the evaluated data
         type_constants::TYPE_ALIAS => {
@@ -170,9 +172,9 @@ fn decode_mapping(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive
 fn decode_list(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     _trace!("slots: {:#?}", slots);
 
-    let values = slots[0]
-        .as_array()
-        .context(format!("expected array when decoding list, got: {slots:?}"))?;
+    let values = slots[0].as_array().context(format!(
+        "expected array when decoding `List`, got: {slots:?}"
+    ))?;
 
     let mut list_values: Vec<PklValue> = Vec::with_capacity(values.len());
 
@@ -181,6 +183,16 @@ fn decode_list(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     }
 
     Ok(PklNonPrimitive::List(type_id, list_values))
+}
+
+fn decode_bytes(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
+    _trace!("slots: {:#?}", slots);
+
+    let values = slots[0].as_slice().context(format!(
+        "expected binary when decoding `Bytes`, got: {slots:?}"
+    ))?;
+
+    Ok(PklNonPrimitive::Bytes(type_id, values.to_vec()))
 }
 
 #[inline]

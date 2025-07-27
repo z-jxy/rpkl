@@ -265,6 +265,7 @@ impl Context<'_> {
                 }
             }
             PklValue::Range(_) => Cow::Borrowed("std::ops::Range<i64>"),
+            PklValue::Bytes(_) => Cow::Borrowed("Vec<u8>"),
             PklValue::DataSize(_)
             | PklValue::Duration(_)
             | PklValue::Pair(_, _)

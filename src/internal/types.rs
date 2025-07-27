@@ -125,6 +125,7 @@ impl From<PklNonPrimitive> for PklValue {
             PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
             PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
             PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
+            PklNonPrimitive::Bytes(_, bytes) => PklValue::Bytes(bytes),
         }
     }
 }
@@ -202,6 +203,7 @@ pub(crate) enum PklNonPrimitive {
     /// 0: type id, 1: start, 2: end
     IntSeq(u64, i64, i64),
     Regex(u64, String),
+    Bytes(u64, Vec<u8>),
 }
 
 /// <https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq>

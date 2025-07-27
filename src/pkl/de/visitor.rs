@@ -149,7 +149,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        Err(de::Error::invalid_type(de::Unexpected::Bytes(v), &self))
+        Ok(Value::Bytes(v.to_vec()))
     }
 
     fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<Self::Value, E>
@@ -163,7 +163,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        self.visit_bytes(&v)
+        Ok(Value::Bytes(v))
     }
 
     fn visit_none<E>(self) -> Result<Self::Value, E>

@@ -161,4 +161,33 @@ mod non_primitive_values {
 
         Ok(())
     }
+
+    #[test]
+    fn bytes() {
+        #[derive(serde::Deserialize, Debug)]
+        struct Config {
+            my_bytes: Vec<u8>,
+        }
+
+        let config = rpkl::from_config::<Config>(pkl_tests_file("bytes.pkl"))
+            .expect("deserialize bytes.pkl");
+
+        assert!(
+            config.my_bytes
+                == vec![
+                    0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x2c, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21
+                ]
+        );
+
+        #[derive(serde::Deserialize, Debug)]
+        struct BytesConfig {
+            my_bytes: rpkl::Value,
+        }
+
+        let bytes_config = rpkl::from_config::<BytesConfig>(pkl_tests_file("bytes.pkl"))
+            .expect("deserialize bytes.pkl");
+
+        assert!(bytes_config.my_bytes.is_bytes());
+        assert_eq!(&bytes_config.my_bytes.as_bytes().unwrap(), &config.my_bytes);
+    }
 }

@@ -100,10 +100,22 @@ pub struct PklSeqAccess<'a> {
     elements: std::slice::Iter<'a, PklValue>,
 }
 
+pub struct BytesSeqAccess<'a> {
+    bytes: std::slice::Iter<'a, u8>,
+}
+
 impl<'a> PklSeqAccess<'a> {
     fn new(elements: &'a [PklValue]) -> Self {
         PklSeqAccess {
             elements: elements.iter(),
+        }
+    }
+}
+
+impl<'a> BytesSeqAccess<'a> {
+    fn new(bytes: &'a [u8]) -> Self {
+        BytesSeqAccess {
+            bytes: bytes.iter(),
         }
     }
 }
@@ -118,6 +130,24 @@ impl<'de> SeqAccess<'de> for PklSeqAccess<'_> {
         match self.elements.next() {
             Some(element) => {
                 let deserializer = element.into_deserializer();
+                seed.deserialize(deserializer).map(Some)
+            }
+            None => Ok(None),
+        }
+    }
+}
+
+impl<'de> SeqAccess<'de> for BytesSeqAccess<'_> {
+    type Error = crate::Error;
+
+    fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>>
+    where
+        T: serde::de::DeserializeSeed<'de>,
+    {
+        match self.bytes.next() {
+            Some(&byte) => {
+                let byte_value = PklValue::Int(crate::internal::Integer::Pos(byte as u64));
+                let deserializer = byte_value.into_deserializer();
                 seed.deserialize(deserializer).map(Some)
             }
             None => Ok(None),
@@ -189,7 +219,7 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
 
     forward_to_deserialize_any! {
         bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
-        bytes byte_buf unit unit_struct newtype_struct seq
+        unit unit_struct newtype_struct
         tuple tuple_struct map struct identifier ignored_any
     }
 
@@ -218,6 +248,37 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
             visitor.visit_none()
         } else {
             visitor.visit_some(self)
+        }
+    }
+
+    fn deserialize_bytes<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.0 {
+            PklValue::Bytes(bytes) => visitor.visit_bytes(bytes),
+            _ => self.deserialize_any(visitor),
+        }
+    }
+
+    fn deserialize_byte_buf<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.0 {
+            PklValue::Bytes(bytes) => visitor.visit_byte_buf(bytes.clone()),
+            _ => self.deserialize_any(visitor),
+        }
+    }
+
+    fn deserialize_seq<V>(self, visitor: V) -> std::result::Result<V::Value, Self::Error>
+    where
+        V: Visitor<'de>,
+    {
+        match self.0 {
+            PklValue::Bytes(bytes) => visitor.visit_seq(BytesSeqAccess::new(bytes)),
+            PklValue::List(elements) => visitor.visit_seq(PklSeqAccess::new(elements)),
+            _ => self.deserialize_any(visitor),
         }
     }
 
@@ -258,6 +319,7 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
             PklValue::Map(m) => {
                 visitor.visit_map(PklMapAccess::new(&mut Deserializer::from_pkl_map(m)))
             }
+            PklValue::Bytes(bytes) => visitor.visit_bytes(bytes),
         }
     }
 }

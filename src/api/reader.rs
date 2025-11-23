@@ -1,13 +1,13 @@
 pub use crate::internal::msgapi::PathElements;
 use crate::internal::msgapi::{
+    PklMessage,
     incoming::PklServerMessage,
     outgoing::{
         ListModulesResponse, ListResourcesResponse, ReadModuleResponse, ReadResourceResponse,
     },
-    PklMessage,
 };
 use crate::utils::macros::_warn;
-use std::io::Write;
+use std::{io::Write, sync::Arc};
 
 pub trait PklResourceReader {
     /// Scheme returns the scheme part of the URL that this reader can read.
@@ -73,11 +73,11 @@ pub trait PklModuleReader {
 }
 
 pub trait IntoResourceReaders {
-    fn into_readers(self) -> Vec<Box<dyn PklResourceReader>>;
+    fn into_readers(self) -> Vec<Arc<dyn PklResourceReader>>;
 }
 
 pub trait IntoModuleReaders {
-    fn into_readers(self) -> Vec<Box<dyn PklModuleReader>>;
+    fn into_readers(self) -> Vec<Arc<dyn PklModuleReader>>;
 }
 
 macro_rules! impl_into_readers {
@@ -87,9 +87,9 @@ macro_rules! impl_into_readers {
         where
             $($type: PklResourceReader + 'static),+
         {
-            fn into_readers(self) -> Vec<Box<dyn PklResourceReader>> {
+            fn into_readers(self) -> Vec<Arc<dyn PklResourceReader>> {
                 let ($($type),+) = self;
-                vec![$(Box::new($type)),+]
+                vec![$(Arc::new($type)),+]
             }
         }
     };
@@ -99,23 +99,23 @@ macro_rules! impl_into_readers {
         where
             $($type: PklModuleReader + 'static),+
         {
-            fn into_readers(self) -> Vec<Box<dyn PklModuleReader>> {
+            fn into_readers(self) -> Vec<Arc<dyn PklModuleReader>> {
                 let ($($type),+) = self;
-                vec![$(Box::new($type)),+]
+                vec![$(Arc::new($type)),+]
             }
         }
     };
 }
 
 impl<T: PklResourceReader + 'static> IntoResourceReaders for T {
-    fn into_readers(self) -> Vec<Box<dyn PklResourceReader>> {
-        vec![Box::new(self)]
+    fn into_readers(self) -> Vec<Arc<dyn PklResourceReader>> {
+        vec![Arc::new(self)]
     }
 }
 
 impl<T: PklModuleReader + 'static> IntoModuleReaders for T {
-    fn into_readers(self) -> Vec<Box<dyn PklModuleReader>> {
-        vec![Box::new(self)]
+    fn into_readers(self) -> Vec<Arc<dyn PklModuleReader>> {
+        vec![Arc::new(self)]
     }
 }
 
@@ -133,7 +133,7 @@ impl_into_readers!(module, (T1), (T2), (T3), (T4), (T5));
 // could be refactored, but the boilerplate needed and added complexity prob isn't worth it
 
 pub(crate) fn handle_list_resources<W: Write>(
-    resource_readers: &[Box<dyn PklResourceReader>],
+    resource_readers: &[Arc<dyn PklResourceReader>],
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -187,7 +187,7 @@ pub(crate) fn handle_list_resources<W: Write>(
 }
 
 pub(crate) fn handle_list_modules<W: Write>(
-    module_readers: &[Box<dyn PklModuleReader>],
+    module_readers: &[Arc<dyn PklModuleReader>],
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -238,7 +238,7 @@ pub(crate) fn handle_list_modules<W: Write>(
 }
 
 pub(crate) fn handle_read_resource<W: Write>(
-    resource_readers: &[Box<dyn PklResourceReader>],
+    resource_readers: &[Arc<dyn PklResourceReader>],
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -291,7 +291,7 @@ pub(crate) fn handle_read_resource<W: Write>(
 }
 
 pub(crate) fn handle_read_module<W: Write>(
-    module_readers: &[Box<dyn PklModuleReader>],
+    module_readers: &[Arc<dyn PklModuleReader>],
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {

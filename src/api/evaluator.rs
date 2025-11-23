@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     io::{Read, Write},
     process::{Child, Command, Stdio},
+    sync::Arc,
 };
 
 #[cfg(feature = "indexmap")]
@@ -35,16 +36,16 @@ pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
 pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 
 // options that can be provided to the evaluator, such as properties (-p flag from CLI)
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EvaluatorOptions {
     /// Properties to pass to the evaluator. Used to read from `props:` in `.pkl` files
     pub properties: Option<MapImpl<String, String>>,
 
     /// Client-side module readers
-    pub client_module_readers: Option<Vec<Box<dyn PklModuleReader>>>,
+    pub client_module_readers: Option<Vec<Arc<dyn PklModuleReader>>>,
 
     /// Client-side resource readers
-    pub client_resource_readers: Option<Vec<Box<dyn PklResourceReader>>>,
+    pub client_resource_readers: Option<Vec<Arc<dyn PklResourceReader>>>,
 
     /// External resource readers
     pub external_resource_readers: Option<HashMap<String, ExternalReader>>,
@@ -158,8 +159,8 @@ pub struct Evaluator {
     pub evaluator_id: i64,
     stdin: std::process::ChildStdin,
     stdout: std::process::ChildStdout,
-    client_module_readers: Vec<Box<dyn PklModuleReader>>,
-    client_resource_readers: Vec<Box<dyn PklResourceReader>>,
+    client_module_readers: Vec<Arc<dyn PklModuleReader>>,
+    client_resource_readers: Vec<Arc<dyn PklResourceReader>>,
 }
 
 impl Evaluator {

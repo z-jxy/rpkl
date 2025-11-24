@@ -1,6 +1,7 @@
-use std::io::Write;
+use std::{io::Write, sync::Arc};
 
 use crate::internal::msgapi::{
+    PklMessage,
     codes::{
         CLOSE_EXTERNAL_PROCESS, INITIALIZE_MODULE_READER_REQUEST,
         INITIALIZE_RESOURCE_READER_REQUEST, LIST_MODULES_REQUEST, LIST_RESOURCES_REQUEST,
@@ -11,7 +12,6 @@ use crate::internal::msgapi::{
         ClientModuleReader, ClientResourceReader, InitializeModuleReaderResponse,
         InitializeResourceReaderResponse,
     },
-    PklMessage,
 };
 
 use crate::{
@@ -26,8 +26,8 @@ use crate::{
 
 #[derive(Default)]
 pub struct ExternalReaderRuntime {
-    resource_readers: Vec<Box<dyn PklResourceReader>>,
-    module_readers: Vec<Box<dyn PklModuleReader>>,
+    resource_readers: Vec<Arc<dyn PklResourceReader>>,
+    module_readers: Vec<Arc<dyn PklModuleReader>>,
 }
 
 impl ExternalReaderRuntime {

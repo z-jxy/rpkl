@@ -5,12 +5,12 @@ use crate::internal::msgapi::codes::*;
 use serde::Serialize;
 
 use crate::{
+    EvaluatorOptions,
     api::{
         evaluator::CREATE_EVALUATOR_REQUEST_ID,
         reader::{PklModuleReader, PklResourceReader},
     },
     internal::msgapi::impl_pkl_message,
-    EvaluatorOptions,
 };
 
 impl From<&dyn PklModuleReader> for ClientModuleReader {
@@ -327,7 +327,7 @@ impl PathElements {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct ExternalReader {
     /// May be specified as an absolute path to an executable
     /// May also be specified as just an executable name, in which case it will be resolved according to the PATH environment variable

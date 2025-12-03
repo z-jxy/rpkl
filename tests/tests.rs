@@ -6,6 +6,7 @@ mod tests {
     use std::path::PathBuf;
 
     use rpkl::api::evaluator::EvaluatorOptions;
+    use rpkl::{HttpOptions, HttpProxy};
     use serde::Deserialize;
 
     #[test]
@@ -93,6 +94,69 @@ mod tests {
             );
 
         rpkl::from_config_with_options::<Config>(path, options).unwrap();
+    }
+
+    #[test]
+    fn http_proxy_options_builder() {
+        // Test that the builder API works correctly
+        let proxy = HttpProxy::new("http://proxy.example.com:8080")
+            .no_proxy(["localhost", "127.0.0.1", "10.0.0.0/8"]);
+
+        assert_eq!(
+            proxy.address,
+            Some("http://proxy.example.com:8080".to_string())
+        );
+        assert_eq!(
+            proxy.no_proxy,
+            Some(vec![
+                "localhost".to_string(),
+                "127.0.0.1".to_string(),
+                "10.0.0.0/8".to_string()
+            ])
+        );
+    }
+
+    #[test]
+    fn http_options_builder() {
+        // Test building HttpOptions with proxy
+        let http = HttpOptions::new()
+            .proxy(HttpProxy::new("http://proxy.example.com:8080"))
+            .ca_certificates(vec![1, 2, 3, 4]);
+
+        assert!(http.proxy.is_some());
+        assert_eq!(http.ca_certificates, Some(vec![1, 2, 3, 4]));
+    }
+
+    #[test]
+    fn evaluator_options_with_http() {
+        // Test that EvaluatorOptions can be built with HTTP config
+        let options = EvaluatorOptions::new()
+            .http(
+                HttpOptions::new().proxy(
+                    HttpProxy::new("http://proxy.example.com:8080")
+                        .no_proxy(["localhost", "*.internal.net"]),
+                ),
+            )
+            .timeout_seconds(30)
+            .property("key", "value");
+
+        assert!(options.http.is_some());
+        assert_eq!(options.timeout_seconds, Some(30));
+        assert!(options.properties.is_some());
+
+        let http = options.http.as_ref().unwrap();
+        let proxy = http.proxy.as_ref().unwrap();
+        assert_eq!(
+            proxy.address,
+            Some("http://proxy.example.com:8080".to_string())
+        );
+        assert_eq!(
+            proxy.no_proxy,
+            Some(vec![
+                "localhost".to_string(),
+                "*.internal.net".to_string()
+            ])
+        );
     }
 }
 

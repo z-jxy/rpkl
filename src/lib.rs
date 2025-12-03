@@ -11,7 +11,7 @@ pub mod value;
 
 pub use error::{Error, Result};
 
-pub use api::evaluator::EvaluatorOptions;
+pub use api::evaluator::{EvaluatorOptions, HttpOptions, HttpProxy};
 
 pub use value::PklValue as Value;
 

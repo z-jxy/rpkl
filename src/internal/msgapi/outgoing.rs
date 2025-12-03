@@ -34,6 +34,32 @@ impl From<&dyn PklResourceReader> for ClientResourceReader {
     }
 }
 
+/// HTTP proxy configuration for the CreateEvaluator message.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct HttpProxy {
+    /// The proxy server address (e.g., "http://proxy.example.com:8080").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<String>,
+
+    /// Hosts that should bypass the proxy.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_proxy: Option<Vec<String>>,
+}
+
+/// HTTP configuration for the CreateEvaluator message.
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Http {
+    /// HTTP proxy configuration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proxy: Option<HttpProxy>,
+
+    /// PEM-format CA certificates to trust for HTTPS connections.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ca_certificates: Option<Vec<u8>>,
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct CreateEvaluator<'a> {
@@ -57,6 +83,15 @@ pub(crate) struct CreateEvaluator<'a> {
     pub external_resource_readers: Option<&'a HashMap<String, ExternalReader>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub external_module_readers: Option<&'a HashMap<String, ExternalReader>>,
+
+    /// HTTP configuration for outgoing requests (proxy, CA certificates).
+    /// Added in Pkl 0.26.0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http: Option<Http>,
+
+    /// Timeout in seconds for evaluating a source module.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timeout_seconds: Option<u64>,
 }
 
 impl Default for CreateEvaluator<'_> {
@@ -85,6 +120,8 @@ impl Default for CreateEvaluator<'_> {
             properties: None,
             external_resource_readers: None,
             external_module_readers: None,
+            http: None,
+            timeout_seconds: None,
         }
     }
 }
@@ -139,6 +176,23 @@ impl<'a> From<&'a EvaluatorOptions> for CreateEvaluator<'a> {
                     evaluator_message.allowed_modules.push(uri.clone());
                 }
                 evaluator_message.external_module_readers = Some(readers);
+            }
+
+            // Handle HTTP configuration (proxy, CA certificates)
+            if let Some(http_opts) = &opts.http {
+                let http = Http {
+                    proxy: http_opts.proxy.as_ref().map(|p| HttpProxy {
+                        address: p.address.clone(),
+                        no_proxy: p.no_proxy.clone(),
+                    }),
+                    ca_certificates: http_opts.ca_certificates.clone(),
+                };
+                evaluator_message.http = Some(http);
+            }
+
+            // Handle timeout
+            if let Some(timeout) = opts.timeout_seconds {
+                evaluator_message.timeout_seconds = Some(timeout);
             }
         }
         /* */

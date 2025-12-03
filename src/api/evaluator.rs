@@ -35,6 +35,72 @@ pub(crate) const EVALUATE_RESPONSE: u64 = 0x24;
 pub(crate) const CREATE_EVALUATOR_REQUEST_ID: u64 = 135;
 pub(crate) const OUTGOING_MESSAGE_REQUEST_ID: u64 = 9805131;
 
+/// HTTP proxy configuration for outgoing requests.
+///
+/// Only HTTP proxies are supported (not HTTPS or SOCKS).
+/// The proxy address must use the `http://` scheme and contain only host and port.
+#[derive(Default, Clone, Debug)]
+pub struct HttpProxy {
+    /// The proxy server address (e.g., "http://proxy.example.com:8080").
+    /// Must use the `http://` scheme and contain only host and port.
+    pub address: Option<String>,
+
+    /// Hosts that should bypass the proxy.
+    /// Supports hostnames, IP addresses, and CIDR notation.
+    pub no_proxy: Option<Vec<String>>,
+}
+
+impl HttpProxy {
+    pub fn new(address: impl Into<String>) -> Self {
+        Self {
+            address: Some(address.into()),
+            no_proxy: None,
+        }
+    }
+
+    /// Set the proxy address.
+    pub fn address(mut self, address: impl Into<String>) -> Self {
+        self.address = Some(address.into());
+        self
+    }
+
+    /// Add hosts that should bypass the proxy.
+    pub fn no_proxy(mut self, hosts: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.no_proxy = Some(hosts.into_iter().map(Into::into).collect());
+        self
+    }
+}
+
+/// HTTP configuration for outgoing requests.
+///
+/// Added in Pkl 0.26.0.
+#[derive(Default, Clone, Debug)]
+pub struct HttpOptions {
+    /// HTTP proxy configuration.
+    pub proxy: Option<HttpProxy>,
+
+    /// PEM-format CA certificates to trust for HTTPS connections.
+    pub ca_certificates: Option<Vec<u8>>,
+}
+
+impl HttpOptions {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Set the HTTP proxy configuration.
+    pub fn proxy(mut self, proxy: HttpProxy) -> Self {
+        self.proxy = Some(proxy);
+        self
+    }
+
+    /// Set CA certificates (PEM format) for HTTPS connections.
+    pub fn ca_certificates(mut self, certs: Vec<u8>) -> Self {
+        self.ca_certificates = Some(certs);
+        self
+    }
+}
+
 // options that can be provided to the evaluator, such as properties (-p flag from CLI)
 #[derive(Default, Clone)]
 pub struct EvaluatorOptions {
@@ -52,6 +118,13 @@ pub struct EvaluatorOptions {
 
     /// External module readers
     pub external_module_readers: Option<HashMap<String, ExternalReader>>,
+
+    /// HTTP configuration for outgoing requests (proxy, CA certificates).
+    /// Added in Pkl 0.26.0.
+    pub http: Option<HttpOptions>,
+
+    /// Timeout in seconds for evaluating a source module.
+    pub timeout_seconds: Option<u64>,
 }
 
 impl EvaluatorOptions {
@@ -151,6 +224,31 @@ impl EvaluatorOptions {
             let map = HashMap::from([(key.into(), reader)]);
             self.external_module_readers = Some(map);
         }
+        self
+    }
+
+    /// Set HTTP configuration for outgoing requests.
+    ///
+    /// This allows configuring proxy settings and CA certificates for HTTPS connections.
+    /// Added in Pkl 0.26.0.
+    ///
+    /// # Example
+    /// ```no_run
+    /// use rpkl::{EvaluatorOptions, HttpOptions, HttpProxy};
+    ///
+    /// let options = EvaluatorOptions::new()
+    ///     .http(HttpOptions::new()
+    ///         .proxy(HttpProxy::new("http://proxy.example.com:8080")
+    ///             .no_proxy(["localhost", "127.0.0.1"])));
+    /// ```
+    pub fn http(mut self, http: HttpOptions) -> Self {
+        self.http = Some(http);
+        self
+    }
+
+    /// Set the timeout in seconds for evaluating a source module.
+    pub fn timeout_seconds(mut self, seconds: u64) -> Self {
+        self.timeout_seconds = Some(seconds);
         self
     }
 }

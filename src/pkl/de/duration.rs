@@ -1,37 +1,6 @@
-use serde::{
-    de::{self, Deserializer, MapAccess, Visitor},
-    forward_to_deserialize_any,
-};
+use serde::de::{self, MapAccess};
 
 use super::KeyDeserializer;
-
-pub struct DurationDeserializer<'a> {
-    pub duration: &'a std::time::Duration,
-}
-
-impl<'de> Deserializer<'de> for DurationDeserializer<'_> {
-    type Error = crate::Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 u8 u16 u32 f32 char string str
-        bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map enum struct identifier ignored_any
-
-        i64 u64 f64
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
-    where
-        V: Visitor<'de>,
-    {
-        visitor
-            .visit_map(DurationMapAccess {
-                duration: self.duration,
-                state: 0,
-            })
-            .map_err(|_| crate::Error::Message("failed to deserialize duration".to_string()))
-    }
-}
 
 pub struct DurationMapAccess<'a> {
     pub duration: &'a std::time::Duration,

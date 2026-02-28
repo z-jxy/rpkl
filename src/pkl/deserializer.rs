@@ -325,7 +325,7 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
 }
 
 impl PklValue {
-    pub fn into_deserializer(&self) -> PklValueDeserializer {
+    pub fn into_deserializer(&self) -> PklValueDeserializer<'_> {
         PklValueDeserializer(self)
     }
 }

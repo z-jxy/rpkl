@@ -44,14 +44,10 @@ impl<'de> Visitor<'de> for PklVisitor {
         #[cfg(feature = "trace")]
         debug!("visiting i64: {}", value);
 
-        if i32::try_from(value).is_ok() {
-            if value >= 0 {
-                Ok(Value::Int(crate::internal::Integer::Pos(value as u64)))
-            } else {
-                Ok(Value::Int(crate::internal::Integer::Neg(value)))
-            }
+        if value >= 0 {
+            Ok(Value::Int(crate::internal::Integer::Pos(value as u64)))
         } else {
-            Err(E::custom(format!("i32 out of range: {value}")))
+            Ok(Value::Int(crate::internal::Integer::Neg(value)))
         }
     }
 
@@ -244,5 +240,20 @@ impl<'de> Visitor<'de> for PklVisitor {
     {
         let _ = data;
         Err(de::Error::invalid_type(de::Unexpected::Enum, &self))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::value::PklValue;
+
+    #[test]
+    fn test_visit_i64() {
+        let int: PklValue = serde_json::from_str("-3000000000").unwrap();
+        assert_eq!(
+            int,
+            PklValue::Int(crate::internal::Integer::Neg(-3000000000))
+        );
     }
 }

@@ -1,12 +1,15 @@
 pub use crate::internal::msgapi::PathElements;
-use crate::internal::msgapi::{
-    PklMessage,
-    incoming::PklServerMessage,
-    outgoing::{
-        ListModulesResponse, ListResourcesResponse, ReadModuleResponse, ReadResourceResponse,
+use crate::utils::macros::_warn;
+use crate::{
+    context::Context as _,
+    internal::msgapi::{
+        PklMessage,
+        incoming::PklServerMessage,
+        outgoing::{
+            ListModulesResponse, ListResourcesResponse, ReadModuleResponse, ReadResourceResponse,
+        },
     },
 };
-use crate::utils::macros::_warn;
 use std::{io::Write, sync::Arc};
 
 pub trait PklResourceReader {
@@ -137,7 +140,10 @@ pub(crate) fn handle_list_resources<W: Write>(
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let response = msg.response.as_map().unwrap();
+    let response = msg
+        .response
+        .as_map()
+        .context("expected map for `handle_list_resources` message")?;
 
     // TODO: could add `with-serde` feature to rmpv to make this easier
     // but might be overkill for messages with a small number of fields
@@ -146,7 +152,7 @@ pub(crate) fn handle_list_resources<W: Write>(
     let request_id: i64 = extract_field(response, "requestId")?;
     let uri: &str = extract_field(response, "uri")?;
 
-    let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
+    let uri_scheme = parse_scheme(uri).context("invalid URI")?;
 
     let Some(reader) = resource_readers.iter().find(|r| r.scheme() == uri_scheme) else {
         _warn!("No reader found for scheme: {:?}", uri);
@@ -191,13 +197,16 @@ pub(crate) fn handle_list_modules<W: Write>(
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let response = msg.response.as_map().unwrap();
+    let response = msg
+        .response
+        .as_map()
+        .context("expected map for `handle_list_modules` message")?;
 
     let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
     let request_id: i64 = extract_field(response, "requestId")?;
     let uri: &str = extract_field(response, "uri")?;
 
-    let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
+    let uri_scheme = parse_scheme(uri).context("invalid URI")?;
 
     let Some(reader) = module_readers.iter().find(|r| r.scheme() == uri_scheme) else {
         _warn!("No reader found for scheme: {:?}", uri);
@@ -242,13 +251,16 @@ pub(crate) fn handle_read_resource<W: Write>(
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let response = msg.response.as_map().unwrap();
+    let response = msg
+        .response
+        .as_map()
+        .context("expected map for `handle_read_resource` message")?;
 
     let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
     let request_id: i64 = extract_field(response, "requestId")?;
     let uri: &str = extract_field(response, "uri")?;
 
-    let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
+    let uri_scheme = parse_scheme(uri).context("invalid URI")?;
 
     let Some(reader) = resource_readers.iter().find(|r| r.scheme() == uri_scheme) else {
         _warn!("No reader found for scheme: {:?}", uri);
@@ -295,13 +307,16 @@ pub(crate) fn handle_read_module<W: Write>(
     msg: &PklServerMessage,
     writer: &mut W,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let response = msg.response.as_map().unwrap();
+    let response = msg
+        .response
+        .as_map()
+        .context("expected map for `handle_read_module` message")?;
 
     let evaluator_id: i64 = extract_field(response, "evaluatorId")?;
     let request_id: i64 = extract_field(response, "requestId")?;
     let uri: &str = extract_field(response, "uri")?;
 
-    let uri_scheme = parse_scheme(uri).expect("Invalid URI, this is a bug");
+    let uri_scheme = parse_scheme(uri).context("invalid URI")?;
 
     let Some(reader) = module_readers.iter().find(|r| r.scheme() == uri_scheme) else {
         _warn!("No reader found for scheme: {:?}", uri);

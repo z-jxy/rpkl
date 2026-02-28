@@ -254,7 +254,7 @@ impl EvaluatorOptions {
 }
 
 pub struct Evaluator {
-    pub evaluator_id: i64,
+    evaluator_id: i64,
     stdin: std::process::ChildStdin,
     stdout: std::process::ChildStdout,
     client_module_readers: Vec<Arc<dyn PklModuleReader>>,

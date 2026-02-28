@@ -399,7 +399,7 @@ impl Evaluator {
 
         let slice = result
             .as_slice()
-            .context("expected result to be a slice, got: {result:?}")?;
+            .context(format!("expected result to be a slice, got: {result:?}"))?;
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
         _debug!("rmpv pkl module: {:#?}", rmpv_ast);

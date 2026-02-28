@@ -413,13 +413,17 @@ impl Drop for Evaluator {
     fn drop(&mut self) {
         let child_stdin = &mut self.stdin;
 
-        let msg = CloseEvaluator {
+        let Ok(msg) = CloseEvaluator {
             evaluator_id: self.evaluator_id,
         }
-        .encode_msg()
-        .expect("failed to encode close evaluator message");
+        .encode_msg() else {
+            eprintln!("failed to encode close evaluator message");
+            return;
+        };
 
-        pkl_send_msg_one_way(child_stdin, &msg).expect("failed to close evaluator");
+        if let Err(e) = pkl_send_msg_one_way(child_stdin, &msg) {
+            eprintln!("failed to close evaluator: {e}");
+        };
     }
 }
 

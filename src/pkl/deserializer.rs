@@ -302,11 +302,18 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
 
             PklValue::List(elements) => visitor.visit_seq(PklSeqAccess::new(elements)),
 
-            PklValue::Range(r) => visitor.visit_map(RangeMapAccess {
-                start: &r.start,
-                end: &r.end,
-                state: 0,
-            }),
+            PklValue::IntSeq(crate::value::IntSeq { start, end, step }) => {
+                if *step != 1 {
+                    return Err(crate::Error::DeserializeError(format!(
+                        "cannot deserialize IntSeq with step={step} into std::ops::Range<i64>"
+                    )));
+                }
+                visitor.visit_map(RangeMapAccess {
+                    start,
+                    end,
+                    state: 0,
+                })
+            }
 
             PklValue::Duration(duration) => {
                 visitor.visit_map(DurationMapAccess { duration, state: 0 })

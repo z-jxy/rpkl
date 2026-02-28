@@ -264,7 +264,10 @@ impl Context<'_> {
                     Cow::Borrowed("Vec<rpkl::Value>")
                 }
             }
-            PklValue::Range(_) => Cow::Borrowed("std::ops::Range<i64>"),
+            PklValue::IntSeq(crate::value::IntSeq { step, .. }) if *step == 1 => {
+                Cow::Borrowed("std::ops::Range<i64>")
+            }
+            PklValue::IntSeq { .. } => Cow::Borrowed("rpkl::Value"),
             PklValue::Bytes(_) => Cow::Borrowed("Vec<u8>"),
             PklValue::DataSize(_)
             | PklValue::Duration(_)

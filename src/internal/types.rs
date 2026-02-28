@@ -123,7 +123,9 @@ impl From<PklNonPrimitive> for PklValue {
             PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
             PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
             PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
-            PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
+            PklNonPrimitive::IntSeq(_, start, end, step) => {
+                PklValue::IntSeq(crate::value::IntSeq { start, end, step })
+            }
             PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
             PklNonPrimitive::Bytes(_, bytes) => PklValue::Bytes(bytes),
         }
@@ -200,8 +202,8 @@ pub(crate) enum PklNonPrimitive {
     Duration(u64, std::time::Duration),
     DataSize(u64, DataSize),
     Pair(u64, PklValue, PklValue),
-    /// 0: type id, 1: start, 2: end
-    IntSeq(u64, i64, i64),
+    /// 0: type id, 1: start, 2: end, 3: step
+    IntSeq(u64, i64, i64, i64),
     Regex(u64, String),
     Bytes(u64, Vec<u8>),
 }

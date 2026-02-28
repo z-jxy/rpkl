@@ -214,11 +214,10 @@ fn decode_datasize(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitiv
 
 #[inline]
 fn decode_intseq(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    // nothing is done with 'step' slot of the int seq structure from pkl
     let start = slots[0].as_i64().context("expected start for int seq")?;
     let end = slots[1].as_i64().context("expected end for int seq")?;
-    // let step = slots[2].as_i64().context("expected step for int seq")?;
-    Ok(PklNonPrimitive::IntSeq(type_id, start, end))
+    let step = slots[2].as_i64().context("expected step for int seq")?;
+    Ok(PklNonPrimitive::IntSeq(type_id, start, end, step))
 }
 
 fn decode_duration(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {

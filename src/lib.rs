@@ -16,7 +16,7 @@ pub use api::evaluator::{EvaluatorOptions, HttpOptions, HttpProxy};
 pub use value::PklValue as Value;
 
 use pkl::Deserializer;
-use pkl::PklSerialize;
+use pkl::IntoPklMap;
 
 #[cfg(feature = "build-script")]
 pub use codegen::build_script;
@@ -118,7 +118,7 @@ where
     let mut evaluator = api::Evaluator::new_from_options(options)?;
     let pkl_mod = evaluator.evaluate_module(path.as_ref())?;
 
-    let pkld = pkl_mod.serialize_pkl_ast()?;
+    let pkld = pkl_mod.into_pkl_map();
 
     utils::macros::_trace!("serialized pkl data {:?}", pkld);
 

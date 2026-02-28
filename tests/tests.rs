@@ -99,8 +99,11 @@ mod tests {
     #[test]
     fn http_proxy_options_builder() {
         // Test that the builder API works correctly
-        let proxy = HttpProxy::new("http://proxy.example.com:8080")
-            .no_proxy(["localhost", "127.0.0.1", "10.0.0.0/8"]);
+        let proxy = HttpProxy::new("http://proxy.example.com:8080").no_proxy([
+            "localhost",
+            "127.0.0.1",
+            "10.0.0.0/8",
+        ]);
 
         assert_eq!(
             proxy.address,
@@ -152,10 +155,7 @@ mod tests {
         );
         assert_eq!(
             proxy.no_proxy,
-            Some(vec![
-                "localhost".to_string(),
-                "*.internal.net".to_string()
-            ])
+            Some(vec!["localhost".to_string(), "*.internal.net".to_string()])
         );
     }
 }

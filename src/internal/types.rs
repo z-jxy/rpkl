@@ -1,4 +1,4 @@
-use crate::PklSerialize;
+use crate::IntoPklMap;
 use crate::pkl::de::PklVisitor;
 use crate::value::{DataSize, PklValue};
 use serde::{Deserialize, Serialize};
@@ -114,7 +114,7 @@ impl From<PklNonPrimitive> for PklValue {
     fn from(np: PklNonPrimitive) -> Self {
         match np {
             PklNonPrimitive::TypedDynamic(_, _, _, children) => {
-                PklValue::Map(children.serialize_pkl_ast().unwrap())
+                PklValue::Map(children.into_pkl_map())
             }
             PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
                 PklValue::List(items.into_iter().collect())

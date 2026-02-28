@@ -333,7 +333,7 @@ impl PklValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pkl::PklSerialize;
+    use crate::pkl::IntoPklMap;
     use rmpv::Value;
     use serde::Deserialize;
 
@@ -406,9 +406,7 @@ mod tests {
 
         let pkl_mod = crate::decoder::decode_module(&eval_module_response)
             .expect("failed to evaluate pkl ast");
-        let mapped = pkl_mod
-            .serialize_pkl_ast()
-            .expect("failed to serialize pkl module");
+        let mapped = pkl_mod.into_pkl_map();
 
         let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");
@@ -502,9 +500,7 @@ mod tests {
         };
         // let now = std::time::Instant::now();
         let pkl_mod = crate::decoder::decode_module(&ast).expect("failed to evaluate pkl ast");
-        let mapped = pkl_mod
-            .serialize_pkl_ast()
-            .expect("failed to serialize pkl module");
+        let mapped = pkl_mod.into_pkl_map();
 
         let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");

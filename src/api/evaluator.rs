@@ -474,16 +474,16 @@ fn pkl_send_msg_child(
         Ok(response) => {
             let decoded_array = response
                 .as_array()
-                .expect("expected server response to be formatted as an array");
-            let first_element = decoded_array.first().expect(
+                .context("expected server response to be formatted as an array")?;
+            let first_element = decoded_array.first().context(
                 "malformed server response, received empty array, expected array of length 2",
-            );
-            let message_header_hex = first_element.as_u64().expect(
+            )?;
+            let message_header_hex = first_element.as_u64().context(
                 "malformed server response, expected first element to be a u64 representing the message header",
-            );
-            let second = decoded_array.get(1).expect(
+            )?;
+            let second = decoded_array.get(1).context(
                 "malformed server response, expected second element to be a u64 representing the message header",
-            );
+            )?;
 
             Ok(PklServerMessage {
                 header: message_header_hex,

@@ -181,7 +181,7 @@ impl<'de> Visitor<'de> for PklVisitor {
     where
         E: de::Error,
     {
-        Err(de::Error::invalid_type(de::Unexpected::Unit, &self))
+        Ok(Value::Null)
     }
 
     fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
@@ -245,8 +245,13 @@ impl<'de> Visitor<'de> for PklVisitor {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::value::PklValue;
+
+    #[test]
+    fn test_visit_unit() {
+        let unit: PklValue = serde_json::from_str("null").unwrap();
+        assert_eq!(unit, PklValue::Null);
+    }
 
     #[test]
     fn test_visit_i64() {

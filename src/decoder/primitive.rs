@@ -1,6 +1,6 @@
 use crate::{
-    internal::{Integer, PklPrimitive},
     Error, Result,
+    internal::{Integer, PklPrimitive},
 };
 
 /// decodes a primitive value from `rmpv::Value` to `PklPrimitive`.
@@ -12,7 +12,9 @@ pub fn decode_primitive(value: &rmpv::Value) -> Result<PklPrimitive> {
         rmpv::Value::Integer(_) => decode_int(value),
         rmpv::Value::F32(f) => Ok(PklPrimitive::Float(f64::from(*f))),
         rmpv::Value::F64(f) => Ok(PklPrimitive::Float(*f)),
-        _ => unimplemented!("parse other primitive types. value: {}", value),
+        _ => Err(Error::Message(format!(
+            "unexpected primitive value, got: {value:?}"
+        ))),
     }
 }
 

@@ -1,16 +1,19 @@
 use std::{io::Write, sync::Arc};
 
-use crate::internal::msgapi::{
-    PklMessage,
-    codes::{
-        CLOSE_EXTERNAL_PROCESS, INITIALIZE_MODULE_READER_REQUEST,
-        INITIALIZE_RESOURCE_READER_REQUEST, LIST_MODULES_REQUEST, LIST_RESOURCES_REQUEST,
-        READ_MODULE_REQUEST, READ_RESOURCE_REQUEST,
-    },
-    incoming::PklServerMessage,
-    outgoing::{
-        ClientModuleReader, ClientResourceReader, InitializeModuleReaderResponse,
-        InitializeResourceReaderResponse,
+use crate::{
+    context::Context as _,
+    internal::msgapi::{
+        PklMessage,
+        codes::{
+            CLOSE_EXTERNAL_PROCESS, INITIALIZE_MODULE_READER_REQUEST,
+            INITIALIZE_RESOURCE_READER_REQUEST, LIST_MODULES_REQUEST, LIST_RESOURCES_REQUEST,
+            READ_MODULE_REQUEST, READ_RESOURCE_REQUEST,
+        },
+        incoming::PklServerMessage,
+        outgoing::{
+            ClientModuleReader, ClientResourceReader, InitializeModuleReaderResponse,
+            InitializeResourceReaderResponse,
+        },
     },
 };
 
@@ -84,9 +87,19 @@ impl ExternalReaderRuntime {
     ) -> Result<(), Box<dyn std::error::Error>> {
         debug_assert!(pkl_msg.header == INITIALIZE_RESOURCE_READER_REQUEST);
 
-        let map = pkl_msg.response.as_map().unwrap();
-        let request_id = map.first().unwrap().1.as_i64().unwrap();
-        let scheme = map.get(1).unwrap().1.as_str().unwrap();
+        let map = pkl_msg.response.as_map().context("expected map")?;
+        let request_id = map
+            .first()
+            .unwrap()
+            .1
+            .as_i64()
+            .context("expected integer request id")?;
+        let scheme = map
+            .get(1)
+            .unwrap()
+            .1
+            .as_str()
+            .context("expected string scheme")?;
 
         // TODO: send error to pkl
         let Some(reader) = self.resource_readers.iter().find(|r| r.scheme() == scheme) else {

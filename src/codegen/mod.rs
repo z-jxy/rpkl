@@ -298,7 +298,7 @@ impl Context<'_> {
         }
 
         assert!(types.len() == 1);
-        Some(types.into_iter().next().unwrap())
+        types.into_iter().next()
     }
 
     fn generate_field(

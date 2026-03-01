@@ -157,16 +157,19 @@ impl<'de> SeqAccess<'de> for BytesSeqAccess<'_> {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct PklMapAccess<'a> {
-    // key: &'a str,
-    de: &'a mut Deserializer<'a>,
+    map: &'a MapImpl<String, PklValue>,
     index: usize,
     keys: Vec<&'a String>,
 }
 
 impl<'a> PklMapAccess<'a> {
-    fn new(de: &'a mut Deserializer<'a>) -> Self {
-        let keys = de.map.keys().collect();
-        PklMapAccess { de, keys, index: 0 }
+    fn new(map: &'a MapImpl<String, PklValue>) -> Self {
+        let keys = map.keys().collect();
+        PklMapAccess {
+            map,
+            keys,
+            index: 0,
+        }
     }
 }
 
@@ -200,7 +203,7 @@ impl<'de> MapAccess<'de> for PklMapAccess<'_> {
 
         let key = self.keys[self.index - 1];
 
-        let Some(value) = self.de.map.get(key) else {
+        let Some(value) = self.map.get(key) else {
             return Err(Error::Message(format!("no value found for: {key}")));
         };
 
@@ -323,9 +326,7 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
                 pair: (a, b),
             }),
             PklValue::DataSize(d) => visitor.visit_map(DataSizeMapAccess { input: d, state: 0 }),
-            PklValue::Map(m) => {
-                visitor.visit_map(PklMapAccess::new(&mut Deserializer::from_pkl_map(m)))
-            }
+            PklValue::Map(m) => visitor.visit_map(PklMapAccess::new(m)),
             PklValue::Bytes(bytes) => visitor.visit_bytes(bytes),
         }
     }

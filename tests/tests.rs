@@ -258,6 +258,7 @@ mod non_primitive_values {
     #[test]
     fn durations() -> Result<(), rpkl::Error> {
         #[derive(serde::Deserialize, Debug)]
+        #[allow(unused)]
         struct DurationsConfig {
             duration_ns: std::time::Duration,
             duration_us: std::time::Duration,

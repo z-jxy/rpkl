@@ -14,7 +14,6 @@ pub enum Error {
     PklProcessStart,
     PklServerError { pkl_error: String },
 
-    SerializeAst,
     DecodeError(String),
     DeserializeError(String),
 

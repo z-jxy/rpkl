@@ -19,54 +19,7 @@ impl ObjectMember {
     pub fn get_ident(&self) -> &str {
         self.0.as_str()
     }
-
-    // #[cfg(feature = "codegen")]
-    // pub fn get_value(&self) -> &IPklValue {
-    //     &self.2
-    // }
-
-    // /// Serialize the member to a JSON object
-    // ///
-    // /// # Returns
-    // ///
-    // /// A tuple containing the member's identifier and its JSON value
-    // pub(crate) fn into_pkl_value(self) -> Result<(String, PklValue)> {
-    //     let (_, ident, value) = self.take();
-    //     let v = match value {
-    //         IPklValue::NonPrimitive(np) => match np {
-    //             // serialize nested children
-    //             PklNonPrimitive::TypedDynamic(_, _, _, children) => {
-    //                 PklValue::Map(children.serialize_pkl_ast()?)
-    //             }
-    //             PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
-    //                 PklValue::List(items.into_iter().collect())
-    //             }
-    //             PklNonPrimitive::Mapping(_, m) => m,
-    //             PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
-    //             PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
-    //             PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
-    //             PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
-    //             PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
-    //         },
-    //         IPklValue::Primitive(p) => match p {
-    //             PklPrimitive::Int(i) => match i {
-    //                 Integer::Pos(u) => PklValue::Int(Integer::Pos(u)),
-    //                 Integer::Neg(i) => PklValue::Int(Integer::Neg(i)),
-    //                 Integer::Float(f) => PklValue::Int(Integer::Float(f)),
-    //             },
-    //             PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
-    //             PklPrimitive::String(s) => PklValue::String(s),
-    //             PklPrimitive::Boolean(b) => PklValue::Boolean(b),
-    //             PklPrimitive::Null => PklValue::Null,
-    //         },
-    //     };
-
-    //     Ok((ident, v))
-    // }
 }
-
-// #[derive(Debug, Clone, Serialize, PartialEq)]
-// struct Pair(pub PklValue, pub PklValue);
 
 #[cfg(test)]
 mod test {

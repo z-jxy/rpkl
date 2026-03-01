@@ -528,7 +528,7 @@ mod tests {
         ];
 
         // Serialize to a map
-        let map = members.serialize_pkl_ast().unwrap();
+        let map = members.into_pkl_map();
 
         // Verify the order is preserved
         let keys: Vec<_> = map.keys().collect();

@@ -8,7 +8,6 @@ use crate::{
     context::Context,
     decoder::primitive::decode_primitive,
     internal::{IPklValue, ObjectMember, PklNonPrimitive, type_constants},
-    utils,
     utils::macros::_trace,
     value::{DataSize, datasize::DataSizeUnit, value::MapImpl},
 };
@@ -21,10 +20,9 @@ pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
         | type_constants::DYNAMIC_MAPPING
         | type_constants::DYNAMIC_LISTING => decode_object_generic(type_id, slots),
         _ => {
-            unimplemented!(
-                "implement parse other non-primitive types. type_id: {}\n",
-                type_id
-            );
+            return Err(Error::Message(format!(
+                "unexpected type id when decoding object member, got: {type_id}",
+            )));
         }
     }
 }
@@ -93,7 +91,9 @@ fn decode_non_primitive(slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
             unreachable!("found TYPE_ALIAS in pkl binary data {}", type_id)
         }
         _ => {
-            unimplemented!("parse other non-primitive types. type_id: {}", type_id);
+            return Err(Error::Message(format!(
+                "unexpected type id when decoding non-primitive value, got: {type_id} (needs to be implemented)",
+            )));
         }
     }
 }

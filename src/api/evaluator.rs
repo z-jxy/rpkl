@@ -367,7 +367,10 @@ impl Evaluator {
                     handle_list_resources(&self.client_resource_readers, &msg, &mut child_stdin)?;
                 }
                 _ => {
-                    unimplemented!("unimplemented request from pkl server: 0x{:x}", msg.header);
+                    return Err(Error::Message(format!(
+                        "unknown request from pkl server: 0x{:x}",
+                        msg.header
+                    )));
                 }
             }
         }

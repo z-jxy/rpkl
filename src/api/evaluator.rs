@@ -254,7 +254,7 @@ impl EvaluatorOptions {
 }
 
 pub struct Evaluator {
-    pub evaluator_id: i64,
+    evaluator_id: i64,
     stdin: std::process::ChildStdin,
     stdout: std::process::ChildStdout,
     client_module_readers: Vec<Arc<dyn PklModuleReader>>,
@@ -367,7 +367,10 @@ impl Evaluator {
                     handle_list_resources(&self.client_resource_readers, &msg, &mut child_stdin)?;
                 }
                 _ => {
-                    unimplemented!("unimplemented request from pkl server: 0x{:x}", msg.header);
+                    return Err(Error::Message(format!(
+                        "unknown request from pkl server: 0x{:x}",
+                        msg.header
+                    )));
                 }
             }
         }
@@ -399,7 +402,7 @@ impl Evaluator {
 
         let slice = result
             .as_slice()
-            .context("expected result to be a slice, got: {result:?}")?;
+            .context(format!("expected result to be a slice, got: {result:?}"))?;
         let rmpv_ast: rmpv::Value = rmpv::decode::value::read_value(&mut &slice[..])?;
 
         _debug!("rmpv pkl module: {:#?}", rmpv_ast);
@@ -413,13 +416,17 @@ impl Drop for Evaluator {
     fn drop(&mut self) {
         let child_stdin = &mut self.stdin;
 
-        let msg = CloseEvaluator {
+        let Ok(msg) = CloseEvaluator {
             evaluator_id: self.evaluator_id,
         }
-        .encode_msg()
-        .expect("failed to encode close evaluator message");
+        .encode_msg() else {
+            eprintln!("failed to encode close evaluator message");
+            return;
+        };
 
-        pkl_send_msg_one_way(child_stdin, &msg).expect("failed to close evaluator");
+        if let Err(e) = pkl_send_msg_one_way(child_stdin, &msg) {
+            eprintln!("failed to close evaluator: {e}");
+        };
     }
 }
 
@@ -470,16 +477,16 @@ fn pkl_send_msg_child(
         Ok(response) => {
             let decoded_array = response
                 .as_array()
-                .expect("expected server response to be formatted as an array");
-            let first_element = decoded_array.first().expect(
+                .context("expected server response to be formatted as an array")?;
+            let first_element = decoded_array.first().context(
                 "malformed server response, received empty array, expected array of length 2",
-            );
-            let message_header_hex = first_element.as_u64().expect(
+            )?;
+            let message_header_hex = first_element.as_u64().context(
                 "malformed server response, expected first element to be a u64 representing the message header",
-            );
-            let second = decoded_array.get(1).expect(
+            )?;
+            let second = decoded_array.get(1).context(
                 "malformed server response, expected second element to be a u64 representing the message header",
-            );
+            )?;
 
             Ok(PklServerMessage {
                 header: message_header_hex,

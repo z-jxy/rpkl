@@ -8,7 +8,6 @@ use crate::{
     context::Context,
     decoder::primitive::decode_primitive,
     internal::{IPklValue, ObjectMember, PklNonPrimitive, type_constants},
-    utils,
     utils::macros::_trace,
     value::{DataSize, datasize::DataSizeUnit, value::MapImpl},
 };
@@ -21,10 +20,9 @@ pub fn decode_object_member(data: &[rmpv::Value]) -> Result<ObjectMember> {
         | type_constants::DYNAMIC_MAPPING
         | type_constants::DYNAMIC_LISTING => decode_object_generic(type_id, slots),
         _ => {
-            unimplemented!(
-                "implement parse other non-primitive types. type_id: {}\n",
-                type_id
-            );
+            return Err(Error::Message(format!(
+                "unexpected type id when decoding object member, got: {type_id}",
+            )));
         }
     }
 }
@@ -93,7 +91,9 @@ fn decode_non_primitive(slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
             unreachable!("found TYPE_ALIAS in pkl binary data {}", type_id)
         }
         _ => {
-            unimplemented!("parse other non-primitive types. type_id: {}", type_id);
+            return Err(Error::Message(format!(
+                "unexpected type id when decoding non-primitive value, got: {type_id} (needs to be implemented)",
+            )));
         }
     }
 }
@@ -208,58 +208,47 @@ fn decode_pair(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
 fn decode_datasize(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     let float = slots[0].as_f64().context("expected float for data size")?;
     let size_unit = slots[1].as_str().context("expected size type")?;
-    let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
+    let ds = DataSize::new(float, DataSizeUnit::try_from(size_unit)?);
     Ok(PklNonPrimitive::DataSize(type_id, ds))
 }
 
 #[inline]
 fn decode_intseq(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    // nothing is done with 'step' slot of the int seq structure from pkl
     let start = slots[0].as_i64().context("expected start for int seq")?;
     let end = slots[1].as_i64().context("expected end for int seq")?;
-    Ok(PklNonPrimitive::IntSeq(type_id, start, end))
+    let step = slots[2].as_i64().context("expected step for int seq")?;
+    Ok(PklNonPrimitive::IntSeq(type_id, start, end, step))
 }
 
 fn decode_duration(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
-    // need u64 to convert to Duration
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let float_time = slots[0].as_f64().context("expected float for duration")? as u64;
-    let duration_unit = slots[1].as_str().context("expected time type")?;
-    let duration = match duration_unit {
-        "min" => {
-            let Some(d) = utils::duration::from_mins(float_time) else {
-                return Err(Error::DecodeError(format!(
-                    "failed to parse duration from mins: {float_time}"
-                )));
-            };
-            d
-        }
-        "h" => {
-            let Some(d) = utils::duration::from_hours(float_time) else {
-                return Err(Error::DecodeError(format!(
-                    "failed to parse duration from hours: {float_time}"
-                )));
-            };
-            d
-        }
-        "d" => {
-            let Some(d) = utils::duration::from_days(float_time) else {
-                return Err(Error::DecodeError(format!(
-                    "failed to parse duration from days: {float_time}"
-                )));
-            };
-            d
-        }
-        "ns" => std::time::Duration::from_nanos(float_time),
-        "us" => std::time::Duration::from_micros(float_time),
-        "ms" => std::time::Duration::from_millis(float_time),
-        "s" => std::time::Duration::from_secs(float_time),
+    let value = slots[0].as_f64().context("expected float for duration")?;
+    let unit = slots[1].as_str().context("expected time type")?;
+
+    let nanos_f64 = match unit {
+        "ns" => value,
+        "us" => value * 1_000.0,
+        "ms" => value * 1_000_000.0,
+        "s" => value * 1_000_000_000.0,
+        "min" => value * 60.0 * 1_000_000_000.0,
+        "h" => value * 3_600.0 * 1_000_000_000.0,
+        "d" => value * 86_400.0 * 1_000_000_000.0,
         _ => {
             return Err(Error::DecodeError(format!(
-                "unsupported duration_unit, got {duration_unit:?}"
+                "unknown duration unit: {unit:?}"
             )));
         }
     };
+
+    if !nanos_f64.is_finite() || nanos_f64 < 0.0 {
+        // TODO: pkl allows for negative durations
+        // supporting this would require adding a new type that can represent negative durations
+        return Err(Error::DecodeError(format!(
+            "invalid duration value: {value} {unit}"
+        )));
+    }
+
+    let duration = std::time::Duration::from_nanos(nanos_f64.round() as u64);
+
     Ok(PklNonPrimitive::Duration(type_id, duration))
 }
 

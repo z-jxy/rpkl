@@ -1,4 +1,4 @@
-use crate::PklSerialize;
+use crate::IntoPklMap;
 use crate::pkl::de::PklVisitor;
 use crate::value::{DataSize, PklValue};
 use serde::{Deserialize, Serialize};
@@ -19,54 +19,7 @@ impl ObjectMember {
     pub fn get_ident(&self) -> &str {
         self.0.as_str()
     }
-
-    // #[cfg(feature = "codegen")]
-    // pub fn get_value(&self) -> &IPklValue {
-    //     &self.2
-    // }
-
-    // /// Serialize the member to a JSON object
-    // ///
-    // /// # Returns
-    // ///
-    // /// A tuple containing the member's identifier and its JSON value
-    // pub(crate) fn into_pkl_value(self) -> Result<(String, PklValue)> {
-    //     let (_, ident, value) = self.take();
-    //     let v = match value {
-    //         IPklValue::NonPrimitive(np) => match np {
-    //             // serialize nested children
-    //             PklNonPrimitive::TypedDynamic(_, _, _, children) => {
-    //                 PklValue::Map(children.serialize_pkl_ast()?)
-    //             }
-    //             PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
-    //                 PklValue::List(items.into_iter().collect())
-    //             }
-    //             PklNonPrimitive::Mapping(_, m) => m,
-    //             PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
-    //             PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
-    //             PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
-    //             PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
-    //             PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
-    //         },
-    //         IPklValue::Primitive(p) => match p {
-    //             PklPrimitive::Int(i) => match i {
-    //                 Integer::Pos(u) => PklValue::Int(Integer::Pos(u)),
-    //                 Integer::Neg(i) => PklValue::Int(Integer::Neg(i)),
-    //                 Integer::Float(f) => PklValue::Int(Integer::Float(f)),
-    //             },
-    //             PklPrimitive::Float(f) => PklValue::Int(Integer::Float(f)),
-    //             PklPrimitive::String(s) => PklValue::String(s),
-    //             PklPrimitive::Boolean(b) => PklValue::Boolean(b),
-    //             PklPrimitive::Null => PklValue::Null,
-    //         },
-    //     };
-
-    //     Ok((ident, v))
-    // }
 }
-
-// #[derive(Debug, Clone, Serialize, PartialEq)]
-// struct Pair(pub PklValue, pub PklValue);
 
 #[cfg(test)]
 mod test {
@@ -114,7 +67,7 @@ impl From<PklNonPrimitive> for PklValue {
     fn from(np: PklNonPrimitive) -> Self {
         match np {
             PklNonPrimitive::TypedDynamic(_, _, _, children) => {
-                PklValue::Map(children.serialize_pkl_ast().unwrap())
+                PklValue::Map(children.into_pkl_map())
             }
             PklNonPrimitive::List(_, items) | PklNonPrimitive::Set(_, items) => {
                 PklValue::List(items.into_iter().collect())
@@ -123,7 +76,9 @@ impl From<PklNonPrimitive> for PklValue {
             PklNonPrimitive::Duration(_, d) => PklValue::Duration(d),
             PklNonPrimitive::DataSize(_, ds) => PklValue::DataSize(ds),
             PklNonPrimitive::Pair(_, a, b) => PklValue::Pair(Box::new(a), Box::new(b)),
-            PklNonPrimitive::IntSeq(_, a, b) => PklValue::Range(a..b),
+            PklNonPrimitive::IntSeq(_, start, end, step) => {
+                PklValue::IntSeq(crate::value::IntSeq { start, end, step })
+            }
             PklNonPrimitive::Regex(_, r) => PklValue::Regex(r),
             PklNonPrimitive::Bytes(_, bytes) => PklValue::Bytes(bytes),
         }
@@ -200,8 +155,8 @@ pub(crate) enum PklNonPrimitive {
     Duration(u64, std::time::Duration),
     DataSize(u64, DataSize),
     Pair(u64, PklValue, PklValue),
-    /// 0: type id, 1: start, 2: end
-    IntSeq(u64, i64, i64),
+    /// 0: type id, 1: start, 2: end, 3: step
+    IntSeq(u64, i64, i64, i64),
     Regex(u64, String),
     Bytes(u64, Vec<u8>),
 }

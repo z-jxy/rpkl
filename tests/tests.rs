@@ -99,8 +99,11 @@ mod tests {
     #[test]
     fn http_proxy_options_builder() {
         // Test that the builder API works correctly
-        let proxy = HttpProxy::new("http://proxy.example.com:8080")
-            .no_proxy(["localhost", "127.0.0.1", "10.0.0.0/8"]);
+        let proxy = HttpProxy::new("http://proxy.example.com:8080").no_proxy([
+            "localhost",
+            "127.0.0.1",
+            "10.0.0.0/8",
+        ]);
 
         assert_eq!(
             proxy.address,
@@ -152,10 +155,7 @@ mod tests {
         );
         assert_eq!(
             proxy.no_proxy,
-            Some(vec![
-                "localhost".to_string(),
-                "*.internal.net".to_string()
-            ])
+            Some(vec!["localhost".to_string(), "*.internal.net".to_string()])
         );
     }
 }
@@ -253,5 +253,38 @@ mod non_primitive_values {
 
         assert!(bytes_config.my_bytes.is_bytes());
         assert_eq!(&bytes_config.my_bytes.as_bytes().unwrap(), &config.my_bytes);
+    }
+
+    #[test]
+    fn durations() -> Result<(), rpkl::Error> {
+        #[derive(serde::Deserialize, Debug)]
+        #[allow(unused)]
+        struct DurationsConfig {
+            duration_ns: std::time::Duration,
+            duration_us: std::time::Duration,
+            duration_ms: std::time::Duration,
+            duration_s: std::time::Duration,
+            duration_min: std::time::Duration,
+            duration_h: std::time::Duration,
+            duration_d: std::time::Duration,
+
+            // TODO: support negative durations
+            // negative_durzation: std::time::Duration,
+            floating_duration: std::time::Duration,
+            floating_duration_ms: std::time::Duration,
+        }
+
+        let path = pkl_tests_file("durations.pkl");
+        let config = rpkl::from_config::<DurationsConfig>(path)?;
+
+        assert_eq!(config.duration_min, std::time::Duration::from_mins(5));
+        assert_eq!(
+            config.floating_duration_ms,
+            std::time::Duration::from_nanos(2_500_000) // 2.5ms = 2,500,000 ns
+        );
+
+        println!("config: {:#?}", config);
+
+        Ok(())
     }
 }

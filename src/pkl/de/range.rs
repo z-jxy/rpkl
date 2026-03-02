@@ -1,43 +1,8 @@
-use serde::{
-    de::{self, Deserializer, MapAccess, Visitor},
-    forward_to_deserialize_any,
-};
+use serde::de::{self, MapAccess};
 
 use super::KeyDeserializer;
 
-pub struct RangeDeserializer<'a> {
-    pub start: &'a i64,
-    pub end: &'a i64,
-}
-
-impl<'de> Deserializer<'de> for RangeDeserializer<'_> {
-    type Error = crate::Error;
-
-    forward_to_deserialize_any! {
-        bool i8 i16 i32 u8 u16 u32 f32 char string str
-        bytes byte_buf option unit unit_struct newtype_struct seq
-        tuple tuple_struct map enum struct identifier ignored_any
-
-        i64 u64 f64
-    }
-
-    fn deserialize_any<V>(self, visitor: V) -> crate::Result<V::Value>
-    where
-        V: Visitor<'de>,
-    {
-        visitor
-            .visit_map(RangeMapAccess {
-                // input: self.input,
-                start: self.start,
-                end: self.end,
-                state: 0,
-            })
-            .map_err(|e| crate::Error::Message(format!("failed to deserialize range: {e}")))
-    }
-}
-
 pub struct RangeMapAccess<'a> {
-    // input: &'a str,
     pub state: u8,
     pub start: &'a i64,
     pub end: &'a i64,

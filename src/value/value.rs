@@ -26,7 +26,7 @@ pub enum PklValue {
 
     Pair(Box<PklValue>, Box<PklValue>), // needs indirection
 
-    Range(std::ops::Range<i64>),
+    IntSeq(IntSeq),
     DataSize(DataSize),
     Bytes(Vec<u8>),
     Null,
@@ -110,4 +110,12 @@ impl PklValue {
     pub fn is_bytes(&self) -> bool {
         matches!(self, PklValue::Bytes(_))
     }
+}
+
+/// 64-bit signed integer range <https://pkl-lang.org/package-docs/pkl/0.26.1/base/IntSeq>
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct IntSeq {
+    pub start: i64,
+    pub end: i64,
+    pub step: i64,
 }

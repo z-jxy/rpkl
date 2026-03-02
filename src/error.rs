@@ -1,4 +1,3 @@
-use std;
 use std::fmt::{self, Display};
 
 use serde::{de, ser};
@@ -15,29 +14,12 @@ pub enum Error {
     PklProcessStart,
     PklServerError { pkl_error: String },
 
-    SerializeAst,
     DecodeError(String),
     DeserializeError(String),
 
     MsgpackSerializeError(rmp_serde::encode::Error),
     MsgpackEncodeError(rmpv::encode::Error),
     MsgpackDecodeError(rmpv::decode::Error),
-
-    Eof,
-    Syntax,
-    ExpectedBoolean,
-    ExpectedInteger,
-    ExpectedString,
-    ExpectedNull,
-    ExpectedArray,
-    ExpectedArrayComma,
-    ExpectedArrayEnd,
-    ExpectedMap,
-    ExpectedMapColon,
-    ExpectedMapComma,
-    ExpectedMapEnd,
-    ExpectedEnum,
-    TrailingCharacters,
 }
 
 impl ser::Error for Error {
@@ -62,8 +44,6 @@ impl Display for Error {
             | Error::PklMalformedResponse { message: msg } => formatter.write_str(msg),
 
             Error::MsgpackDecodeError(e) => formatter.write_str(&e.to_string()),
-
-            Error::Eof => formatter.write_str("unexpected end of input"),
 
             _ => formatter.write_str("unknown error"),
         }

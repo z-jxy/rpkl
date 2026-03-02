@@ -246,8 +246,8 @@ impl Context<'_> {
         match value {
             PklValue::Boolean(_) => Cow::Borrowed("bool"),
             PklValue::Int(integer) => Cow::Borrowed(match integer {
-                Integer::Pos(_) => "u64",
-                Integer::Neg(_) => "i64",
+                // all pkl integers are signed 64-bit integers under the hood
+                Integer::Pos(_) | Integer::Neg(_) => "i64",
                 Integer::Float(_) => "f64",
             }),
             PklValue::String(_) => Cow::Borrowed("String"),
@@ -264,7 +264,10 @@ impl Context<'_> {
                     Cow::Borrowed("Vec<rpkl::Value>")
                 }
             }
-            PklValue::Range(_) => Cow::Borrowed("std::ops::Range<i64>"),
+            PklValue::IntSeq(crate::value::IntSeq { step, .. }) if *step == 1 => {
+                Cow::Borrowed("std::ops::Range<i64>")
+            }
+            PklValue::IntSeq { .. } => Cow::Borrowed("rpkl::Value"),
             PklValue::Bytes(_) => Cow::Borrowed("Vec<u8>"),
             PklValue::DataSize(_)
             | PklValue::Duration(_)
@@ -295,7 +298,7 @@ impl Context<'_> {
         }
 
         assert!(types.len() == 1);
-        Some(types.into_iter().next().unwrap())
+        types.into_iter().next()
     }
 
     fn generate_field(

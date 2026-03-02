@@ -157,16 +157,19 @@ impl<'de> SeqAccess<'de> for BytesSeqAccess<'_> {
 ////////////////////////////////////////////////////////////////////////////////
 
 struct PklMapAccess<'a> {
-    // key: &'a str,
-    de: &'a mut Deserializer<'a>,
+    map: &'a MapImpl<String, PklValue>,
     index: usize,
     keys: Vec<&'a String>,
 }
 
 impl<'a> PklMapAccess<'a> {
-    fn new(de: &'a mut Deserializer<'a>) -> Self {
-        let keys = de.map.keys().collect();
-        PklMapAccess { de, keys, index: 0 }
+    fn new(map: &'a MapImpl<String, PklValue>) -> Self {
+        let keys = map.keys().collect();
+        PklMapAccess {
+            map,
+            keys,
+            index: 0,
+        }
     }
 }
 
@@ -200,7 +203,7 @@ impl<'de> MapAccess<'de> for PklMapAccess<'_> {
 
         let key = self.keys[self.index - 1];
 
-        let Some(value) = self.de.map.get(key) else {
+        let Some(value) = self.map.get(key) else {
             return Err(Error::Message(format!("no value found for: {key}")));
         };
 
@@ -302,11 +305,18 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
 
             PklValue::List(elements) => visitor.visit_seq(PklSeqAccess::new(elements)),
 
-            PklValue::Range(r) => visitor.visit_map(RangeMapAccess {
-                start: &r.start,
-                end: &r.end,
-                state: 0,
-            }),
+            PklValue::IntSeq(crate::value::IntSeq { start, end, step }) => {
+                if *step != 1 {
+                    return Err(crate::Error::DeserializeError(format!(
+                        "cannot deserialize IntSeq with step={step} into std::ops::Range<i64>"
+                    )));
+                }
+                visitor.visit_map(RangeMapAccess {
+                    start,
+                    end,
+                    state: 0,
+                })
+            }
 
             PklValue::Duration(duration) => {
                 visitor.visit_map(DurationMapAccess { duration, state: 0 })
@@ -316,16 +326,14 @@ impl<'de> serde::Deserializer<'de> for PklValueDeserializer<'_> {
                 pair: (a, b),
             }),
             PklValue::DataSize(d) => visitor.visit_map(DataSizeMapAccess { input: d, state: 0 }),
-            PklValue::Map(m) => {
-                visitor.visit_map(PklMapAccess::new(&mut Deserializer::from_pkl_map(m)))
-            }
+            PklValue::Map(m) => visitor.visit_map(PklMapAccess::new(m)),
             PklValue::Bytes(bytes) => visitor.visit_bytes(bytes),
         }
     }
 }
 
 impl PklValue {
-    pub fn into_deserializer(&self) -> PklValueDeserializer {
+    pub fn into_deserializer(&self) -> PklValueDeserializer<'_> {
         PklValueDeserializer(self)
     }
 }
@@ -333,7 +341,7 @@ impl PklValue {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::pkl::PklSerialize;
+    use crate::pkl::IntoPklMap;
     use rmpv::Value;
     use serde::Deserialize;
 
@@ -406,9 +414,7 @@ mod tests {
 
         let pkl_mod = crate::decoder::decode_module(&eval_module_response)
             .expect("failed to evaluate pkl ast");
-        let mapped = pkl_mod
-            .serialize_pkl_ast()
-            .expect("failed to serialize pkl module");
+        let mapped = pkl_mod.into_pkl_map();
 
         let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");
@@ -502,9 +508,7 @@ mod tests {
         };
         // let now = std::time::Instant::now();
         let pkl_mod = crate::decoder::decode_module(&ast).expect("failed to evaluate pkl ast");
-        let mapped = pkl_mod
-            .serialize_pkl_ast()
-            .expect("failed to serialize pkl module");
+        let mapped = pkl_mod.into_pkl_map();
 
         let deserialized = Config::deserialize(&mut Deserializer::from_pkl_map(&mapped))
             .expect("failed to deserialize");
@@ -524,7 +528,7 @@ mod tests {
         ];
 
         // Serialize to a map
-        let map = members.serialize_pkl_ast().unwrap();
+        let map = members.into_pkl_map();
 
         // Verify the order is preserved
         let keys: Vec<_> = map.keys().collect();
@@ -548,5 +552,26 @@ mod tests {
         assert_eq!(deserialized.third, "3");
         assert_eq!(deserialized.first, "1");
         assert_eq!(deserialized.second, "2");
+    }
+
+    #[test]
+    fn decoded_positive_int_is_u64() {
+        let ast = rmpv::Value::Array(vec![
+            rmpv::Value::Integer(1.into()),
+            rmpv::Value::String("test".into()),
+            rmpv::Value::String("file:///test.pkl".into()),
+            rmpv::Value::Array(vec![rmpv::Value::Array(vec![
+                rmpv::Value::Integer(16.into()), // OBJECT_MEMBER type id
+                rmpv::Value::String("port".into()),
+                rmpv::Value::Integer(8080.into()),
+            ])]),
+        ]);
+
+        let pkl_mod = crate::decoder::decode_module(&ast).unwrap();
+        let map = pkl_mod.into_pkl_map();
+        let port = map.get("port").unwrap();
+
+        assert!(port.is_u64(), "positive integer should be u64 variant");
+        assert!(!port.is_i64(), "positive integer should not be i64 variant");
     }
 }

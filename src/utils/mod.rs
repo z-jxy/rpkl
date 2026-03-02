@@ -1,5 +1,3 @@
-pub(crate) mod duration;
-
 // helper macro to conditionally log trace messages
 pub(crate) mod macros {
     macro_rules! _trace {

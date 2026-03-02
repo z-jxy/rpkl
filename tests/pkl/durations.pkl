@@ -1,0 +1,11 @@
+duration_ns = 5.ns  // nanoseconds (smallest unit)
+duration_us = 5.us  // microseconds
+duration_ms = 5.ms  // milliseconds
+duration_s = 5.s   // seconds
+duration_min = 5.min // minutes
+duration_h = 5.h   // hours
+duration_d = 3.d   // days (largest unit)
+
+// negative_duration = -5.min
+floating_duration = 5.13.min
+floating_duration_ms = 2.5.ms

@@ -208,7 +208,7 @@ fn decode_pair(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
 fn decode_datasize(type_id: u64, slots: &[rmpv::Value]) -> Result<PklNonPrimitive> {
     let float = slots[0].as_f64().context("expected float for data size")?;
     let size_unit = slots[1].as_str().context("expected size type")?;
-    let ds = DataSize::new(float, DataSizeUnit::from(size_unit));
+    let ds = DataSize::new(float, DataSizeUnit::try_from(size_unit)?);
     Ok(PklNonPrimitive::DataSize(type_id, ds))
 }
 

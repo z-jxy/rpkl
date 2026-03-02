@@ -23,21 +23,24 @@ pub enum DataSizeUnit {
     Pebibytes,
 }
 
-impl From<&str> for DataSizeUnit {
-    fn from(unit: &str) -> Self {
+impl TryFrom<&str> for DataSizeUnit {
+    type Error = crate::Error;
+    fn try_from(unit: &str) -> Result<Self, Self::Error> {
         match unit {
-            "b" => DataSizeUnit::Bytes,
-            "kb" => DataSizeUnit::Kilobytes,
-            "mb" => DataSizeUnit::Megabytes,
-            "gb" => DataSizeUnit::Gigabytes,
-            "tb" => DataSizeUnit::Terabytes,
-            "pb" => DataSizeUnit::Petabytes,
-            "kib" => DataSizeUnit::Kibibytes,
-            "mib" => DataSizeUnit::Mebibytes,
-            "gib" => DataSizeUnit::Gibibytes,
-            "tib" => DataSizeUnit::Tebibytes,
-            "pib" => DataSizeUnit::Pebibytes,
-            _ => panic!("invalid data size unit: {unit}"),
+            "b" => Ok(DataSizeUnit::Bytes),
+            "kb" => Ok(DataSizeUnit::Kilobytes),
+            "mb" => Ok(DataSizeUnit::Megabytes),
+            "gb" => Ok(DataSizeUnit::Gigabytes),
+            "tb" => Ok(DataSizeUnit::Terabytes),
+            "pb" => Ok(DataSizeUnit::Petabytes),
+            "kib" => Ok(DataSizeUnit::Kibibytes),
+            "mib" => Ok(DataSizeUnit::Mebibytes),
+            "gib" => Ok(DataSizeUnit::Gibibytes),
+            "tib" => Ok(DataSizeUnit::Tebibytes),
+            "pib" => Ok(DataSizeUnit::Pebibytes),
+            _ => Err(crate::Error::Message(format!(
+                "invalid data size unit: {unit}"
+            ))),
         }
     }
 }

@@ -100,7 +100,7 @@ where
 /// # fn main() -> Result<(), rpkl::Error> {
 /// let options = EvaluatorOptions::default()
 ///     .properties([("username", "root"), ("password", "password123")]);
-/// let config: Config = rpkl::from_config("config.pkl")?;
+/// let config: Config = rpkl::from_config_with_options("config.pkl", options)?;
 /// #    Ok(())
 /// # }
 /// ```

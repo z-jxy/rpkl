@@ -5,7 +5,7 @@
 pub struct Example {
 	#[serde(rename = "ip")]
 	pub ip: String,
-	pub port: u64,
+	pub port: i64,
 	pub ints: std::ops::Range<i64>,
 	pub birds: Vec<rpkl::Value>,
 	pub mapping: rpkl::Value,

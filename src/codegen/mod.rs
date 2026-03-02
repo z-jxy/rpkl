@@ -246,8 +246,8 @@ impl Context<'_> {
         match value {
             PklValue::Boolean(_) => Cow::Borrowed("bool"),
             PklValue::Int(integer) => Cow::Borrowed(match integer {
-                Integer::Pos(_) => "u64",
-                Integer::Neg(_) => "i64",
+                // all pkl integers are signed 64-bit integers under the hood
+                Integer::Pos(_) | Integer::Neg(_) => "i64",
                 Integer::Float(_) => "f64",
             }),
             PklValue::String(_) => Cow::Borrowed("String"),
@@ -656,7 +656,7 @@ mod tests {
         let re = regex::Regex::new(r"pub\s+ip:\s+String").unwrap();
         assert!(re.is_match(&contents));
 
-        let re = regex::Regex::new(r"pub\s+port:\s+u64").unwrap();
+        let re = regex::Regex::new(r"pub\s+port:\s+i64").unwrap();
         assert!(re.is_match(&contents));
 
         // check for renamed fields

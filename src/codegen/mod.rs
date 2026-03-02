@@ -656,7 +656,7 @@ mod tests {
         let re = regex::Regex::new(r"pub\s+ip:\s+String").unwrap();
         assert!(re.is_match(&contents));
 
-        let re = regex::Regex::new(r"pub\s+port:\s+i64").unwrap();
+        let re = regex::Regex::new(r"pub\s+port:\s+u64").unwrap();
         assert!(re.is_match(&contents));
 
         // check for renamed fields

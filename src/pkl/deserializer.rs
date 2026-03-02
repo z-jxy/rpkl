@@ -553,4 +553,25 @@ mod tests {
         assert_eq!(deserialized.first, "1");
         assert_eq!(deserialized.second, "2");
     }
+
+    #[test]
+    fn decoded_positive_int_is_u64() {
+        let ast = rmpv::Value::Array(vec![
+            rmpv::Value::Integer(1.into()),
+            rmpv::Value::String("test".into()),
+            rmpv::Value::String("file:///test.pkl".into()),
+            rmpv::Value::Array(vec![rmpv::Value::Array(vec![
+                rmpv::Value::Integer(16.into()), // OBJECT_MEMBER type id
+                rmpv::Value::String("port".into()),
+                rmpv::Value::Integer(8080.into()),
+            ])]),
+        ]);
+
+        let pkl_mod = crate::decoder::decode_module(&ast).unwrap();
+        let map = pkl_mod.into_pkl_map();
+        let port = map.get("port").unwrap();
+
+        assert!(port.is_u64(), "positive integer should be u64 variant");
+        assert!(!port.is_i64(), "positive integer should not be i64 variant");
+    }
 }
